@@ -1,0 +1,56 @@
+Warning: %s: Support for defaultProps will be removed from memo components in a future major release. Use JavaScript default parameters instead.%s Connect(Droppable) 
+    at Provider (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/react-beautiful-dnd.js?v=c460ac5e:945:20)
+    at App (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/react-beautiful-dnd.js?v=c460ac5e:7462:25)
+    at ErrorBoundary2 (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/react-beautiful-dnd.js?v=c460ac5e:1959:35)
+    at DragDropContext (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/react-beautiful-dnd.js?v=c460ac5e:7582:19)
+    at table
+    at div
+    at _c (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/src/components/ui/table.tsx:20:11)
+    at div
+    at div
+    at _c9 (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/src/components/ui/card.tsx:114:12)
+    at div
+    at _c (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/src/components/ui/card.tsx:20:11)
+    at div
+    at div
+    at ManufacturersList (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/src/components/settings-dialog.tsx?t=1744997524872:665:23)
+    at div
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RLTE5R7I.js?v=c460ac5e:41:13
+    at Presence (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-NYR4UMVK.js?v=c460ac5e:24:11)
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tabs.js?v=c460ac5e:446:13
+    at _c5 (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/src/components/ui/tabs.tsx:72:12)
+    at div
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RLTE5R7I.js?v=c460ac5e:41:13
+    at Provider (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-NPI43BMZ.js?v=c460ac5e:38:15)
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tabs.js?v=c460ac5e:324:7
+    at div
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RLTE5R7I.js?v=c460ac5e:41:13
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-3L65UTKK.js?v=c460ac5e:59:7
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=c460ac5e:52:11
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=c460ac5e:33:11
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RLTE5R7I.js?v=c460ac5e:41:13
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-X4BZRCEX.js?v=c460ac5e:29:5
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-Z73Z3B5J.js?v=c460ac5e:230:13
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-Z73Z3B5J.js?v=c460ac5e:153:58
+    at Presence (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-NYR4UMVK.js?v=c460ac5e:24:11)
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-Z73Z3B5J.js?v=c460ac5e:144:64
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=c460ac5e:52:11
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=c460ac5e:33:11
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RLTE5R7I.js?v=c460ac5e:41:13
+    at https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-3L65UTKK.js?v=c460ac5e:258:22
+    at Presence (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-NYR4UMVK.js?v=c460ac5e:24:11)
+    at Provider (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-NPI43BMZ.js?v=c460ac5e:38:15)
+    at DialogPortal (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-Z73Z3B5J.js?v=c460ac5e:107:11)
+    at _c3 (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/src/components/ui/dialog.tsx:51:12)
+    at Provider (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-NPI43BMZ.js?v=c460ac5e:38:15)
+    at Dialog (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-Z73Z3B5J.js?v=c460ac5e:48:5)
+    at SettingsDialog (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/src/components/settings-dialog.tsx?t=1744997524872:430:34)
+    at header
+    at Header (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/src/components/header.tsx?t=1744997524872:24:26)
+    at div
+    at Home (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/src/pages/home.tsx?t=1744997524872:33:21)
+    at Route (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c460ac5e:191:16)
+    at Switch (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c460ac5e:247:17)
+    at Router
+    at App
+    at QueryClientProvider (https://65ae1b59-8344-4cb0-a857-eafda7467b40-00-23wgbv5073tkq.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=c460ac5e:2805:3)

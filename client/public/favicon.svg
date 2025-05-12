@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2" fill="none"/>
+  <circle cx="16" cy="16" r="4" stroke="currentColor" stroke-width="2" fill="none"/>
+  <path d="M10 16 C10 13 12 10 16 10 C20 10 22 13 22 16 C22 19 20 22 16 22 C12 22 10 19 10 16 Z" stroke="currentColor" stroke-width="1" fill="none"/>
+  <style>
+    svg {
+      color: #4f46e5;
+    }
+    @media (prefers-color-scheme: dark) {
+      svg {
+        color: #6366f1;
+      }
+    }
+  </style>
+</svg>

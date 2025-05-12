@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-filadex}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-filadex}
+      - POSTGRES_DB=${POSTGRES_DB:-filadex}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-filadex}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Filadex Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - PGHOST=db
+      - PGPORT=5432
+      - PGUSER=${POSTGRES_USER:-filadex}
+      - PGPASSWORD=${POSTGRES_PASSWORD:-filadex}
+      - PGDATABASE=${POSTGRES_DB:-filadex}
+      - DATABASE_URL=postgres://${POSTGRES_USER:-filadex}:${POSTGRES_PASSWORD:-filadex}@db:5432/${POSTGRES_DB:-filadex}
+    depends_on:
+      - db
+    ports:
+      - "${APP_PORT:-8080}:8080"
+
+volumes:
+  postgres_data:
+
+# Note: This is a template file. Copy to docker-compose.yml and modify as needed.
+# For production deployments, consider adding:
+# 1. A reverse proxy like Traefik or Nginx for SSL termination
+# 2. Proper network configuration for security
+# 3. Backup solutions for the database volume
+# 4. Environment-specific configurations

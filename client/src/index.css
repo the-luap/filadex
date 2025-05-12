@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .w-36rem {
+    width: 36rem;
+  }
+}
+
+:root {
+  --theme-primary: #E11D48; /* Default Highlight-Farbe (Rot) */
+}
+
+/* Initialisierung der Farbvariable aus localStorage beim Laden */
+@media (min-width: 1px) {
+  :root {
+    --theme-primary: var(--theme-loaded-primary, #E11D48);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+  
+  h1, h2, h3, h4 {
+    @apply font-medium tracking-tight;
+  }
+  
+  /* Modernere Schatten und Effekte */
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
+  }
+  
+  /* Gradient-Text für besondere Hervorhebungen */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(to right, var(--theme-primary), color-mix(in srgb, var(--theme-primary), transparent 30%));
+  }
+  
+  /* Dynamische Farbe für Theme-Elemente */
+  .theme-primary {
+    color: var(--theme-primary);
+  }
+  
+  .theme-primary-bg {
+    background-color: var(--theme-primary);
+  }
+  
+  .theme-primary-bg-20 {
+    background-color: color-mix(in srgb, var(--theme-primary), transparent 80%);
+  }
+  
+  .theme-primary-bg-30 {
+    background-color: color-mix(in srgb, var(--theme-primary), transparent 70%);
+  }
+  
+  .theme-primary-border {
+    border-color: var(--theme-primary);
+  }
+  
+  .focus\:theme-primary-border:focus {
+    border-color: var(--theme-primary);
+  }
+  
+  /* Anpassungen für Checkboxen und Radiobuttons */
+  [data-state=checked].theme-checkbox-bg {
+    background-color: var(--theme-primary) !important;
+    border-color: var(--theme-primary) !important;
+  }
+  
+  .theme-radio-border {
+    border-color: var(--theme-primary) !important;
+  }
+  
+  .theme-radio-checked {
+    background-color: var(--theme-primary) !important;
+  }
+}
+
+@layer components {
+  .filament-card {
+    @apply bg-white rounded-lg shadow-md overflow-hidden transition-all duration-200 hover:shadow-lg;
+  }
+  
+  .filter-section {
+    @apply bg-gray-50 p-4 rounded-lg;
+  }
+  
+  /* Button-Verbesserungen */
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary to-primary/90 shadow-md hover:shadow-lg transition-all duration-200;
+  }
+}

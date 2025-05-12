@@ -1,0 +1,21 @@
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# they will be requested for review when someone opens a pull request.
+* @the-luap
+
+# Server code
+/server/ @the-luap
+
+# Client code
+/client/ @the-luap
+
+# Database schema
+/shared/schema.ts @the-luap
+
+# Docker configuration
+Dockerfile @the-luap
+docker-compose.template.yml @the-luap
+docker-entrypoint.sh @the-luap
+
+# Documentation
+*.md @the-luap

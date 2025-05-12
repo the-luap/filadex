@@ -1,0 +1,100 @@
+    at /app/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///app/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async DatabaseStorage.createManufacturer (file:///app/dist/index.js:192:28)
+    at async file:///app/dist/index.js:569:31 {
+  length: 220,
+  severity: 'ERROR',
+  code: '23505',
+  detail: 'Key (name)=(3DPrima) already exists.',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'manufacturers',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'manufacturers_name_key',
+  file: 'nbtinsert.c',
+  line: '666',
+  routine: '_bt_check_unique'
+}
+5:11:35 PM [express] POST /api/manufacturers 500 in 3ms :: {"message":"Failed to create manufacturer…
+Error creating manufacturer: error: duplicate key value violates unique constraint "manufacturers_name_key"
+    at /app/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///app/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async DatabaseStorage.createManufacturer (file:///app/dist/index.js:192:28)
+    at async file:///app/dist/index.js:569:31 {
+  length: 218,
+  severity: 'ERROR',
+  code: '23505',
+  detail: 'Key (name)=(3DLAC) already exists.',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'manufacturers',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'manufacturers_name_key',
+  file: 'nbtinsert.c',
+  line: '666',
+  routine: '_bt_check_unique'
+}
+5:11:35 PM [express] POST /api/manufacturers 500 in 26ms :: {"message":"Failed to create manufacture…
+5:11:35 PM [express] POST /api/manufacturers 201 in 105ms :: {"id":239,"name":"ZYYX","sortOrder":999…
+Error creating manufacturer: error: duplicate key value violates unique constraint "manufacturers_name_key"
+    at /app/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///app/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async DatabaseStorage.createManufacturer (file:///app/dist/index.js:192:28)
+    at async file:///app/dist/index.js:569:31 {
+  length: 217,
+  severity: 'ERROR',
+  code: '23505',
+  detail: 'Key (name)=(ZYYX) already exists.',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'manufacturers',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'manufacturers_name_key',
+  file: 'nbtinsert.c',
+  line: '666',
+  routine: '_bt_check_unique'
+}
+5:11:35 PM [express] POST /api/manufacturers 500 in 109ms :: {"message":"Failed to create manufactur…
+Error creating manufacturer: error: duplicate key value violates unique constraint "manufacturers_name_key"
+    at /app/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///app/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async DatabaseStorage.createManufacturer (file:///app/dist/index.js:192:28)
+    at async file:///app/dist/index.js:569:31 {
+  length: 217,
+  severity: 'ERROR',
+  code: '23505',
+  detail: 'Key (name)=(ZYYX) already exists.',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'manufacturers',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'manufacturers_name_key',
+  file: 'nbtinsert.c',
+  line: '666',
+  routine: '_bt_check_unique'
+}
+5:11:35 PM [express] POST /api/manufacturers 500 in 2ms :: {"message":"Failed to create manufacturer…

@@ -1,0 +1,181 @@
+2:15:31 PM [express] serving on port 5000
+
+Error fetching filaments: ErrorEvent {
+
+  [Symbol(kTarget)]: WebSocket {
+
+    _events: [Object: null prototype] {
+
+      error: [Function],
+
+      message: [Function],
+
+      close: [Function],
+
+      open: [Function]
+
+    },
+
+    _eventsCount: 4,
+
+    _maxListeners: undefined,
+
+    _binaryType: 'arraybuffer',
+
+    _closeCode: 1006,
+
+    _closeFrameReceived: false,
+
+    _closeFrameSent: false,
+
+    _closeMessage: <Buffer >,
+
+    _closeTimer: null,
+
+    _errorEmitted: true,
+
+    _extensions: {},
+
+    _paused: false,
+
+    _protocol: '',
+
+    _readyState: 3,
+
+    _receiver: null,
+
+    _sender: null,
+
+    _socket: null,
+
+    _bufferedAmount: 0,
+
+    _isServer: false,
+
+    _redirects: 0,
+
+    _autoPong: true,
+
+    _url: 'wss://db/v2',
+
+    _req: null,
+
+    [Symbol(shapeMode)]: false,
+
+    [Symbol(kCapture)]: false
+
+  },
+
+  [Symbol(kType)]: 'error',
+
+  [Symbol(kError)]: Error: connect ECONNREFUSED 10.0.15.19:443
+
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+
+    errno: -111,
+
+    code: 'ECONNREFUSED',
+
+    syscall: 'connect',
+
+    address: '10.0.15.19',
+
+    port: 443
+
+  },
+
+  [Symbol(kMessage)]: 'connect ECONNREFUSED 10.0.15.19:443'
+
+}
+
+2:15:37 PM [express] GET /api/filaments 500 in 184ms :: {"message":"Failed to fetch filaments"}
+
+Error calculating statistics: ErrorEvent {
+
+  [Symbol(kTarget)]: WebSocket {
+
+    _events: [Object: null prototype] {
+
+      error: [Function],
+
+      message: [Function],
+
+      close: [Function],
+
+      open: [Function]
+
+    },
+
+    _eventsCount: 4,
+
+    _maxListeners: undefined,
+
+    _binaryType: 'arraybuffer',
+
+    _closeCode: 1006,
+
+    _closeFrameReceived: false,
+
+    _closeFrameSent: false,
+
+    _closeMessage: <Buffer >,
+
+    _closeTimer: null,
+
+    _errorEmitted: true,
+
+    _extensions: {},
+
+    _paused: false,
+
+    _protocol: '',
+
+    _readyState: 3,
+
+    _receiver: null,
+
+    _sender: null,
+
+    _socket: null,
+
+    _bufferedAmount: 0,
+
+    _isServer: false,
+
+    _redirects: 0,
+
+    _autoPong: true,
+
+    _url: 'wss://db/v2',
+
+    _req: null,
+
+    [Symbol(shapeMode)]: false,
+
+    [Symbol(kCapture)]: false
+
+  },
+
+  [Symbol(kType)]: 'error',
+
+  [Symbol(kError)]: Error: connect ECONNREFUSED 10.0.15.19:443
+
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+
+    errno: -111,
+
+    code: 'ECONNREFUSED',
+
+    syscall: 'connect',
+
+    address: '10.0.15.19',
+
+    port: 443
+
+  },
+
+  [Symbol(kMessage)]: 'connect ECONNREFUSED 10.0.15.19:443'
+
+}
+
+2:15:37 PM [express] GET /api/statistics 500 in 39ms :: {"message":"Failed to calculate statistics"}

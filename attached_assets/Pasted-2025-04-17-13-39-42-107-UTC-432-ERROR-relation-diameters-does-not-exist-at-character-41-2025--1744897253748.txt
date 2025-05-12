@@ -1,0 +1,47 @@
+2025-04-17 13:39:42.107 UTC [432] ERROR:  relation "diameters" does not exist at character 41
+
+2025-04-17 13:39:42.107 UTC [432] STATEMENT:  select "id", "value", "created_at" from "diameters"
+
+2025-04-17 13:39:42.111 UTC [433] ERROR:  relation "manufacturers" does not exist at character 40
+
+2025-04-17 13:39:42.111 UTC [433] STATEMENT:  select "id", "name", "created_at" from "manufacturers"
+
+2025-04-17 13:39:42.111 UTC [435] ERROR:  relation "colors" does not exist at character 48
+
+2025-04-17 13:39:42.111 UTC [435] STATEMENT:  select "id", "name", "code", "created_at" from "colors"
+
+2025-04-17 13:39:42.115 UTC [436] ERROR:  relation "materials" does not exist at character 40
+
+2025-04-17 13:39:42.115 UTC [436] STATEMENT:  select "id", "name", "created_at" from "materials"
+
+2025-04-17 13:39:42.119 UTC [434] ERROR:  relation "filaments" does not exist at character 262
+
+2025-04-17 13:39:42.119 UTC [434] STATEMENT:  select "id", "name", "manufacturer", "material", "color_name", "color_code", "diameter", "print_temp", "total_weight", "remaining_percentage", "purchase_date", "purchase_price", "status", "spool_type", "dryer_count", "last_drying_date", "storage_location" from "filaments"
+
+2025-04-17 13:39:42.274 UTC [437] ERROR:  relation "diameters" does not exist at character 41
+
+2025-04-17 13:39:42.274 UTC [437] STATEMENT:  select "id", "value", "created_at" from "diameters"
+
+2025-04-17 13:39:42.274 UTC [438] ERROR:  relation "manufacturers" does not exist at character 40
+
+2025-04-17 13:39:42.274 UTC [438] STATEMENT:  select "id", "name", "created_at" from "manufacturers"
+
+2025-04-17 13:39:42.274 UTC [440] ERROR:  relation "filaments" does not exist at character 262
+
+2025-04-17 13:39:42.274 UTC [440] STATEMENT:  select "id", "name", "manufacturer", "material", "color_name", "color_code", "diameter", "print_temp", "total_weight", "remaining_percentage", "purchase_date", "purchase_price", "status", "spool_type", "dryer_count", "last_drying_date", "storage_location" from "filaments"
+
+2025-04-17 13:39:42.277 UTC [441] ERROR:  relation "colors" does not exist at character 48
+
+2025-04-17 13:39:42.277 UTC [441] STATEMENT:  select "id", "name", "code", "created_at" from "colors"
+
+2025-04-17 13:39:42.277 UTC [439] ERROR:  relation "materials" does not exist at character 40
+
+2025-04-17 13:39:42.277 UTC [439] STATEMENT:  select "id", "name", "created_at" from "materials"
+
+2025-04-17 13:39:42.427 UTC [443] ERROR:  relation "manufacturers" does not exist at character 40
+
+2025-04-17 13:39:42.427 UTC [443] STATEMENT:  select "id", "name", "created_at" from "manufacturers"
+
+2025-04-17 13:39:42.429 UTC [442] ERROR:  relation "materials" does not exist at character 40
+
+2025-04-17 13:39:42.429 UTC [442] STATEMENT:  select "id", "name", "created_at" from "materials
