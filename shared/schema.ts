@@ -6,6 +6,10 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  isAdmin: boolean("is_admin").default(false),
+  forceChangePassword: boolean("force_change_password").default(true),
+  lastLogin: timestamp("last_login"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const filaments = pgTable("filaments", {
@@ -31,6 +35,13 @@ export const filaments = pgTable("filaments", {
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
+  isAdmin: true,
+  forceChangePassword: true,
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 // Bearbeiten Sie das Schema, um sicherzustellen, dass numerische Felder korrekt konvertiert werden
@@ -143,3 +154,20 @@ export type Diameter = typeof diameters.$inferSelect;
 
 export type InsertStorageLocation = z.infer<typeof insertStorageLocationSchema>;
 export type StorageLocation = typeof storageLocations.$inferSelect;
+
+// User sharing settings
+export const userSharing = pgTable("user_sharing", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  materialId: integer("material_id").references(() => materials.id, { onDelete: "cascade" }),
+  isPublic: boolean("is_public").default(false),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const insertUserSharingSchema = createInsertSchema(userSharing).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUserSharing = z.infer<typeof insertUserSharingSchema>;
+export type UserSharing = typeof userSharing.$inferSelect;

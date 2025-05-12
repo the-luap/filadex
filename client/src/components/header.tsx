@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Paintbrush, Plus, Settings } from "lucide-react";
+import { Paintbrush, Plus, Settings, Users, LogOut, Share2, KeyRound } from "lucide-react";
 import { ThemeSelector } from "./theme-selector";
 import { SettingsDialog } from "./settings-dialog";
-import { Link } from "wouter";
+import { UserManagementModal } from "./user-management-modal";
+import { SharingModal } from "./sharing-modal";
+import { ChangePasswordModal } from "./change-password-modal";
+import { Link, useLocation } from "wouter";
 import { Logo } from "./logo";
+import { useAuth } from "@/lib/auth";
 
 interface HeaderProps {
   onAddFilament: () => void;
@@ -13,6 +17,11 @@ interface HeaderProps {
 export function Header({ onAddFilament }: HeaderProps) {
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [userManagementOpen, setUserManagementOpen] = useState(false);
+  const [sharingModalOpen, setSharingModalOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const { isAdmin, logout } = useAuth();
+  const [_, navigate] = useLocation();
 
   return (
     <header className="theme-primary-bg text-white shadow-md">
@@ -37,7 +46,7 @@ export function Header({ onAddFilament }: HeaderProps) {
             variant="outline"
             size="icon"
             className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            title="Akzentfarbe anpassen"
+            title="Theme Settings"
           >
             <Paintbrush className="h-4 w-4" />
           </Button>
@@ -47,9 +56,54 @@ export function Header({ onAddFilament }: HeaderProps) {
             variant="outline"
             size="icon"
             className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            title="Einstellungen"
+            title="Settings"
           >
             <Settings className="h-4 w-4" />
+          </Button>
+
+          {isAdmin && (
+            <Button
+              onClick={() => setUserManagementOpen(true)}
+              variant="outline"
+              size="icon"
+              className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
+              title="User Management"
+            >
+              <Users className="h-4 w-4" />
+            </Button>
+          )}
+
+          <Button
+            onClick={() => setSharingModalOpen(true)}
+            variant="outline"
+            size="icon"
+            className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
+            title="Share Filaments"
+          >
+            <Share2 className="h-4 w-4" />
+          </Button>
+
+          <Button
+            onClick={() => setChangePasswordOpen(true)}
+            variant="outline"
+            size="icon"
+            className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
+            title="Change Password"
+          >
+            <KeyRound className="h-4 w-4" />
+          </Button>
+
+          <Button
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
+            variant="outline"
+            size="icon"
+            className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
+            title="Logout"
+          >
+            <LogOut className="h-4 w-4" />
           </Button>
 
           <Button
@@ -57,7 +111,7 @@ export function Header({ onAddFilament }: HeaderProps) {
             className="bg-secondary hover:bg-secondary-dark text-white px-4 py-2 rounded-md flex items-center transition-colors duration-200"
           >
             <Plus className="mr-1 h-5 w-5" />
-            Filament hinzufügen
+            Add Filament
           </Button>
         </div>
       </div>
@@ -70,6 +124,21 @@ export function Header({ onAddFilament }: HeaderProps) {
       <SettingsDialog
         open={settingsDialogOpen}
         onOpenChange={setSettingsDialogOpen}
+      />
+
+      <UserManagementModal
+        open={userManagementOpen}
+        onOpenChange={setUserManagementOpen}
+      />
+
+      <SharingModal
+        open={sharingModalOpen}
+        onOpenChange={setSharingModalOpen}
+      />
+
+      <ChangePasswordModal
+        open={changePasswordOpen}
+        onOpenChange={setChangePasswordOpen}
       />
     </header>
   );

@@ -38,9 +38,9 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
 
         // Erstellen der HTML5 QR-Code Instanz
         scannerRef.current = new Html5Qrcode(qrScannerElementId);
-        
+
         setIsScanning(true);
-        
+
         // Kamerazugriff anfordern und den QR-Scanner starten
         await scannerRef.current.start(
           { facingMode: "environment" }, // für Rückkamera
@@ -73,12 +73,12 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
         setIsScanning(false);
       }
     };
-    
+
     // Verzögerung, damit das DOM-Element Zeit hat, gerendert zu werden
     const timer = setTimeout(() => {
       setupScanner();
     }, 500);
-    
+
     // Aufräumen beim Unmount
     return () => {
       clearTimeout(timer);
@@ -89,7 +89,7 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       }
     };
   }, []);
-  
+
   // Handler für erfolgreichen Scan
   const handleScanSuccess = (decodedText: string) => {
     // Scanner stoppen nach erfolgreichem Scan
@@ -122,51 +122,51 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       }
     }
   };
-  
-  // Verarbeitet den gescannten Code und versucht, Bambulab Filamentdaten zu erkennen
+
+  // Processes the scanned code and tries to recognize Bambulab filament data
   const processScanResult = (code: string): BambuFilamentData | null => {
-    // Versuchen, als JSON zu parsen (falls es bereits ein strukturierter QR-Code ist)
+    // Try to parse as JSON (if it's already a structured QR code)
     try {
       const jsonData = JSON.parse(code);
       if (jsonData.name || jsonData.material) {
         return jsonData;
       }
     } catch (e) {
-      // Kein gültiges JSON, versuchen wir, andere Formate zu erkennen
+      // Not valid JSON, let's try to recognize other formats
     }
-    
+
     // Bambulab 1D Barcode Format
     // Format: BBL-XYZ-123456
-    // wo XYZ der Materialcode ist und die Ziffern Farbcodes etc. enthalten können
+    // where XYZ is the material code and the digits can contain color codes etc.
     if (code.startsWith('BBL-')) {
       return processBambuLabBarcode(code);
     }
-    
-    // Bambulab QR-Code Format für Filamente
-    // Beispiel: [BBL]PLA Matte Black 1KG
+
+    // Bambulab QR Code Format for filaments
+    // Example: [BBL]PLA Matte Black 1KG
     if (code.startsWith('[BBL]')) {
       return processBambuLabQRCode(code);
     }
-    
-    return null; // Kein bekanntes Format erkannt
+
+    return null; // No known format recognized
   };
-  
-  // Verarbeitet einen Bambulab Barcode
+
+  // Processes a Bambulab barcode
   const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
     // Format: BBL-XYZ-123456
     const parts = barcode.split('-');
-    
+
     if (parts.length < 2) {
-      return { 
+      return {
         manufacturer: "Bambu Lab",
-        name: barcode 
+        name: barcode
       };
     }
-    
+
     const materialCode = parts[1];
     let material = '';
     let colorName = '';
-    
+
     // Material-Codes erkennen
     if (materialCode.startsWith('PLA')) {
       material = 'pla';
@@ -187,14 +187,14 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     } else if (materialCode.startsWith('PC')) {
       material = 'pc';
     }
-    
+
     // CF oder HF Varianten
     if (materialCode.includes('CF')) {
       material += '-cf';
     } else if (materialCode.includes('HF')) {
       material += '-hf';
     }
-    
+
     // Versuchen, Farbe zu erkennen (falls vorhanden)
     if (parts.length > 2) {
       const colorCode = parts[2];
@@ -219,7 +219,7 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
         colorName = colorCode; // Falls nicht erkannt, den Code als Farbnamen verwenden
       }
     }
-    
+
     // Standard-Drucktemperaturen für Bambu Lab Materialien
     let printTemp = '';
     if (material.startsWith('pla')) {
@@ -237,7 +237,7 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     } else if (material.startsWith('pctg')) {
       printTemp = '240-260';
     }
-    
+
     // Generiere einen materialbezogenen HEX-Farbcode basierend auf typischen Materialfarben
     let colorCode = '#000000'; // Standard ist Schwarz
     if (colorName === 'Weiß') colorCode = '#FFFFFF';
@@ -247,7 +247,7 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     if (colorName === 'Gelb') colorCode = '#FFFF00';
     if (colorName === 'Grau') colorCode = '#808080';
     if (colorName === 'Natur') colorCode = '#F5F5DC';
-    
+
     // Bestimme Materialname auf Deutsch für die Anzeige
     const materialMap: Record<string, string> = {
       'pla': 'PLA',
@@ -266,10 +266,10 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       'pctg': 'PCTG',
       'pva': 'PVA'
     };
-    
+
     const materialLabel = materialMap[material] || material.toUpperCase();
     const nameWithColor = colorName ? `${materialLabel} ${colorName}` : materialLabel;
-    
+
     return {
       name: `${nameWithColor} Bambu Lab`,
       material: material,
@@ -281,17 +281,17 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       printTemp: printTemp
     };
   };
-  
+
   // Verarbeitet einen Bambulab QR-Code
   const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
     // Format: [BBL]PLA Matte Black 1KG
     const text = qrCode.replace('[BBL]', '').trim();
-    
+
     // Materialtyp extrahieren (z.B. PLA, PETG, etc.)
     let material = '';
     let colorName = '';
     let weight: number | undefined;
-    
+
     // Versuche, das Material zu erkennen
     if (text.startsWith('PLA')) {
       material = 'pla';
@@ -306,14 +306,14 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     } else if (text.startsWith('PA')) {
       material = 'pa';
     }
-    
+
     // CF oder HF Varianten erkennen
     if (text.includes('CF')) {
       material += '-cf';
     } else if (text.includes('HF')) {
       material += '-hf';
     }
-    
+
     // Gewicht extrahieren
     if (text.includes('1KG')) {
       weight = 1;
@@ -322,23 +322,23 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     } else if (text.includes('250G')) {
       weight = 0.25;
     }
-    
+
     // Versuche, die Farbe zu extrahieren - extrahiere alles zwischen Material und Gewicht
     const materialRegex = /^(PLA|ABS|PETG|TPU|PA|ASA)(-CF|-HF)?\s+/;
     const weightRegex = /\s+(1KG|500G|250G)$/;
-    
+
     const materialMatch = text.match(materialRegex);
     const weightMatch = text.match(weightRegex);
-    
+
     if (materialMatch && weightMatch) {
       colorName = text.substring(
-        materialMatch[0].length, 
+        materialMatch[0].length,
         text.length - weightMatch[0].length
       ).trim();
     } else if (materialMatch) {
       colorName = text.substring(materialMatch[0].length).trim();
     }
-    
+
     // Standard-Drucktemperaturen für Bambu Lab Materialien
     let printTemp = '';
     if (material.startsWith('pla')) {
@@ -354,27 +354,27 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     } else if (material.startsWith('asa')) {
       printTemp = '240-260';
     }
-    
+
     // Bestimme einen passenden HEX-Farbcode basierend auf der Farbbeschreibung
     let colorCode = '#000000'; // Standard ist Schwarz
-    
+
     if (colorName) {
       const lowerColorName = colorName.toLowerCase();
-      if (lowerColorName.includes('black') || lowerColorName.includes('schwarz')) 
+      if (lowerColorName.includes('black') || lowerColorName.includes('schwarz'))
         colorCode = '#000000';
-      else if (lowerColorName.includes('white') || lowerColorName.includes('weiß')) 
+      else if (lowerColorName.includes('white') || lowerColorName.includes('weiß'))
         colorCode = '#FFFFFF';
-      else if (lowerColorName.includes('red') || lowerColorName.includes('rot')) 
+      else if (lowerColorName.includes('red') || lowerColorName.includes('rot'))
         colorCode = '#FF0000';
-      else if (lowerColorName.includes('blue') || lowerColorName.includes('blau')) 
+      else if (lowerColorName.includes('blue') || lowerColorName.includes('blau'))
         colorCode = '#0000FF';
-      else if (lowerColorName.includes('green') || lowerColorName.includes('grün')) 
+      else if (lowerColorName.includes('green') || lowerColorName.includes('grün'))
         colorCode = '#00FF00';
-      else if (lowerColorName.includes('yellow') || lowerColorName.includes('gelb')) 
+      else if (lowerColorName.includes('yellow') || lowerColorName.includes('gelb'))
         colorCode = '#FFFF00';
-      else if (lowerColorName.includes('gray') || lowerColorName.includes('grey') || lowerColorName.includes('grau')) 
+      else if (lowerColorName.includes('gray') || lowerColorName.includes('grey') || lowerColorName.includes('grau'))
         colorCode = '#808080';
-      else if (lowerColorName.includes('natur') || lowerColorName.includes('natural')) 
+      else if (lowerColorName.includes('natur') || lowerColorName.includes('natural'))
         colorCode = '#F5F5DC';
       else if (lowerColorName.includes('orange'))
         colorCode = '#FFA500';
@@ -385,13 +385,13 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       else if (lowerColorName.includes('brown') || lowerColorName.includes('braun'))
         colorCode = '#A52A2A';
     }
-    
+
     // Falls keine Farbe extrahiert werden konnte, setze einen generischen Namen
     if (!colorName) {
       colorName = 'Standard';
     }
-    
-    // Übersetze Farbnamen ins Deutsche, wenn sie auf Englisch sind
+
+    // Translate color names to German if they are in English
     const colorTranslations: Record<string, string> = {
       'Black': 'Schwarz',
       'White': 'Weiß',
@@ -409,16 +409,16 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       'Matte White': 'Matt Weiß',
       'Transparent': 'Transparent'
     };
-    
-    // Prüfe, ob der Farbname übersetzt werden muss
+
+    // Check if the color name needs to be translated
     for (const [eng, de] of Object.entries(colorTranslations)) {
       if (colorName.includes(eng)) {
         colorName = colorName.replace(eng, de);
         break;
       }
     }
-    
-    // Bestimme Materialname auf Deutsch für die Anzeige
+
+    // Determine material name in German for display
     const materialMap: Record<string, string> = {
       'pla': 'PLA',
       'pla-cf': 'PLA-CF',
@@ -434,9 +434,9 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       'pc': 'PC',
       'pc-cf': 'PC-CF'
     };
-    
+
     const materialLabel = materialMap[material] || material.toUpperCase();
-    
+
     return {
       name: `${materialLabel} ${colorName} Bambu Lab`,
       material: material,
@@ -448,7 +448,7 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       printTemp: printTemp
     };
   };
-  
+
   // Scanner beim Schließen des Dialogs stoppen
   const handleClose = () => {
     if (scannerRef.current && isScanning) {
@@ -475,16 +475,16 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
             <X className="h-4 w-4" />
           </Button>
         </DialogHeader>
-        
+
         <div className="flex flex-col items-center space-y-4">
           <div id={qrScannerElementId} className="w-full h-64 overflow-hidden rounded-lg border border-neutral-700"></div>
-          
+
           <p className="text-sm text-neutral-400 text-center">
             Positionieren Sie den Barcode oder QR-Code in der Mitte des Scanfensters.
             <br />
             Der Scan erfolgt automatisch.
           </p>
-          
+
           {scanResult && (
             <div className="w-full p-3 bg-neutral-800 rounded-md text-sm">
               <p className="text-neutral-300 font-semibold mb-1">Gescannter Code:</p>
@@ -492,7 +492,7 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
             </div>
           )}
         </div>
-        
+
         <DialogFooter>
           <Button onClick={handleClose} variant="outline" className="w-full">
             Abbrechen

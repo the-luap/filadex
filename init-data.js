@@ -6,18 +6,18 @@ import path from 'path';
 
 async function insertInitialData() {
   try {
-    // Prüfe Lock-Datei, um wiederholte Initialisierung zu verhindern
+    // Check lock file to prevent repeated initialization
     const lockFile = path.resolve('./init-data.lock');
-    
+
     if (fs.existsSync(lockFile)) {
-      console.log("Datenbank wurde bereits initialisiert (Lock-Datei gefunden). Überspringe Dateneinfügung.");
+      console.log("Database has already been initialized (lock file found). Skipping data insertion.");
       process.exit(0);
       return;
     }
-    
+
     console.log("Checking for existing data...");
-    
-    // Prüfen, ob alle erforderlichen Tabellen existieren
+
+    // Check if all required tables exist
     try {
       await db.select().from(manufacturers).limit(1);
       await db.select().from(materials).limit(1);
@@ -25,45 +25,45 @@ async function insertInitialData() {
       await db.select().from(diameters).limit(1);
       await db.select().from(storageLocations).limit(1);
       await db.select().from(filaments).limit(1);
-      console.log("Alle Tabellen existieren und sind zugänglich.");
+      console.log("All tables exist and are accessible.");
     } catch (error) {
-      console.error("Fehler beim Prüfen der Tabellen:", error);
-      console.log("Versuche Tabellen zu erstellen...");
-      
+      console.error("Error checking tables:", error);
+      console.log("Trying to create tables...");
+
       try {
-        // Erstelle hier die Tabellen manuell, wenn sie nicht existieren
+        // Create tables manually if they don't exist
         await db.execute(`
           CREATE TABLE IF NOT EXISTS manufacturers (
             id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
           );
-          
+
           CREATE TABLE IF NOT EXISTS materials (
             id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
           );
-          
+
           CREATE TABLE IF NOT EXISTS colors (
             id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             code TEXT NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
           );
-          
+
           CREATE TABLE IF NOT EXISTS diameters (
             id SERIAL PRIMARY KEY,
             value NUMERIC NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
           );
-          
+
           CREATE TABLE IF NOT EXISTS storage_locations (
             id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
           );
-          
+
           CREATE TABLE IF NOT EXISTS filaments (
             id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
@@ -84,54 +84,54 @@ async function insertInitialData() {
             storage_location TEXT
           );
         `);
-        console.log("Tabellen erfolgreich erstellt.");
+        console.log("Tables successfully created.");
       } catch (createError) {
-        console.error("Fehler beim Erstellen der Tabellen:", createError);
+        console.error("Error creating tables:", createError);
         process.exit(1);
       }
     }
-    
-    // Prüfe, ob Daten bereits existieren
+
+    // Check if data already exists
     const existingData = await db.select().from(manufacturers);
-    
+
     if (existingData.length > 0) {
-      console.log("Daten bereits in der Datenbank vorhanden, überspringe Initialisierung.");
-      // Erstelle Lock-Datei, um zukünftige Initialisierungen zu verhindern
+      console.log("Data already exists in the database, skipping initialization.");
+      // Create lock file to prevent future initializations
       fs.writeFileSync(lockFile, new Date().toISOString());
       process.exit(0);
       return;
     }
-    
-    console.log("Füge initiale Daten ein...");
-    
-    // Füge grundlegende Auswahlmöglichkeiten ein
-    console.log("Füge grundlegende Materialien, Hersteller usw. ein...");
+
+    console.log("Adding initial data...");
+
+    // Add basic selection options
+    console.log("Adding basic materials, manufacturers, etc...");
     try {
       await db.insert(manufacturers).values({ name: "Bambu Lab" }).onConflictDoNothing();
       await db.insert(manufacturers).values({ name: "Prusament" }).onConflictDoNothing();
       await db.insert(manufacturers).values({ name: "Filamentworld" }).onConflictDoNothing();
       await db.insert(manufacturers).values({ name: "Ninjatek" }).onConflictDoNothing();
-      
+
       await db.insert(materials).values({ name: "PLA" }).onConflictDoNothing();
       await db.insert(materials).values({ name: "PETG" }).onConflictDoNothing();
       await db.insert(materials).values({ name: "ABS" }).onConflictDoNothing();
       await db.insert(materials).values({ name: "TPU" }).onConflictDoNothing();
-      
+
       await db.insert(diameters).values({ value: 1.75 }).onConflictDoNothing();
-      
+
       await db.insert(colors).values({ name: "Schwarz (Bambu Lab)", code: "#000000" }).onConflictDoNothing();
       await db.insert(colors).values({ name: "Weiß (Bambu Lab)", code: "#FFFFFF" }).onConflictDoNothing();
       await db.insert(colors).values({ name: "Transparent", code: "#FFFFFF" }).onConflictDoNothing();
       await db.insert(colors).values({ name: "Rot", code: "#F44336" }).onConflictDoNothing();
       await db.insert(colors).values({ name: "Grau", code: "#9E9E9E" }).onConflictDoNothing();
-      
+
       await db.insert(storageLocations).values({ name: "Keller" }).onConflictDoNothing();
-      
-      console.log("Grundlegende Auswahlmöglichkeiten eingefügt.");
+
+      console.log("Basic selection options inserted.");
     } catch (insertError) {
-      console.error("Fehler beim Einfügen der grundlegenden Auswahlmöglichkeiten:", insertError);
+      console.error("Error inserting basic selection options:", insertError);
     }
-    
+
     const initialFilaments = [
       {
         name: "PLA Schwarz Bambu Lab",
@@ -161,7 +161,7 @@ async function insertInitialData() {
         material: "ABS",
         colorName: "Rot",
         colorCode: "#F44336",
-        diameter: "1.75", 
+        diameter: "1.75",
         printTemp: "240-260°C",
         totalWeight: "1",
         remainingPercentage: "0"
@@ -178,20 +178,20 @@ async function insertInitialData() {
         remainingPercentage: "75"
       }
     ];
-    
+
     for (const filamentData of initialFilaments) {
       const parsedData = insertFilamentSchema.parse(filamentData);
       await db.insert(filaments).values(parsedData);
     }
-    
-    // Erstelle Lock-Datei, um zukünftige Initialisierungen zu verhindern
+
+    // Create lock file to prevent future initializations
     fs.writeFileSync(lockFile, new Date().toISOString());
-    console.log("Initiale Daten erfolgreich eingefügt und Lock-Datei erstellt!");
+    console.log("Initial data successfully inserted and lock file created!");
   } catch (error) {
-    console.error("Fehler beim Einfügen initialer Daten:", error);
+    console.error("Error inserting initial data:", error);
     process.exit(1);
   }
-  
+
   process.exit(0);
 }
 

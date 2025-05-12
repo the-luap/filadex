@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
-// Liste der Bambulab Materialtypen
+// List of Bambulab material types
 const MATERIAL_TYPES = [
   { value: "PLA", label: "PLA" },
   { value: "PETG", label: "PETG" },
@@ -34,7 +34,7 @@ const MATERIAL_TYPES = [
   { value: "OTHER", label: "Anderes" }
 ];
 
-// Liste bekannter Filament-Hersteller
+// List of known filament manufacturers
 const MANUFACTURERS = [
   "Bambu Lab",
   "Prusament",
@@ -79,9 +79,9 @@ const MANUFACTURERS = [
   "ZYYX"
 ];
 
-// Bambulab Farben
+// Bambulab colors
 const BAMBULAB_COLORS = [
-  // Standard Farben
+  // Standard colors
   { name: "Schwarz", code: "#000000" },
   { name: "Weiß", code: "#FFFFFF" },
   { name: "Grau", code: "#808080" },
@@ -102,8 +102,8 @@ const BAMBULAB_COLORS = [
   { name: "Lila", code: "#800080" },
   { name: "Rosa", code: "#FFC0CB" },
   { name: "Braun", code: "#A52A2A" },
-  
-  // Spezielle Finishes
+
+  // Special finishes
   { name: "Gold", code: "#FFD700" },
   { name: "Kupfer", code: "#B87333" },
   { name: "Transparent", code: "#FFFFFF", opacity: 0.3 },
@@ -115,23 +115,23 @@ const BAMBULAB_COLORS = [
   { name: "Neon Grün", code: "#39FF14" },
   { name: "Neon Rosa", code: "#FF69B4" },
   { name: "Nachtleuchtend", code: "#CCFFCC" },
-  
-  // Wood Serie
+
+  // Wood series
   { name: "Wood - Birke", code: "#F5DEB3" },
   { name: "Wood - Eiche", code: "#DEB887" },
   { name: "Wood - Ahorn", code: "#EADDCA" },
   { name: "Wood - Kirsche", code: "#954535" },
   { name: "Wood - Wallnuss", code: "#614126" },
   { name: "Wood - Ebenholz", code: "#3D2B1F" },
-  
-  // Cool/Marble Serie
+
+  // Cool/Marble series
   { name: "Marmor", code: "#F5F5F5" },
   { name: "Galaxy", code: "#191970" },
   { name: "Farbwechselnd Blau-Grün", code: "#1E90FF" },
   { name: "Farbwechselnd Rot-Gelb", code: "#FF4500" }
 ];
 
-// Drucktemperaturen nach Materialtyp
+// Print temperatures by material type
 const PRINT_TEMPERATURES: Record<string, string> = {
   "PLA": "190-220°C",
   "PLA-CF": "200-230°C",
@@ -187,7 +187,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRScanner } from "./qr-scanner";
 import { NFCScanner } from "./nfc-scanner";
 
-// Erstellen Sie ein eigenes Schema für das Formular
+// Create a custom schema for the form
 const formSchema = z.object({
   name: z.string().min(1, "Name ist erforderlich"),
   manufacturer: z.string().optional(),
@@ -248,40 +248,40 @@ export function FilamentModal({
   const [customWeightVisible, setCustomWeightVisible] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showNFCScanner, setShowNFCScanner] = useState(false);
-  
-  // Daten aus der Datenbank laden
+
+  // Load data from the database
   const { data: manufacturers = [] } = useQuery({
     queryKey: ['/api/manufacturers'],
     queryFn: () => apiRequest<Manufacturer[]>('/api/manufacturers'),
     enabled: isOpen
   });
-  
+
   const { data: colors = [] } = useQuery({
     queryKey: ['/api/colors'],
     queryFn: () => apiRequest<Color[]>('/api/colors'),
     enabled: isOpen
   });
-  
+
   const { data: materials = [] } = useQuery({
     queryKey: ['/api/materials'],
     queryFn: () => apiRequest<Material[]>('/api/materials'),
     enabled: isOpen
   });
-  
+
   const { data: diameters = [] } = useQuery({
     queryKey: ['/api/diameters'],
     queryFn: () => apiRequest<{id: number, value: string}[]>('/api/diameters'),
     enabled: isOpen
   });
-  
+
   // Lagerorte aus der Datenbank
   const { data: storageLocationData = [] } = useQuery({
     queryKey: ['/api/storage-locations'],
     queryFn: () => apiRequest<{id: number, name: string}[]>('/api/storage-locations'),
     enabled: isOpen
   });
-  
-  // Extrahiere Namen der Lagerorte
+
+  // Extract storage location names
   const storageLocations = storageLocationData.map(loc => loc.name);
 
   // Setup form with default values or editing values
@@ -328,10 +328,10 @@ export function FilamentModal({
         lastDryingDate: filament.lastDryingDate ? new Date(filament.lastDryingDate) : undefined,
         storageLocation: filament.storageLocation || ""
       });
-      
+
       setRemainingPercentage(Number(filament.remainingPercentage));
       setTotalWeight(Number(filament.totalWeight));
-      
+
       // Check if we need to show custom weight field
       if (![0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 5].includes(Number(filament.totalWeight))) {
         setCustomWeightVisible(true);
@@ -367,7 +367,7 @@ export function FilamentModal({
     if (customWeightVisible && typeof totalWeight === 'number') {
       data.totalWeight = totalWeight;
     }
-    
+
     onSave(data);
   };
 
@@ -384,7 +384,7 @@ export function FilamentModal({
       // Keep existing value if already in custom mode
       return;
     }
-    
+
     setCustomWeightVisible(false);
     const numericValue = parseFloat(value);
     setTotalWeight(numericValue);
@@ -400,16 +400,16 @@ export function FilamentModal({
     }
   };
 
-  // Handler für QR-Code Scan
+  // Handler for QR code scan
   const handleQRCodeScanned = (decodedText: string) => {
     setShowQRScanner(false);
     try {
-      // Versuche, den gescannten Text als JSON zu parsen
+      // Try to parse the scanned text as JSON
       const data = JSON.parse(decodedText);
-      
-      // Überprüfe, ob es sich um Filament-Daten handelt
+
+      // Check if these are filament data
       if (data.name && data.material) {
-        // Setze die Formularwerte basierend auf den gescannten Daten
+        // Set form values based on scanned data
         form.setValue('name', data.name);
         if (data.manufacturer) form.setValue('manufacturer', data.manufacturer);
         if (data.material) form.setValue('material', data.material);
@@ -421,7 +421,7 @@ export function FilamentModal({
           const weight = Number(data.totalWeight);
           setTotalWeight(weight);
           form.setValue('totalWeight', weight);
-          
+
           // Check if we need to show custom weight field
           if (![0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 5].includes(weight)) {
             setCustomWeightVisible(true);
@@ -435,19 +435,19 @@ export function FilamentModal({
       // Hier könnte man eine Fehlermeldung anzeigen
     }
   };
-  
+
   // Handler für NFC Scan
   const handleNFCScanned = (data: any) => {
     setShowNFCScanner(false);
-    
+
     try {
       // Extrahiere Textdaten aus NFC-Records
       const textRecords = data.records.filter((record: any) => record.type === 'text');
-      
+
       if (textRecords.length > 0) {
         // Versuche, den Text als JSON zu parsen
         const jsonData = JSON.parse(textRecords[0].text);
-        
+
         if (jsonData.name && jsonData.material) {
           // Setze die Formularwerte basierend auf den gescannten Daten
           form.setValue('name', jsonData.name);
@@ -461,7 +461,7 @@ export function FilamentModal({
             const weight = Number(jsonData.totalWeight);
             setTotalWeight(weight);
             form.setValue('totalWeight', weight);
-            
+
             // Check if we need to show custom weight field
             if (![0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 5].includes(weight)) {
               setCustomWeightVisible(true);
@@ -480,31 +480,31 @@ export function FilamentModal({
   return (
     <>
       {showQRScanner && (
-        <QRScanner 
-          onScanSuccess={handleQRCodeScanned} 
+        <QRScanner
+          onScanSuccess={handleQRCodeScanned}
           onClose={() => setShowQRScanner(false)}
         />
       )}
-      
+
       {showNFCScanner && (
-        <NFCScanner 
-          onScanSuccess={handleNFCScanned} 
+        <NFCScanner
+          onScanSuccess={handleNFCScanned}
           onClose={() => setShowNFCScanner(false)}
         />
       )}
-    
+
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isEditing ? "Filament bearbeiten" : "Filament hinzufügen"}</DialogTitle>
           </DialogHeader>
-          
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="flex gap-2 mb-4 justify-end">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   size="sm"
                   onClick={() => setShowQRScanner(true)}
                   className="flex items-center"
@@ -512,9 +512,9 @@ export function FilamentModal({
                   <Scan className="mr-2 h-4 w-4" />
                   QR-Code scannen
                 </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   size="sm"
                   onClick={() => setShowNFCScanner(true)}
                   className="flex items-center"
@@ -540,7 +540,7 @@ export function FilamentModal({
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="manufacturer"
@@ -576,8 +576,8 @@ export function FilamentModal({
                             />
                           </div>
                           {manufacturers.map((manufacturer) => (
-                            <SelectItem 
-                              key={manufacturer.id} 
+                            <SelectItem
+                              key={manufacturer.id}
                               value={manufacturer.name}
                             >
                               {manufacturer.name}
@@ -589,7 +589,7 @@ export function FilamentModal({
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="material"
@@ -650,7 +650,7 @@ export function FilamentModal({
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="colorName"
@@ -703,8 +703,8 @@ export function FilamentModal({
                           {colors.map((color) => (
                             <SelectItem key={color.id} value={color.name}>
                               <div className="flex items-center">
-                                <div 
-                                  className="h-4 w-4 rounded-full mr-2 border border-neutral-300" 
+                                <div
+                                  className="h-4 w-4 rounded-full mr-2 border border-neutral-300"
                                   style={{ backgroundColor: color.code }}
                                 />
                                 {color.name}
@@ -731,7 +731,7 @@ export function FilamentModal({
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="colorCode"
@@ -762,7 +762,7 @@ export function FilamentModal({
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="diameter"
@@ -781,8 +781,8 @@ export function FilamentModal({
                         </FormControl>
                         <SelectContent>
                           {diameters.map((diameter) => (
-                            <SelectItem 
-                              key={diameter.id} 
+                            <SelectItem
+                              key={diameter.id}
                               value={diameter.value}
                             >
                               {diameter.value}mm
@@ -794,7 +794,7 @@ export function FilamentModal({
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="printTemp"
@@ -812,7 +812,7 @@ export function FilamentModal({
                   )}
                 />
               </div>
-              
+
               <div className="border rounded-md p-4 bg-neutral-900">
                 <h4 className="font-medium text-neutral-400 mb-3">Menge</h4>
                 <div className="space-y-4">
@@ -841,7 +841,7 @@ export function FilamentModal({
                         <SelectItem value="custom">Benutzerdefiniert</SelectItem>
                       </SelectContent>
                     </Select>
-                    
+
                     {customWeightVisible && (
                       <div className="mt-2">
                         <Input
@@ -855,7 +855,7 @@ export function FilamentModal({
                       </div>
                     )}
                   </div>
-                  
+
                   <FormField
                     control={form.control}
                     name="remainingPercentage"
@@ -885,7 +885,7 @@ export function FilamentModal({
                       </FormItem>
                     )}
                   />
-                  
+
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-neutral-300">Entspricht:</span>
@@ -896,7 +896,7 @@ export function FilamentModal({
                   </div>
                 </div>
               </div>
-              
+
               <div className="border rounded-md p-4 bg-neutral-900">
                 <h4 className="font-medium text-neutral-400 mb-3">Zusätzliche Informationen</h4>
                 <div className="grid grid-cols-2 gap-4">
@@ -941,7 +941,7 @@ export function FilamentModal({
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="purchasePrice"
@@ -965,7 +965,7 @@ export function FilamentModal({
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="storageLocation"
@@ -1001,8 +1001,8 @@ export function FilamentModal({
                               />
                             </div>
                             {storageLocations.map((location) => (
-                              <SelectItem 
-                                key={location} 
+                              <SelectItem
+                                key={location}
                                 value={location}
                               >
                                 {location}
@@ -1016,7 +1016,7 @@ export function FilamentModal({
                   />
                 </div>
               </div>
-              
+
               <div className="border rounded-md p-4 bg-neutral-900">
                 <h4 className="font-medium text-neutral-400 mb-3">Status</h4>
                 <div className="grid grid-cols-2 gap-4">
@@ -1044,7 +1044,7 @@ export function FilamentModal({
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="spoolType"
@@ -1096,7 +1096,7 @@ export function FilamentModal({
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="lastDryingDate"
@@ -1140,7 +1140,7 @@ export function FilamentModal({
                   />
                 </div>
               </div>
-              
+
               <DialogFooter className="pt-2 border-t border-neutral-200">
                 <div className="flex items-center mr-auto space-x-2">
                   <Button

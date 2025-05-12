@@ -70,7 +70,11 @@ PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -v
   CREATE TABLE IF NOT EXISTS public.users (
     id SERIAL PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
-    password TEXT NOT NULL
+    password TEXT NOT NULL,
+    is_admin BOOLEAN DEFAULT FALSE,
+    force_change_password BOOLEAN DEFAULT TRUE,
+    last_login TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS public.manufacturers (
@@ -126,29 +130,37 @@ PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -v
     last_drying_date DATE,
     storage_location TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS public.user_sharing (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    material_id INTEGER REFERENCES public.materials(id) ON DELETE CASCADE,
+    is_public BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+  );
 "
 
-# Überprüfe, ob die Tabellen erstellt wurden
-for TABLE in users manufacturers materials colors diameters storage_locations filaments; do
+# Check if the tables were created
+for TABLE in users manufacturers materials colors diameters storage_locations filaments user_sharing; do
   EXISTS=$(PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '$TABLE')")
-  echo "Tabelle $TABLE erstellt: $EXISTS"
+  echo "Table $TABLE created: $EXISTS"
 done
 
-echo "Datenbankschema erstellt!"
+echo "Database schema created!"
 
-# Füge Beispieldaten ein, aber nur wenn die Tabelle leer ist und die Datei /app/.init_done nicht existiert
-echo "Überprüfe auf vorhandene Daten..."
+# Insert sample data, but only if the table is empty and the file /app/.init_done does not exist
+echo "Checking for existing data..."
 
-# Erstelle eine Lock-Datei, um zu verhindern, dass Daten mehrfach initialisiert werden
+# Create a lock file to prevent data from being initialized multiple times
 LOCK_FILE="/app/.init_done"
 
 if [ -f "$LOCK_FILE" ]; then
-  echo "Initialisierung bereits abgeschlossen (Lock-Datei existiert). Überspringe Dateneinfügung."
+  echo "Initialization already completed (lock file exists). Skipping data insertion."
 else
   COUNT=$(PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -t -c "SELECT COUNT(*) FROM public.manufacturers" 2>/dev/null | tr -d ' ' || echo "0")
 
   if [ "$COUNT" = "0" ]; then
-    echo "Füge grundlegende Daten ein..."
+    echo "Adding basic data..."
     PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -v ON_ERROR_STOP=0 -c "
       INSERT INTO public.manufacturers (name) VALUES ('Bambu Lab') ON CONFLICT DO NOTHING;
       INSERT INTO public.materials (name) VALUES ('PLA') ON CONFLICT DO NOTHING;
@@ -158,9 +170,9 @@ else
       INSERT INTO public.diameters (value) VALUES ('1.75') ON CONFLICT DO NOTHING;
       INSERT INTO public.storage_locations (name) VALUES ('Keller') ON CONFLICT DO NOTHING;
     "
-    echo "Grundlegende Daten wurden eingefügt!"
+    echo "Basic data inserted!"
 
-    echo "Füge Beispiel-Farben ein..."
+    echo "Adding sample colors..."
     PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -v ON_ERROR_STOP=0 -c "
       INSERT INTO public.colors (name, code) VALUES ('Dark Gray (Bambu Lab)', '#545454') ON CONFLICT DO NOTHING;
       INSERT INTO public.colors (name, code) VALUES ('Black (Bambu Lab)', '#000000') ON CONFLICT DO NOTHING;
@@ -168,17 +180,17 @@ else
       INSERT INTO public.colors (name, code) VALUES ('Red (Bambu Lab)', '#C12E1F') ON CONFLICT DO NOTHING;
       INSERT INTO public.colors (name, code) VALUES ('Blue (Bambu Lab)', '#0A2989') ON CONFLICT DO NOTHING;
     "
-    echo "Beispiel-Farben wurden eingefügt!"
+    echo "Sample colors inserted!"
 
-    # Erstelle die Lock-Datei nach erfolgreicher Initialisierung
+    # Create the lock file after successful initialization
     touch "$LOCK_FILE"
-    echo "Initialisierung abgeschlossen und Lock-Datei erstellt."
+    echo "Initialization completed and lock file created."
   else
-    echo "Daten bereits vorhanden, überspringe Initialisierung."
+    echo "Data already exists, skipping initialization."
     touch "$LOCK_FILE"
   fi
 fi
 
-# Starte die Anwendung
-echo "Starte Anwendung..."
+# Start the application
+echo "Starting application..."
 exec "$@"
