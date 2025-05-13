@@ -494,7 +494,7 @@ export function FilamentModal({
       )}
 
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto dark:bg-neutral-900 bg-white">
           <DialogHeader>
             <DialogTitle>{isEditing ? "Filament bearbeiten" : "Filament hinzufügen"}</DialogTitle>
           </DialogHeader>
@@ -813,8 +813,8 @@ export function FilamentModal({
                 />
               </div>
 
-              <div className="border rounded-md p-4 bg-neutral-900">
-                <h4 className="font-medium text-neutral-400 mb-3">Menge</h4>
+              <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200">
+                <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3">Menge</h4>
                 <div className="space-y-4">
                   <div>
                     <FormLabel>Gesamtgewicht (kg)*</FormLabel>
@@ -877,7 +877,7 @@ export function FilamentModal({
                               className="w-full mr-2"
                             />
                           </FormControl>
-                          <span className="font-medium text-neutral-400 w-10 text-right">
+                          <span className="font-medium dark:text-neutral-400 text-gray-700 w-10 text-right">
                             {field.value}%
                           </span>
                         </div>
@@ -888,8 +888,8 @@ export function FilamentModal({
 
                   <div>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-neutral-300">Entspricht:</span>
-                      <span className="font-medium text-neutral-400">
+                      <span className="dark:text-neutral-300 text-gray-600">Entspricht:</span>
+                      <span className="font-medium dark:text-neutral-400 text-gray-700">
                         {calculateRemainingWeight()}kg
                       </span>
                     </div>
@@ -897,8 +897,8 @@ export function FilamentModal({
                 </div>
               </div>
 
-              <div className="border rounded-md p-4 bg-neutral-900">
-                <h4 className="font-medium text-neutral-400 mb-3">Zusätzliche Informationen</h4>
+              <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200">
+                <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3">Zusätzliche Informationen</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -918,7 +918,7 @@ export function FilamentModal({
                                 {field.value ? (
                                   format(field.value, "dd.MM.yyyy", { locale: de })
                                 ) : (
-                                  <span className="text-neutral-400">Datum wählen</span>
+                                  <span className="dark:text-neutral-400 text-gray-500">Datum wählen</span>
                                 )}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                               </Button>
@@ -1017,8 +1017,8 @@ export function FilamentModal({
                 </div>
               </div>
 
-              <div className="border rounded-md p-4 bg-neutral-900">
-                <h4 className="font-medium text-neutral-400 mb-3">Status</h4>
+              <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200">
+                <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3">Status</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -1071,7 +1071,7 @@ export function FilamentModal({
                   />
                 </div>
 
-                <h4 className="font-medium text-neutral-400 mb-3 mt-4">Trocknung</h4>
+                <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3 mt-4">Trocknung</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -1141,7 +1141,7 @@ export function FilamentModal({
                 </div>
               </div>
 
-              <DialogFooter className="pt-2 border-t border-neutral-200">
+              <DialogFooter className="pt-2 border-t dark:border-neutral-700 border-gray-200">
                 <div className="flex items-center mr-auto space-x-2">
                   <Button
                     type="button"

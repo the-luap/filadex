@@ -79,7 +79,7 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-[350px]">
-        <CardHeader className="text-center theme-primary-bg text-white rounded-t-lg">
+        <CardHeader className="text-center bg-primary dark:bg-primary text-white rounded-t-lg">
           <div className="flex flex-col items-center">
             <Logo size={60} color="white" />
             <CardTitle className="mt-2">Filadex</CardTitle>
@@ -115,7 +115,7 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full bg-secondary hover:bg-secondary-dark" disabled={loginMutation.isPending}>
+              <Button type="submit" className="w-full bg-primary text-white hover:bg-primary/90" disabled={loginMutation.isPending}>
                 {loginMutation.isPending ? "Logging in..." : "Login"}
               </Button>
             </form>

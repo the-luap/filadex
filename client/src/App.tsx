@@ -8,6 +8,21 @@ import PublicFilamentsPage from "@/pages/public-filaments";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Toaster } from "@/components/ui/toaster";
 
+// Initialize theme from localStorage on page load
+const initializeTheme = () => {
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "light") {
+    document.documentElement.classList.remove("dark");
+    document.body.classList.remove("dark");
+  } else {
+    document.documentElement.classList.add("dark");
+    document.body.classList.add("dark");
+  }
+};
+
+// Execute immediately
+initializeTheme();
+
 // Protected route component
 function ProtectedRoute({ component: Component, adminOnly = false, ...rest }: {
   component: React.ComponentType<any>,

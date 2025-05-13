@@ -71,7 +71,7 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
       document.documentElement.style.setProperty("--theme-loaded-primary", themeData.primary);
       return;
     }
-    
+
     // Ansonsten aus localStorage verwenden (Fallback)
     const savedColor = localStorage.getItem("themeColor");
     if (savedColor) {
@@ -87,19 +87,22 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
   const applyTheme = (color: string) => {
     // Farbe im localStorage speichern (als Fallback)
     localStorage.setItem("themeColor", color);
-    
+
     // CSS-Variable aktualisieren
     document.documentElement.style.setProperty("--theme-primary", color);
     document.documentElement.style.setProperty("--theme-loaded-primary", color);
-    
+
+    // Get current theme mode from localStorage or use dark as default
+    const currentTheme = localStorage.getItem("theme") || "dark";
+
     // Neues Theme-Objekt erstellen und an den Server senden
     const updatedTheme = {
       variant: themeData?.variant || "professional",
       primary: color,
-      appearance: themeData?.appearance || "dark",
+      appearance: currentTheme as "light" | "dark",
       radius: themeData?.radius || 0.8
     };
-    
+
     // API-Call zum Update des Themes
     updateThemeMutation.mutate(updatedTheme);
   };
@@ -125,13 +128,13 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
             Akzentfarbe anpassen
           </DialogTitle>
         </DialogHeader>
-        
+
         <Tabs defaultValue="presets" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="presets">Voreinstellungen</TabsTrigger>
             <TabsTrigger value="custom">Benutzerdefiniert</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="presets" className="mt-4">
             <div className="grid grid-cols-4 gap-2">
               {PRESET_COLORS.map((color) => (
@@ -147,7 +150,7 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
               ))}
             </div>
           </TabsContent>
-          
+
           <TabsContent value="custom" className="mt-4 space-y-4">
             <div className="space-y-2">
               <Label htmlFor="custom-color">Eigene Farbe (HEX-Code)</Label>
@@ -171,7 +174,7 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
                 </Button>
               </div>
             </div>
-            
+
             <div className="h-12 rounded-md transition-all" style={{ backgroundColor: selectedColor }}>
               <div className="w-full h-full flex items-center justify-center">
                 <span className="text-white text-shadow-sm shadow-black">Vorschau</span>
@@ -179,7 +182,7 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
             </div>
           </TabsContent>
         </Tabs>
-        
+
         <DialogFooter className="flex flex-col sm:flex-row sm:justify-between">
           <Button
             variant="outline"
@@ -188,7 +191,7 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
           >
             Abbrechen
           </Button>
-          <Button 
+          <Button
             onClick={() => applyTheme(selectedColor)}
             className="mt-2 sm:mt-0 w-full sm:w-auto"
             disabled={updateThemeMutation.isPending}

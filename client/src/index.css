@@ -10,6 +10,27 @@
 
 :root {
   --theme-primary: #E11D48; /* Default Highlight-Farbe (Rot) */
+
+  /* Light mode default variables */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 222.2 84% 4.9%;
+  --chart-bg: #f8f8f8;
 }
 
 /* Initialisierung der Farbvariable aus localStorage beim Laden */
@@ -25,59 +46,91 @@
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans antialiased bg-background text-foreground transition-colors duration-200;
   }
-  
+
   h1, h2, h3, h4 {
     @apply font-medium tracking-tight;
   }
-  
+
+  /* Dark mode overrides */
+  .dark {
+    color-scheme: dark;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --chart-bg: #1c1c1c;
+  }
+
+  .dark .theme-primary-bg {
+    @apply text-white;
+  }
+
+  .dark body {
+    @apply bg-gray-900 text-gray-100;
+  }
+
   /* Modernere Schatten und Effekte */
   .card-hover {
     @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
   }
-  
+
   /* Gradient-Text für besondere Hervorhebungen */
   .gradient-text {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(to right, var(--theme-primary), color-mix(in srgb, var(--theme-primary), transparent 30%));
   }
-  
+
   /* Dynamische Farbe für Theme-Elemente */
   .theme-primary {
     color: var(--theme-primary);
   }
-  
+
   .theme-primary-bg {
     background-color: var(--theme-primary);
   }
-  
+
   .theme-primary-bg-20 {
     background-color: color-mix(in srgb, var(--theme-primary), transparent 80%);
   }
-  
+
   .theme-primary-bg-30 {
     background-color: color-mix(in srgb, var(--theme-primary), transparent 70%);
   }
-  
+
   .theme-primary-border {
     border-color: var(--theme-primary);
   }
-  
+
   .focus\:theme-primary-border:focus {
     border-color: var(--theme-primary);
   }
-  
+
   /* Anpassungen für Checkboxen und Radiobuttons */
   [data-state=checked].theme-checkbox-bg {
     background-color: var(--theme-primary) !important;
     border-color: var(--theme-primary) !important;
   }
-  
+
   .theme-radio-border {
     border-color: var(--theme-primary) !important;
   }
-  
+
   .theme-radio-checked {
     background-color: var(--theme-primary) !important;
   }
@@ -85,15 +138,69 @@
 
 @layer components {
   .filament-card {
-    @apply bg-white rounded-lg shadow-md overflow-hidden transition-all duration-200 hover:shadow-lg;
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transition-all duration-200 hover:shadow-lg;
   }
-  
+
   .filter-section {
-    @apply bg-gray-50 p-4 rounded-lg;
+    @apply bg-gray-50 dark:bg-gray-900 p-4 rounded-lg;
   }
-  
+
   /* Button-Verbesserungen */
   .btn-primary {
     @apply bg-gradient-to-r from-primary to-primary/90 shadow-md hover:shadow-lg transition-all duration-200;
+  }
+
+  /* Light mode specific component styles */
+  body:not(.dark) {
+    @apply bg-white text-gray-800;
+  }
+
+  body:not(.dark) .card,
+  body:not(.dark) .input,
+  body:not(.dark) .select,
+  body:not(.dark) .textarea {
+    @apply bg-white border-gray-200;
+  }
+
+  body:not(.dark) .dropdown-content {
+    @apply bg-white border-gray-200;
+  }
+
+  body:not(.dark) .table th {
+    @apply bg-gray-50;
+  }
+
+  body:not(.dark) .table td {
+    @apply border-gray-200;
+  }
+
+  body:not(.dark) .dialog,
+  body:not(.dark) .popover {
+    @apply bg-white border-gray-200;
+  }
+
+  /* Dark mode specific component styles */
+  .dark .card,
+  .dark .input,
+  .dark .select,
+  .dark .textarea {
+    @apply bg-gray-800 border-gray-700;
+  }
+
+  .dark .dropdown-content {
+    @apply bg-gray-800 border-gray-700;
+  }
+
+  .dark .table th {
+    @apply bg-gray-800;
+  }
+
+  .dark .table td {
+    @apply border-gray-700;
+  }
+
+  .dark .dialog,
+  .dark .popover {
+    @apply bg-gray-800 border-gray-700;
   }
 }

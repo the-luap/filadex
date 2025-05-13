@@ -19,7 +19,7 @@ export default function Home() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedFilament, setSelectedFilament] = useState<Filament | undefined>(undefined);
   const [copyFromFilament, setCopyFromFilament] = useState<Filament | undefined>(undefined);
-  
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
@@ -37,26 +37,26 @@ export default function Home() {
   // Filter filaments based on all filters
   const filteredFilaments = filaments.filter(filament => {
     // Filter by search term
-    const matchesSearch = searchTerm.trim() === '' || 
+    const matchesSearch = searchTerm.trim() === '' ||
       filament.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (filament.manufacturer && filament.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+
     // Filter by material
-    const matchesMaterial = selectedMaterials.length === 0 || 
+    const matchesMaterial = selectedMaterials.length === 0 ||
       selectedMaterials.includes(filament.material);
-    
+
     // Filter by manufacturer
     const matchesManufacturer = selectedManufacturers.length === 0 ||
       (filament.manufacturer && selectedManufacturers.includes(filament.manufacturer));
-    
+
     // Filter by color
     const matchesColor = selectedColors.length === 0 ||
       (filament.colorName && selectedColors.includes(filament.colorName));
-    
+
     // Filter by remaining percentage (umgedreht: zeige nur Filamente mit höchstens diesem Prozentsatz)
-    const matchesRemaining = minRemainingPercentage === 0 || 
+    const matchesRemaining = minRemainingPercentage === 0 ||
       Number(filament.remainingPercentage) <= minRemainingPercentage;
-    
+
     return matchesSearch && matchesMaterial && matchesManufacturer && matchesColor && matchesRemaining;
   });
 
@@ -72,13 +72,13 @@ export default function Home() {
       // Direkt aktualisieren, um die Verzögerung zu vermeiden
       queryClient.invalidateQueries({ queryKey: ['/api/filaments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/statistics'] });
-      
+
       // Sofortiges Update mit direktem Browser-Refresh
       setTimeout(() => {
         refetchFilaments();
         window.location.reload(); // Füge einen vollen Seitenrefresh hinzu, falls der Refetch nicht ausreicht
       }, 300);
-      
+
       setShowAddModal(false);
       toast({
         title: "Erfolg",
@@ -106,13 +106,13 @@ export default function Home() {
       // Direkt aktualisieren, um die Verzögerung zu vermeiden
       queryClient.invalidateQueries({ queryKey: ['/api/filaments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/statistics'] });
-      
+
       // Sofortiges Update mit direktem Browser-Refresh
       setTimeout(() => {
         refetchFilaments();
         window.location.reload(); // Füge einen vollen Seitenrefresh hinzu, falls der Refetch nicht ausreicht
       }, 300);
-      
+
       setShowAddModal(false);
       setSelectedFilament(undefined);
       toast({
@@ -140,13 +140,13 @@ export default function Home() {
       // Direkt aktualisieren, um die Verzögerung zu vermeiden
       queryClient.invalidateQueries({ queryKey: ['/api/filaments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/statistics'] });
-      
+
       // Sofortiges Update mit direktem Browser-Refresh
       setTimeout(() => {
         refetchFilaments();
         window.location.reload(); // Füge einen vollen Seitenrefresh hinzu, falls der Refetch nicht ausreicht
       }, 300);
-      
+
       setShowDeleteModal(false);
       setSelectedFilament(undefined);
       toast({
@@ -199,7 +199,7 @@ export default function Home() {
     setSelectedFilament(filament);
     setShowDeleteModal(true);
   };
-  
+
   // Open add modal with values copied from selected filament
   const handleCopyFilament = (filament: Filament) => {
     setSelectedFilament(undefined);
@@ -239,7 +239,7 @@ export default function Home() {
       <main className="flex-grow container mx-auto px-4 py-6">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar with filters and statistics */}
-          <FilterSidebar 
+          <FilterSidebar
             onSearchChange={handleSearchChange}
             onMaterialChange={handleMaterialChange}
             onMinRemaining={handleMinRemainingChange}
@@ -259,15 +259,15 @@ export default function Home() {
             ) : (
               <>
                 {/* Material and Color Chart */}
-                <div className="bg-neutral-800 p-4 rounded-lg shadow-md">
+                <div className="dark:bg-neutral-800 light:bg-white p-4 rounded-lg shadow-md">
                   <MaterialColorChart filaments={filaments} />
                 </div>
-                
+
                 {/* Statistics Accordion */}
                 <StatisticsAccordion />
-              
+
                 {/* Filament Grid */}
-                <FilamentGrid 
+                <FilamentGrid
                   filaments={filteredFilaments}
                   onEditFilament={handleEditFilament}
                   onDeleteFilament={handleDeleteFilament}

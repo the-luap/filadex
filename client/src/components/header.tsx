@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Paintbrush, Plus, Settings, Users, LogOut, Share2, KeyRound } from "lucide-react";
 import { ThemeSelector } from "./theme-selector";
+import { ThemeToggle } from "./theme-toggle";
 import { SettingsDialog } from "./settings-dialog";
 import { UserManagementModal } from "./user-management-modal";
 import { SharingModal } from "./sharing-modal";
@@ -41,6 +42,8 @@ export function Header({ onAddFilament }: HeaderProps) {
           </Link>
         </div>
         <div className="flex items-center space-x-2">
+          <ThemeToggle />
+
           <Button
             onClick={() => setThemeDialogOpen(true)}
             variant="outline"
@@ -108,7 +111,7 @@ export function Header({ onAddFilament }: HeaderProps) {
 
           <Button
             onClick={onAddFilament}
-            className="bg-secondary hover:bg-secondary-dark text-white px-4 py-2 rounded-md flex items-center transition-colors duration-200"
+            className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-md flex items-center transition-colors duration-200"
           >
             <Plus className="mr-1 h-5 w-5" />
             Add Filament

@@ -34,7 +34,7 @@ export function MaterialColorChart({ filaments }: MaterialColorChartProps) {
       const colorKey = `${material}-${colorId}`;
       const colorCount = materialColorMap.get(material)?.get(colorId) || 0;
       materialColorMap.get(material)?.set(colorId, colorCount + 1);
-      
+
       // Speichere die tatsächliche Farbe für die Darstellung
       colorMap.set(colorKey, filament.colorCode || "#888888");
     });
@@ -62,14 +62,14 @@ export function MaterialColorChart({ filaments }: MaterialColorChartProps) {
   // Gruppiere nach Material (Kategorie) und sortiere nach Farbcodes
   const materialGroups = useMemo(() => {
     const groups = new Map<string, ChartData[]>();
-    
+
     chartData.forEach(item => {
       if (!groups.has(item.category)) {
         groups.set(item.category, []);
       }
       groups.get(item.category)?.push(item);
     });
-    
+
     // Sortiere die Gruppen nach Farbcodes (Hexwerte)
     groups.forEach((items, category) => {
       items.sort((a, b) => {
@@ -79,7 +79,7 @@ export function MaterialColorChart({ filaments }: MaterialColorChartProps) {
         return colorA.localeCompare(colorB);
       });
     });
-    
+
     return Array.from(groups.entries()).map(([category, items]) => ({
       category,
       items
@@ -103,9 +103,9 @@ export function MaterialColorChart({ filaments }: MaterialColorChartProps) {
   return (
     <div className="w-full h-[300px] flex flex-col items-center">
       <h3 className="text-lg font-semibold mb-2">Materialien und Farben</h3>
-      
+
       <ResponsiveContainer width="100%" height="100%">
-        <PieChart style={{ backgroundColor: '#1c1c1c', borderRadius: '0.5rem' }}>
+        <PieChart style={{ backgroundColor: 'var(--chart-bg, #1c1c1c)', borderRadius: '0.5rem' }}>
           {/* Material-Ring (äußerer Ring) */}
           <Pie
             data={materialGroups.map((group, i) => ({
@@ -124,13 +124,13 @@ export function MaterialColorChart({ filaments }: MaterialColorChartProps) {
             fill="#ffffff"
           >
             {materialGroups.map((group, index) => (
-              <Cell 
-                key={`cell-material-${index}`} 
-                fill={MATERIAL_COLORS[index % MATERIAL_COLORS.length]} 
+              <Cell
+                key={`cell-material-${index}`}
+                fill={MATERIAL_COLORS[index % MATERIAL_COLORS.length]}
               />
             ))}
           </Pie>
-          
+
           {/* Farbring (innerer Ring) */}
           <Pie
             data={chartData}
@@ -146,14 +146,14 @@ export function MaterialColorChart({ filaments }: MaterialColorChartProps) {
               <Cell key={`cell-color-${index}`} fill={entry.color} />
             ))}
           </Pie>
-          
+
           <Tooltip
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
                 const data = payload[0].payload;
                 if (data.category) {
                   return (
-                    <div className="bg-background border border-accent p-2 rounded-md shadow-md">
+                    <div className="dark:bg-neutral-800 light:bg-white border dark:border-neutral-700 light:border-gray-200 p-2 rounded-md shadow-md">
                       <p className="font-semibold">{data.name}</p>
                       <p>Material: {data.category}</p>
                       <p>Anzahl: {data.value}</p>
@@ -161,7 +161,7 @@ export function MaterialColorChart({ filaments }: MaterialColorChartProps) {
                   );
                 } else {
                   return (
-                    <div className="bg-background border border-accent p-2 rounded-md shadow-md">
+                    <div className="dark:bg-neutral-800 light:bg-white border dark:border-neutral-700 light:border-gray-200 p-2 rounded-md shadow-md">
                       <p className="font-semibold">{data.name}</p>
                       <p>Anzahl: {data.value}</p>
                     </div>

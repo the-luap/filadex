@@ -133,7 +133,7 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
     reader.onload = async (e) => {
       try {
         const csvData = e.target?.result as string;
-        
+
         // Sende Daten an den Server
         const result = await apiRequest(`${endpoint}?import=csv`, {
           method: "POST",
@@ -164,7 +164,7 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
       }
     };
     reader.readAsText(file);
-    
+
     // Reset file input
     if (event.target) {
       event.target.value = "";
@@ -208,12 +208,12 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
               <AlertTitle>CSV-Format</AlertTitle>
               <AlertDescription className="text-xs">
                 Die CSV-Datei muss folgenden Aufbau haben:
-                <pre className="mt-2 p-2 bg-neutral-900 rounded text-xs overflow-x-auto">
+                <pre className="mt-2 p-2 dark:bg-neutral-900 bg-gray-100 rounded text-xs overflow-x-auto dark:text-white text-gray-800">
                   {csvFormat}
                 </pre>
               </AlertDescription>
             </Alert>
-            
+
             <div className="flex flex-col space-y-2">
               <input
                 type="file"
@@ -222,7 +222,7 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
                 className="hidden"
                 onChange={handleCsvUpload}
               />
-              <Button 
+              <Button
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                 disabled={csvUploadStatus.status === "processing"}
@@ -230,8 +230,8 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
                 <Upload className="mr-2 h-4 w-4" />
                 CSV-Datei importieren
               </Button>
-              
-              <Button 
+
+              <Button
                 onClick={handleExport}
                 className="w-full bg-emerald-900/20 hover:bg-emerald-900/30 text-white border-white/20"
               >
@@ -239,17 +239,17 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
                 Daten als CSV exportieren
               </Button>
             </div>
-            
+
             {csvUploadStatus.status !== "idle" && (
-              <Alert className={csvUploadStatus.status === "error" ? "bg-red-900/20" : 
-                            csvUploadStatus.status === "success" ? "bg-green-900/20" : 
+              <Alert className={csvUploadStatus.status === "error" ? "bg-red-900/20" :
+                            csvUploadStatus.status === "success" ? "bg-green-900/20" :
                             "bg-yellow-900/20"}>
                 {csvUploadStatus.status === "error" && <AlertTriangle className="h-4 w-4" />}
                 {csvUploadStatus.status === "success" && <FileText className="h-4 w-4" />}
                 {csvUploadStatus.status === "processing" && <span className="animate-pulse">⏳</span>}
                 <AlertTitle>
-                  {csvUploadStatus.status === "error" ? "Fehler beim Import" : 
-                  csvUploadStatus.status === "success" ? "Import abgeschlossen" : 
+                  {csvUploadStatus.status === "error" ? "Fehler beim Import" :
+                  csvUploadStatus.status === "success" ? "Import abgeschlossen" :
                   "Verarbeitung läuft..."}
                 </AlertTitle>
                 <AlertDescription className="text-xs">
@@ -392,17 +392,17 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       try {
         const existingManufacturers = await apiRequest<Manufacturer[]>("/api/manufacturers");
         const existingNames = new Set(existingManufacturers.map(m => m.name));
-        
+
         // Filtere Hersteller, die bereits existieren
         const newManufacturers = MANUFACTURERS.filter(name => !existingNames.has(name));
-        
+
         // Loggen, aber nichts automatisch hinzufügen
         console.log(`${newManufacturers.length} neue Hersteller verfügbar (werden nicht automatisch hinzugefügt)`);
       } catch (error) {
         console.error("Fehler beim Prüfen der Hersteller:", error);
       }
     };
-    
+
     // Kommentiert, um ungewollte Auto-Generierung von Daten zu verhindern
     // fetchExistingManufacturers();
 
@@ -411,17 +411,17 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       try {
         const existingMaterials = await apiRequest<Material[]>("/api/materials");
         const existingNames = new Set(existingMaterials.map(m => m.name));
-        
+
         // Filtere Materialien, die bereits existieren
         const newMaterials = MATERIAL_TYPES.filter(item => !existingNames.has(item.value));
-        
+
         // Loggen, aber nichts automatisch hinzufügen
         console.log(`${newMaterials.length} neue Materialtypen verfügbar (werden nicht automatisch hinzugefügt)`);
       } catch (error) {
         console.error("Fehler beim Prüfen der Materialtypen:", error);
       }
     };
-    
+
     // Kommentiert, um ungewollte Auto-Generierung von Daten zu verhindern
     // fetchExistingMaterialTypes();
 
@@ -432,18 +432,18 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       try {
         const existingDiameters = await apiRequest<Diameter[]>("/api/diameters");
         const existingValues = new Set(existingDiameters.map(d => d.value));
-        
+
         // Filtere Durchmesser, die bereits existieren
         const standardDiameters = ["1.75", "2.85"];
         const newDiameters = standardDiameters.filter(value => !existingValues.has(value));
-        
+
         // Loggen, aber nichts automatisch hinzufügen
         console.log(`${newDiameters.length} neue Durchmesser verfügbar (werden nicht automatisch hinzugefügt)`);
       } catch (error) {
         console.error("Fehler beim Prüfen der Durchmesser:", error);
       }
     };
-    
+
     // Kommentiert, um ungewollte Auto-Generierung von Daten zu verhindern
     // fetchExistingDiameters();
 
@@ -465,17 +465,17 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       });
 
       // Diese Funktionen wurden auskommentiert, um zu verhindern, dass Daten automatisch wieder angelegt werden
-      
+
       // Entdecke neue Hersteller aus Filamenten, aber füge sie nicht automatisch hinzu
       const syncExistingManufacturers = async () => {
         try {
           const existingManufacturers = await apiRequest<Manufacturer[]>("/api/manufacturers");
           const existingNames = new Set(existingManufacturers.map(m => m.name));
-          
+
           // Identifiziere fehlende Hersteller, aber füge sie nicht hinzu
           const newManufacturers = Array.from(uniqueManufacturers)
             .filter(name => !existingNames.has(name));
-          
+
           // Nur protokollieren, aber nicht automatisch hinzufügen
           if (newManufacturers.length > 0) {
             console.log(`${newManufacturers.length} neue Hersteller aus Filamenten entdeckt (werden nicht automatisch hinzugefügt)`);
@@ -484,7 +484,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           console.error("Fehler beim Prüfen der Hersteller aus Filamenten:", error);
         }
       };
-      
+
       // Kommentiert, um ungewollte Auto-Generierung von Daten zu verhindern
       // syncExistingManufacturers();
 
@@ -493,11 +493,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         try {
           const existingMaterials = await apiRequest<Material[]>("/api/materials");
           const existingNames = new Set(existingMaterials.map(m => m.name));
-          
+
           // Identifiziere fehlende Materialien, aber füge sie nicht hinzu
           const newMaterials = Array.from(uniqueMaterials)
             .filter(name => !existingNames.has(name));
-          
+
           // Nur protokollieren, aber nicht automatisch hinzufügen
           if (newMaterials.length > 0) {
             console.log(`${newMaterials.length} neue Materialien aus Filamenten entdeckt (werden nicht automatisch hinzugefügt)`);
@@ -506,7 +506,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           console.error("Fehler beim Prüfen der Materialien aus Filamenten:", error);
         }
       };
-      
+
       // Kommentiert, um ungewollte Auto-Generierung von Daten zu verhindern
       // syncExistingMaterials();
 
@@ -515,11 +515,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         try {
           const existingColors = await apiRequest<Color[]>("/api/colors");
           const existingColorNames = new Set(existingColors.map(c => c.name));
-          
+
           // Identifiziere fehlende Farben, aber füge sie nicht hinzu
           const newColors = Array.from(uniqueColors.entries())
             .filter(([name, _]) => !existingColorNames.has(name));
-          
+
           // Nur protokollieren, aber nicht automatisch hinzufügen
           if (newColors.length > 0) {
             console.log(`${newColors.length} neue Farben aus Filamenten entdeckt (werden nicht automatisch hinzugefügt)`);
@@ -528,7 +528,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           console.error("Fehler beim Prüfen der Farben aus Filamenten:", error);
         }
       };
-      
+
       // Kommentiert, um ungewollte Auto-Generierung von Daten zu verhindern
       // syncExistingColors();
 
@@ -537,11 +537,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         try {
           const existingDiameters = await apiRequest<Diameter[]>("/api/diameters");
           const existingValues = new Set(existingDiameters.map(d => d.value));
-          
+
           // Identifiziere fehlende Durchmesser, aber füge sie nicht hinzu
           const newDiameters = Array.from(uniqueDiameters)
             .filter(value => !existingValues.has(value));
-          
+
           // Nur protokollieren, aber nicht automatisch hinzufügen
           if (newDiameters.length > 0) {
             console.log(`${newDiameters.length} neue Durchmesser aus Filamenten entdeckt (werden nicht automatisch hinzugefügt)`);
@@ -550,7 +550,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           console.error("Fehler beim Prüfen der Durchmesser aus Filamenten:", error);
         }
       };
-      
+
       // Kommentiert, um ungewollte Auto-Generierung von Daten zu verhindern
       // syncExistingDiameters();
 
@@ -559,11 +559,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         try {
           const existingLocations = await apiRequest<StorageLocation[]>("/api/storage-locations");
           const existingNames = new Set(existingLocations.map(l => l.name));
-          
+
           // Identifiziere fehlende Lagerorte, aber füge sie nicht hinzu
           const newLocations = Array.from(uniqueLocations)
             .filter(name => !existingNames.has(name));
-          
+
           // Nur protokollieren, aber nicht automatisch hinzufügen
           if (newLocations.length > 0) {
             console.log(`${newLocations.length} neue Lagerorte aus Filamenten entdeckt (werden nicht automatisch hinzugefügt)`);
@@ -572,7 +572,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           console.error("Fehler beim Prüfen der Lagerorte aus Filamenten:", error);
         }
       };
-      
+
       // Kommentiert, um ungewollte Auto-Generierung von Daten zu verhindern
       // syncExistingLocations();
     }
@@ -639,7 +639,7 @@ function ManufacturersList() {
     queryKey: ["/api/manufacturers"],
     queryFn: () => apiRequest<Manufacturer[]>("/api/manufacturers")
   });
-  
+
   // Funktion zum Aktualisieren der Reihenfolge
   const updateOrderMutation = useMutation({
     mutationFn: async ({ id, newOrder }: { id: number, newOrder: number }) => {
@@ -664,16 +664,16 @@ function ManufacturersList() {
   // DnD-Handler für Reihenfolge-Änderung
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    
+
     const sourceIndex = result.source.index;
     const destinationIndex = result.destination.index;
-    
+
     if (sourceIndex === destinationIndex) return;
-    
+
     const item = manufacturers[sourceIndex];
     updateOrderMutation.mutate({ id: item.id, newOrder: destinationIndex });
   };
-  
+
   // CSV Format für Hersteller
   const manufacturersCsvFormat = `Name
 Bambu Lab
@@ -683,7 +683,7 @@ Polymaker
 
   // Gefilterte Hersteller basierend auf der Suche
   const filteredManufacturers = useMemo(() => {
-    return manufacturers.filter(manufacturer => 
+    return manufacturers.filter(manufacturer =>
       manufacturer.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [manufacturers, searchTerm]);
@@ -742,14 +742,14 @@ Polymaker
     },
     onError: (error: any) => {
       let errorMessage = "Der Hersteller konnte nicht gelöscht werden.";
-      
+
       // Versuche, die genaue Fehlermeldung aus der API-Antwort zu extrahieren
       if (error?.detail) {
         errorMessage = error.detail;
       } else if (error?.message?.includes("in use by filaments")) {
         errorMessage = "Dieser Hersteller wird von einem oder mehreren Filamenten verwendet und kann nicht gelöscht werden.";
       }
-      
+
       toast({
         title: "Fehler beim Löschen",
         description: errorMessage,
@@ -763,7 +763,7 @@ Polymaker
   const deleteAllManufacturersMutation = useMutation({
     mutationFn: async () => {
       // Lösche alle Hersteller parallel und ignoriere Fehler bei einzelnen
-      const deletePromises = manufacturers.map(manufacturer => 
+      const deletePromises = manufacturers.map(manufacturer =>
         apiRequest(`/api/manufacturers/${manufacturer.id}`, {
           method: "DELETE"
         }).catch(err => {
@@ -771,7 +771,7 @@ Polymaker
           return null; // Ignoriere Fehler bei einzelnen Herstellern
         })
       );
-      
+
       await Promise.all(deletePromises);
       return true;
     },
@@ -816,9 +816,9 @@ Polymaker
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 {searchTerm && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="absolute right-0 top-0 h-9 w-9"
                     onClick={() => setSearchTerm("")}
                   >
@@ -847,7 +847,7 @@ Polymaker
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                      <AlertDialogAction 
+                      <AlertDialogAction
                         onClick={() => deleteAllManufacturersMutation.mutate()}
                         className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                       >
@@ -879,7 +879,7 @@ Polymaker
                   <DragDropContext onDragEnd={handleDragEnd}>
                     <Droppable droppableId="manufacturers">
                       {(provided) => (
-                        <TableBody 
+                        <TableBody
                           {...provided.droppableProps}
                           ref={provided.innerRef}
                         >
@@ -953,9 +953,9 @@ Polymaker
                       </FormItem>
                     )}
                   />
-                  <Button 
-                    type="submit" 
-                    className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20" 
+                  <Button
+                    type="submit"
+                    className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     disabled={addManufacturerMutation.isPending}
                   >
                     Hersteller hinzufügen
@@ -966,8 +966,8 @@ Polymaker
           </Card>
         </div>
       </div>
-      
-      <ImportExportCard 
+
+      <ImportExportCard
         endpoint="/api/manufacturers"
         csvFormat={manufacturersCsvFormat}
         fields={["name"]}
@@ -987,14 +987,14 @@ function MaterialsList() {
     queryKey: ["/api/materials"],
     queryFn: () => apiRequest<Material[]>("/api/materials")
   });
-  
+
   // Gefilterte Materialien basierend auf der Suche
   const filteredMaterials = useMemo(() => {
-    return materials.filter(material => 
+    return materials.filter(material =>
       material.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [materials, searchTerm]);
-  
+
   // Funktion zum Aktualisieren der Reihenfolge
   const updateOrderMutation = useMutation({
     mutationFn: async ({ id, newOrder }: { id: number, newOrder: number }) => {
@@ -1019,16 +1019,16 @@ function MaterialsList() {
   // DnD-Handler für Reihenfolge-Änderung
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    
+
     const sourceIndex = result.source.index;
     const destinationIndex = result.destination.index;
-    
+
     if (sourceIndex === destinationIndex) return;
-    
+
     const item = materials[sourceIndex];
     updateOrderMutation.mutate({ id: item.id, newOrder: destinationIndex });
   };
-  
+
   // CSV Format für Materialien
   const materialsCsvFormat = `Name
 PLA
@@ -1091,14 +1091,14 @@ TPU
     },
     onError: (error: any) => {
       let errorMessage = "Das Material konnte nicht gelöscht werden.";
-      
+
       // Versuche, die genaue Fehlermeldung aus der API-Antwort zu extrahieren
       if (error?.detail) {
         errorMessage = error.detail;
       } else if (error?.message?.includes("in use by filaments")) {
         errorMessage = "Dieses Material wird von einem oder mehreren Filamenten verwendet und kann nicht gelöscht werden.";
       }
-      
+
       toast({
         title: "Fehler beim Löschen",
         description: errorMessage,
@@ -1111,7 +1111,7 @@ TPU
   const deleteAllMaterialsMutation = useMutation({
     mutationFn: async () => {
       // Lösche alle Materialien parallel und ignoriere Fehler bei einzelnen
-      const deletePromises = materials.map(material => 
+      const deletePromises = materials.map(material =>
         apiRequest(`/api/materials/${material.id}`, {
           method: "DELETE"
         }).catch(err => {
@@ -1119,7 +1119,7 @@ TPU
           return null; // Ignoriere Fehler bei einzelnen Materialien
         })
       );
-      
+
       await Promise.all(deletePromises);
       return true;
     },
@@ -1144,7 +1144,7 @@ TPU
       setIsDeleteConfirmOpen(false);
     }
   });
-  
+
   // Handler für das Absenden des Formulars
   const onSubmit = (data: FormValues) => {
     addMaterialMutation.mutate(data);
@@ -1186,7 +1186,7 @@ TPU
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                      <AlertDialogAction 
+                      <AlertDialogAction
                         onClick={() => deleteAllMaterialsMutation.mutate()}
                         className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                       >
@@ -1218,7 +1218,7 @@ TPU
                   <DragDropContext onDragEnd={handleDragEnd}>
                     <Droppable droppableId="materials">
                       {(provided) => (
-                        <TableBody 
+                        <TableBody
                           {...provided.droppableProps}
                           ref={provided.innerRef}
                         >
@@ -1294,9 +1294,9 @@ TPU
                       </FormItem>
                     )}
                   />
-                  <Button 
-                    type="submit" 
-                    className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20" 
+                  <Button
+                    type="submit"
+                    className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     disabled={addMaterialMutation.isPending}
                   >
                     Material hinzufügen
@@ -1307,8 +1307,8 @@ TPU
           </Card>
         </div>
       </div>
-      
-      <ImportExportCard 
+
+      <ImportExportCard
         endpoint="/api/materials"
         csvFormat={materialsCsvFormat}
         fields={["name"]}
@@ -1338,7 +1338,7 @@ function ColorsList() {
     skipped: 0,
     errored: 0
   });
-  
+
   // CSV Format für Farben
   const colorsCsvFormat = `Brand,Color Name,Hex Code
 Bambu Lab,Dark Gray,#545454
@@ -1352,7 +1352,7 @@ Prusament,Galaxy Black,#111111
 
   // Gefilterte Farben basierend auf der Suche
   const filteredColors = useMemo(() => {
-    return colors.filter(color => 
+    return colors.filter(color =>
       color.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [colors, searchTerm]);
@@ -1412,14 +1412,14 @@ Prusament,Galaxy Black,#111111
     },
     onError: (error: any) => {
       let errorMessage = "Die Farbe konnte nicht gelöscht werden.";
-      
+
       // Versuche, die genaue Fehlermeldung aus der API-Antwort zu extrahieren
       if (error?.detail) {
         errorMessage = error.detail;
       } else if (error?.message?.includes("in use by filaments")) {
         errorMessage = "Diese Farbe wird von einem oder mehreren Filamenten verwendet und kann nicht gelöscht werden.";
       }
-      
+
       toast({
         title: "Fehler beim Löschen",
         description: errorMessage,
@@ -1437,7 +1437,7 @@ Prusament,Galaxy Black,#111111
   const handleCsvUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    
+
     setCsvUploadStatus({
       status: "processing",
       message: "CSV-Datei wird verarbeitet...",
@@ -1445,7 +1445,7 @@ Prusament,Galaxy Black,#111111
       skipped: 0,
       errored: 0
     });
-    
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       const result = e.target?.result;
@@ -1459,42 +1459,42 @@ Prusament,Galaxy Black,#111111
         });
         return;
       }
-      
+
       const lines = result.split('\n');
       let added = 0;
       let skipped = 0;
       let errored = 0;
-      
+
       // Hole aktuelle Farben, um Duplikate zu vermeiden
       const existingColors = await apiRequest<Color[]>("/api/colors");
       const existingColorNames = new Set(existingColors.map(c => c.name));
-      
+
       // Funktion zum Parsen einer CSV-Zeile unter Berücksichtigung von Kommas in Werten
       // Diese vereinfachte Version geht davon aus, dass die Daten keine Anführungszeichen enthalten
       const parseCSVLine = (line: string): string[] => {
         // Spalten in der CSV: Brand,Color Name,Hex Code
         // Wir brauchen eine robustere Methode, um die Felder zu trennen
-        
+
         // Finde die Positionen der ersten beiden Kommas
         let firstCommaIndex = line.indexOf(',');
         if (firstCommaIndex === -1) return []; // Ungültiges Format
-        
+
         let secondCommaIndex = line.indexOf(',', firstCommaIndex + 1);
         if (secondCommaIndex === -1) return []; // Ungültiges Format
-        
+
         // Teile die Zeile in drei Teile auf
         const brand = line.substring(0, firstCommaIndex).trim();
         const colorName = line.substring(firstCommaIndex + 1, secondCommaIndex).trim();
         const hexCode = line.substring(secondCommaIndex + 1).trim();
-        
+
         return [brand, colorName, hexCode];
       };
-      
+
       // Überspringe die Kopfzeile
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        
+
         try {
           const values = parseCSVLine(line);
           if (values.length < 3) {
@@ -1502,41 +1502,41 @@ Prusament,Galaxy Black,#111111
             errored++;
             continue;
           }
-          
+
           const [brand, colorName, hexCode] = values;
-          
+
           // Erstelle einen Namen mit Hersteller in Klammern
           const fullColorName = `${colorName} (${brand})`;
-          
+
           // Prüfe, ob die Farbe bereits existiert
           if (existingColorNames.has(fullColorName)) {
             skipped++;
             continue;
           }
-          
+
           // Validiere Hex-Code
           if (!/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hexCode)) {
             console.warn(`Ungültiger Hex-Code in Zeile ${i+1}: ${hexCode}`);
             errored++;
             continue;
           }
-          
+
           // Füge Farbe hinzu
           await apiRequest<Color>("/api/colors", {
             method: "POST",
             body: JSON.stringify({ name: fullColorName, code: hexCode })
           });
-          
+
           added++;
         } catch (error) {
           errored++;
           console.error(`Fehler beim Verarbeiten der CSV-Zeile ${i+1}: ${line}`, error);
         }
       }
-      
+
       // Aktualisiere Status und UI
       queryClient.invalidateQueries({ queryKey: ["/api/colors"] });
-      
+
       setCsvUploadStatus({
         status: "success",
         message: `CSV-Import abgeschlossen. ${added} Farben hinzugefügt, ${skipped} übersprungen, ${errored} Fehler.`,
@@ -1544,18 +1544,18 @@ Prusament,Galaxy Black,#111111
         skipped,
         errored
       });
-      
+
       toast({
         title: "CSV-Import abgeschlossen",
         description: `${added} Farben hinzugefügt, ${skipped} übersprungen, ${errored} Fehler.`
       });
-      
+
       // Reset Dateiauswahl
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     };
-    
+
     reader.onerror = () => {
       setCsvUploadStatus({
         status: "error",
@@ -1565,7 +1565,7 @@ Prusament,Galaxy Black,#111111
         errored: 0
       });
     };
-    
+
     reader.readAsText(file);
   };
 
@@ -1573,7 +1573,7 @@ Prusament,Galaxy Black,#111111
   const deleteAllColorsMutation = useMutation({
     mutationFn: async () => {
       // Lösche alle Farben parallel und ignoriere Fehler bei einzelnen
-      const deletePromises = colors.map(color => 
+      const deletePromises = colors.map(color =>
         apiRequest(`/api/colors/${color.id}`, {
           method: "DELETE"
         }).catch(err => {
@@ -1581,7 +1581,7 @@ Prusament,Galaxy Black,#111111
           return null; // Ignoriere Fehler bei einzelnen Farben
         })
       );
-      
+
       await Promise.all(deletePromises);
       return true;
     },
@@ -1622,9 +1622,9 @@ Prusament,Galaxy Black,#111111
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 {searchTerm && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="absolute right-0 top-0 h-9 w-9"
                     onClick={() => setSearchTerm("")}
                   >
@@ -1653,7 +1653,7 @@ Prusament,Galaxy Black,#111111
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                      <AlertDialogAction 
+                      <AlertDialogAction
                         onClick={() => deleteAllColorsMutation.mutate()}
                         className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                       >
@@ -1687,7 +1687,7 @@ Prusament,Galaxy Black,#111111
                     {filteredColors.map((color) => (
                       <TableRow key={color.id} className="h-10">
                         <TableCell className="py-1 w-10">
-                          <div 
+                          <div
                             className="w-6 h-6 rounded-full border border-neutral-700"
                             style={{ backgroundColor: color.code }}
                           />
@@ -1747,7 +1747,7 @@ Prusament,Galaxy Black,#111111
                         <FormLabel>Farbcode</FormLabel>
                         <FormControl>
                           <div className="flex gap-3">
-                            <div 
+                            <div
                               className="w-10 h-10 rounded border border-neutral-700 flex-shrink-0"
                               style={{ backgroundColor: field.value }}
                             />
@@ -1758,9 +1758,9 @@ Prusament,Galaxy Black,#111111
                       </FormItem>
                     )}
                   />
-                  <Button 
-                    type="submit" 
-                    className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20" 
+                  <Button
+                    type="submit"
+                    className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     disabled={addColorMutation.isPending}
                   >
                     Farbe hinzufügen
@@ -1771,8 +1771,8 @@ Prusament,Galaxy Black,#111111
           </Card>
         </div>
       </div>
-      
-      <ImportExportCard 
+
+      <ImportExportCard
         endpoint="/api/colors"
         csvFormat={colorsCsvFormat}
         fields={["name", "code"]}
@@ -1792,7 +1792,7 @@ function DiametersList() {
     queryKey: ["/api/diameters"],
     queryFn: () => apiRequest<Diameter[]>("/api/diameters")
   });
-  
+
   // CSV Format für Durchmesser
   const diametersCsvFormat = `Wert
 1.75
@@ -1854,14 +1854,14 @@ function DiametersList() {
     },
     onError: (error: any) => {
       let errorMessage = "Der Durchmesser konnte nicht gelöscht werden.";
-      
+
       // Versuche, die genaue Fehlermeldung aus der API-Antwort zu extrahieren
       if (error?.detail) {
         errorMessage = error.detail;
       } else if (error?.message?.includes("in use by filaments")) {
         errorMessage = "Dieser Durchmesser wird von einem oder mehreren Filamenten verwendet und kann nicht gelöscht werden.";
       }
-      
+
       toast({
         title: "Fehler beim Löschen",
         description: errorMessage,
@@ -1874,7 +1874,7 @@ function DiametersList() {
   const deleteAllDiametersMutation = useMutation({
     mutationFn: async () => {
       // Lösche alle Durchmesser parallel und ignoriere Fehler bei einzelnen
-      const deletePromises = diameters.map(diameter => 
+      const deletePromises = diameters.map(diameter =>
         apiRequest(`/api/diameters/${diameter.id}`, {
           method: "DELETE"
         }).catch(err => {
@@ -1882,7 +1882,7 @@ function DiametersList() {
           return null; // Ignoriere Fehler bei einzelnen Durchmessern
         })
       );
-      
+
       await Promise.all(deletePromises);
       return true;
     },
@@ -1907,7 +1907,7 @@ function DiametersList() {
       setIsDeleteConfirmOpen(false);
     }
   });
-  
+
   // Handler für das Absenden des Formulars
   const onSubmit = (data: FormValues) => {
     addDiameterMutation.mutate(data);
@@ -1939,7 +1939,7 @@ function DiametersList() {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                    <AlertDialogAction 
+                    <AlertDialogAction
                       onClick={() => deleteAllDiametersMutation.mutate()}
                       className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     >
@@ -1960,8 +1960,8 @@ function DiametersList() {
             ) : (
               <div className="flex flex-wrap gap-2 max-h-[400px] overflow-y-auto">
                 {diameters.map((diameter) => (
-                  <Badge 
-                    key={diameter.id} 
+                  <Badge
+                    key={diameter.id}
                     className="flex items-center gap-2 px-3 py-1.5 theme-primary-bg-20 text-white hover:theme-primary-bg-30 border-white/20"
                   >
                     {diameter.value} mm
@@ -2002,9 +2002,9 @@ function DiametersList() {
                       </FormItem>
                     )}
                   />
-                  <Button 
-                    type="submit" 
-                    className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20" 
+                  <Button
+                    type="submit"
+                    className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     disabled={addDiameterMutation.isPending}
                   >
                     Durchmesser hinzufügen
@@ -2015,8 +2015,8 @@ function DiametersList() {
           </Card>
         </div>
       </div>
-      
-      <ImportExportCard 
+
+      <ImportExportCard
         endpoint="/api/diameters"
         csvFormat={diametersCsvFormat}
         fields={["value"]}
@@ -2035,7 +2035,7 @@ function StorageLocationsList() {
     queryKey: ["/api/storage-locations"],
     queryFn: () => apiRequest<StorageLocation[]>("/api/storage-locations")
   });
-  
+
   // Funktion zum Aktualisieren der Reihenfolge
   const updateOrderMutation = useMutation({
     mutationFn: async ({ id, newOrder }: { id: number, newOrder: number }) => {
@@ -2060,16 +2060,16 @@ function StorageLocationsList() {
   // DnD-Handler für Reihenfolge-Änderung
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    
+
     const sourceIndex = result.source.index;
     const destinationIndex = result.destination.index;
-    
+
     if (sourceIndex === destinationIndex) return;
-    
+
     const item = locations[sourceIndex];
     updateOrderMutation.mutate({ id: item.id, newOrder: destinationIndex });
   };
-  
+
   // CSV Format für Lagerorte
   const locationsCsvFormat = `Name
 Keller
@@ -2132,14 +2132,14 @@ Regal B
     },
     onError: (error: any) => {
       let errorMessage = "Der Lagerort konnte nicht gelöscht werden.";
-      
+
       // Versuche, die genaue Fehlermeldung aus der API-Antwort zu extrahieren
       if (error?.detail) {
         errorMessage = error.detail;
       } else if (error?.message?.includes("in use by filaments")) {
         errorMessage = "Dieser Lagerort wird von einem oder mehreren Filamenten verwendet und kann nicht gelöscht werden.";
       }
-      
+
       toast({
         title: "Fehler beim Löschen",
         description: errorMessage,
@@ -2152,7 +2152,7 @@ Regal B
   const deleteAllLocationsMutation = useMutation({
     mutationFn: async () => {
       // Lösche alle Lagerorte parallel und ignoriere Fehler bei einzelnen
-      const deletePromises = locations.map(location => 
+      const deletePromises = locations.map(location =>
         apiRequest(`/api/storage-locations/${location.id}`, {
           method: "DELETE"
         }).catch(err => {
@@ -2160,7 +2160,7 @@ Regal B
           return null; // Ignoriere Fehler bei einzelnen Lagerorten
         })
       );
-      
+
       await Promise.all(deletePromises);
       return true;
     },
@@ -2185,7 +2185,7 @@ Regal B
       setIsDeleteConfirmOpen(false);
     }
   });
-  
+
   // Handler für das Absenden des Formulars
   const onSubmit = (data: FormValues) => {
     addLocationMutation.mutate(data);
@@ -2217,7 +2217,7 @@ Regal B
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                    <AlertDialogAction 
+                    <AlertDialogAction
                       onClick={() => deleteAllLocationsMutation.mutate()}
                       className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     >
@@ -2248,7 +2248,7 @@ Regal B
                   <DragDropContext onDragEnd={handleDragEnd}>
                     <Droppable droppableId="locations">
                       {(provided) => (
-                        <TableBody 
+                        <TableBody
                           {...provided.droppableProps}
                           ref={provided.innerRef}
                         >
@@ -2322,9 +2322,9 @@ Regal B
                       </FormItem>
                     )}
                   />
-                  <Button 
-                    type="submit" 
-                    className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20" 
+                  <Button
+                    type="submit"
+                    className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     disabled={addLocationMutation.isPending}
                   >
                     Lagerort hinzufügen
@@ -2335,8 +2335,8 @@ Regal B
           </Card>
         </div>
       </div>
-      
-      <ImportExportCard 
+
+      <ImportExportCard
         endpoint="/api/storage-locations"
         csvFormat={locationsCsvFormat}
         fields={["name"]}

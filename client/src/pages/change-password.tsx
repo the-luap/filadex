@@ -78,7 +78,7 @@ export default function ChangePasswordPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-[400px]">
-        <CardHeader className="theme-primary-bg text-white rounded-t-lg">
+        <CardHeader className="bg-primary dark:bg-primary text-white rounded-t-lg">
           <CardTitle>Change Password</CardTitle>
           <CardDescription className="text-white/80">Update your password to continue</CardDescription>
         </CardHeader>

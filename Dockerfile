@@ -20,6 +20,8 @@ RUN mkdir -p dist
 COPY server.js dist/index.js
 # Create server directory structure
 RUN mkdir -p dist/server dist/shared
+# Copy schema.js to the correct location
+COPY shared/schema.js dist/shared/schema.js
 
 # Production image
 FROM node:20-alpine as production

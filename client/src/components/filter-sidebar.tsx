@@ -4,15 +4,15 @@ import { apiRequest } from "@/lib/queryClient";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   Command,
   CommandEmpty,
   CommandGroup,
@@ -69,8 +69,8 @@ interface FilterSidebarProps {
   onColorChange: (colors: string[]) => void;
 }
 
-export function FilterSidebar({ 
-  onSearchChange, 
+export function FilterSidebar({
+  onSearchChange,
   onMaterialChange,
   onMinRemaining,
   onManufacturerChange,
@@ -140,7 +140,7 @@ export function FilterSidebar({
   const clearMaterials = () => {
     setSelectedMaterials([]);
   };
-  
+
   // Handle manufacturer selection/deselection
   const handleManufacturerSelect = (manufacturer: string) => {
     setSelectedManufacturers(prev => {
@@ -160,7 +160,7 @@ export function FilterSidebar({
   const clearManufacturers = () => {
     setSelectedManufacturers([]);
   };
-  
+
   // Handle color selection/deselection
   const handleColorSelect = (color: string) => {
     setSelectedColors(prev => {
@@ -182,14 +182,14 @@ export function FilterSidebar({
   };
 
   return (
-    <aside className="lg:w-[28rem] bg-neutral-900 p-4 rounded-lg shadow-sm h-fit lg:sticky lg:top-4 max-h-screen lg:overflow-y-auto">
+    <aside className="lg:w-[28rem] dark:bg-neutral-900 bg-white p-4 rounded-lg shadow-md border border-gray-200 dark:border-neutral-700 h-fit lg:sticky lg:top-4 max-h-screen lg:overflow-y-auto">
       <div className="mb-6">
-        <h2 className="text-lg font-medium text-neutral-400 mb-3">Filamente suchen</h2>
+        <h2 className="text-lg font-medium dark:text-neutral-400 text-gray-700 mb-3">Filamente suchen</h2>
         <div className="relative">
           <Input
             type="text"
             placeholder="Suche nach Name, Hersteller..."
-            className="w-full pl-3 pr-9 py-2 bg-neutral-800 border-neutral-700 text-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:border-primary"
+            className="w-full pl-3 pr-9 py-2 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 bg-white border-gray-300 text-gray-800 rounded-md focus:outline-none focus:ring-1 focus:border-primary"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -203,7 +203,7 @@ export function FilterSidebar({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="absolute right-3 top-3 text-neutral-400 pointer-events-none"
+            className="absolute right-3 top-3 dark:text-neutral-400 text-gray-500 pointer-events-none"
           >
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.3-4.3" />
@@ -212,16 +212,16 @@ export function FilterSidebar({
       </div>
 
       <div className="mb-6">
-        <h2 className="text-lg font-medium text-neutral-400 mb-3">Material Filter</h2>
+        <h2 className="text-lg font-medium dark:text-neutral-400 text-gray-700 mb-3">Material Filter</h2>
         <div className="space-y-4">
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 role="combobox"
-                className="w-full justify-between bg-neutral-800 border-neutral-700 text-neutral-200 hover:bg-neutral-700 hover:text-neutral-100"
+                className="w-full justify-between dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:hover:text-neutral-100 bg-white border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-gray-900"
               >
-                {selectedMaterials.length === 0 
+                {selectedMaterials.length === 0
                   ? "Material hinzufügen"
                   : `${selectedMaterials.length} ausgewählt`}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -251,13 +251,13 @@ export function FilterSidebar({
               </Command>
             </PopoverContent>
           </Popover>
-          
+
           {selectedMaterials.length > 0 && (
             <div className="mt-2">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-neutral-400">Ausgewählte Materialien</span>
-                <button 
-                  className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors" 
+                <span className="text-sm dark:text-neutral-400 text-gray-600">Ausgewählte Materialien</span>
+                <button
+                  className="text-xs dark:text-neutral-400 dark:hover:text-neutral-200 text-gray-500 hover:text-gray-700 transition-colors"
                   onClick={clearMaterials}
                 >
                   Alle löschen
@@ -265,13 +265,13 @@ export function FilterSidebar({
               </div>
               <div className="flex flex-wrap gap-2">
                 {selectedMaterials.map(material => (
-                  <Badge 
-                    key={material} 
-                    variant="outline" 
-                    className="theme-badge flex items-center gap-1 bg-primary/10 text-neutral-200"
+                  <Badge
+                    key={material}
+                    variant="outline"
+                    className="theme-badge flex items-center gap-1 dark:bg-primary/10 dark:text-neutral-200 bg-primary/10 text-gray-800"
                   >
                     {material}
-                    <button 
+                    <button
                       onClick={() => removeMaterial(material)}
                       className="hover:text-white ml-1"
                     >
@@ -286,16 +286,16 @@ export function FilterSidebar({
       </div>
 
       <div className="mb-6">
-        <h2 className="text-lg font-medium text-neutral-400 mb-3">Hersteller Filter</h2>
+        <h2 className="text-lg font-medium dark:text-neutral-400 text-gray-700 mb-3">Hersteller Filter</h2>
         <div className="space-y-4">
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 role="combobox"
-                className="w-full justify-between bg-neutral-800 border-neutral-700 text-neutral-200 hover:bg-neutral-700 hover:text-neutral-100"
+                className="w-full justify-between dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:hover:text-neutral-100 bg-white border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-gray-900"
               >
-                {selectedManufacturers.length === 0 
+                {selectedManufacturers.length === 0
                   ? "Hersteller hinzufügen"
                   : `${selectedManufacturers.length} ausgewählt`}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -325,13 +325,13 @@ export function FilterSidebar({
               </Command>
             </PopoverContent>
           </Popover>
-          
+
           {selectedManufacturers.length > 0 && (
             <div className="mt-2">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-neutral-400">Ausgewählte Hersteller</span>
-                <button 
-                  className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors" 
+                <span className="text-sm dark:text-neutral-400 text-gray-600">Ausgewählte Hersteller</span>
+                <button
+                  className="text-xs dark:text-neutral-400 dark:hover:text-neutral-200 text-gray-500 hover:text-gray-700 transition-colors"
                   onClick={clearManufacturers}
                 >
                   Alle löschen
@@ -339,13 +339,13 @@ export function FilterSidebar({
               </div>
               <div className="flex flex-wrap gap-2">
                 {selectedManufacturers.map(manufacturer => (
-                  <Badge 
-                    key={manufacturer} 
-                    variant="outline" 
-                    className="theme-badge flex items-center gap-1 bg-primary/10 text-neutral-200"
+                  <Badge
+                    key={manufacturer}
+                    variant="outline"
+                    className="theme-badge flex items-center gap-1 dark:bg-primary/10 dark:text-neutral-200 bg-primary/10 text-gray-800"
                   >
                     {manufacturer}
-                    <button 
+                    <button
                       onClick={() => removeManufacturer(manufacturer)}
                       className="hover:text-white ml-1"
                     >
@@ -360,16 +360,16 @@ export function FilterSidebar({
       </div>
 
       <div className="mb-6">
-        <h2 className="text-lg font-medium text-neutral-400 mb-3">Farb Filter</h2>
+        <h2 className="text-lg font-medium dark:text-neutral-400 text-gray-700 mb-3">Farb Filter</h2>
         <div className="space-y-4">
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 role="combobox"
-                className="w-full justify-between bg-neutral-800 border-neutral-700 text-neutral-200 hover:bg-neutral-700 hover:text-neutral-100"
+                className="w-full justify-between dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:hover:text-neutral-100 bg-white border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-gray-900"
               >
-                {selectedColors.length === 0 
+                {selectedColors.length === 0
                   ? "Farbe hinzufügen"
                   : `${selectedColors.length} ausgewählt`}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -393,8 +393,8 @@ export function FilterSidebar({
                             selectedColors.includes(color.name) ? "opacity-100" : "opacity-0"
                           )}
                         />
-                        <div 
-                          className="w-4 h-4 rounded-full mr-2" 
+                        <div
+                          className="w-4 h-4 rounded-full mr-2"
                           style={{ backgroundColor: color.code }}
                         />
                         {color.name}
@@ -405,13 +405,13 @@ export function FilterSidebar({
               </Command>
             </PopoverContent>
           </Popover>
-          
+
           {selectedColors.length > 0 && (
             <div className="mt-2">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-neutral-400">Ausgewählte Farben</span>
-                <button 
-                  className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors" 
+                <span className="text-sm dark:text-neutral-400 text-gray-600">Ausgewählte Farben</span>
+                <button
+                  className="text-xs dark:text-neutral-400 dark:hover:text-neutral-200 text-gray-500 hover:text-gray-700 transition-colors"
                   onClick={clearColors}
                 >
                   Alle löschen
@@ -421,17 +421,17 @@ export function FilterSidebar({
                 {selectedColors.map(colorName => {
                   const colorItem = colors.find(c => c.name === colorName);
                   return (
-                    <Badge 
-                      key={colorName} 
-                      variant="outline" 
-                      className="theme-badge flex items-center gap-1 bg-primary/10 text-neutral-200"
+                    <Badge
+                      key={colorName}
+                      variant="outline"
+                      className="theme-badge flex items-center gap-1 dark:bg-primary/10 dark:text-neutral-200 bg-primary/10 text-gray-800"
                     >
-                      <div 
-                        className="w-3 h-3 rounded-full mr-1" 
+                      <div
+                        className="w-3 h-3 rounded-full mr-1"
                         style={{ backgroundColor: colorItem?.code || '#ccc' }}
                       />
                       {colorName}
-                      <button 
+                      <button
                         onClick={() => removeColor(colorName)}
                         className="hover:text-white ml-1"
                       >
@@ -447,10 +447,10 @@ export function FilterSidebar({
       </div>
 
       <div className="mb-6">
-        <h2 className="text-lg font-medium text-neutral-400 mb-3">Bestand</h2>
+        <h2 className="text-lg font-medium dark:text-neutral-400 text-gray-700 mb-3">Bestand</h2>
         <div className="space-y-3">
           <div>
-            <span className="text-neutral-400 block mb-1">Max. Restmenge (%)</span>
+            <span className="dark:text-neutral-400 text-gray-700 block mb-1">Max. Restmenge (%)</span>
             <Slider
               value={[minRemaining]}
               min={0}
@@ -459,12 +459,12 @@ export function FilterSidebar({
               onValueChange={(values) => setMinRemaining(values[0])}
               className="w-full"
             />
-            <div className="flex justify-between text-sm text-neutral-300 px-1 mt-1">
+            <div className="flex justify-between text-sm dark:text-neutral-300 text-gray-500 px-1 mt-1">
               <span>0%</span>
               <span>50%</span>
               <span>100%</span>
             </div>
-            <div className="text-xs text-neutral-400 mt-2">
+            <div className="text-xs dark:text-neutral-400 text-gray-600 mt-2">
               Nur Filamente mit max. {minRemaining}% Füllstand anzeigen
             </div>
           </div>
