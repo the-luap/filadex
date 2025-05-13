@@ -1,7 +1,7 @@
 # Filadex - 3D Printing Filament Management System
 
 <div align="center">
-  <img src="client/public/logo.svg" alt="Filadex Logo" width="200" height="200">
+  <img src="public/logo.svg" alt="Filadex Logo" width="200" height="200" style="color: #4f46e5;">
 </div>
 
 Filadex is an open-source filament management system for 3D printing enthusiasts. Born from the need for a comprehensive solution to track and manage 3D printing filaments, Filadex offers a clean, intuitive interface for monitoring your filament inventory, usage statistics, and storage information. This project is fully AI-coded, showcasing the potential of AI-assisted development in creating practical, user-friendly applications.
@@ -157,6 +157,23 @@ For Docker deployment, you can configure the port in the `docker-compose.yml` fi
 4. **Statistics**: View your collection statistics in the statistics accordion
 5. **Visualization**: See your material and color distribution in the pie chart
 
+### CSV Resources and Import/Export
+
+Filadex comes with pre-populated CSV files in the `resources` directory that can be used to quickly set up your filament database:
+
+1. **Materials List** (`materials_init.csv`): Contains various filament material types (PLA, PETG, ABS, etc.)
+2. **Filament Colors** (`filament_colors_init.csv`): Contains color names and hex codes organized by manufacturer
+3. **Vendors List** (`vendors_init.csv`): Contains a list of filament manufacturers/vendors
+
+To use these resources:
+
+1. Navigate to the Settings dialog by clicking the gear icon in the header
+2. Find the Import/Export section for the data type you want to import (Materials, Colors, or Manufacturers)
+3. Click "Import CSV" and select the corresponding file from the resources directory
+4. The application will import the data, skipping any duplicates
+
+You can also export your current data to CSV files for backup or sharing with the community. The community is encouraged to enhance these resource files by adding more materials, colors, and vendors while avoiding duplicate entries.
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more details.
@@ -173,7 +190,7 @@ Now, I'm excited to share Filadex with the community and welcome contributions t
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## �️ Roadmap
+## 🗺️ Roadmap
 
 The following features are planned for future releases:
 
@@ -190,14 +207,11 @@ The following features are planned for future releases:
    - Allow admin override of language settings
 
 4. **Theme Switching Improvements**
+   - When changing colors, I get an error on the toast notification
    - Fix issues when changing theme (dark/light mode)
    - Ensure consistent UI experience across theme changes
 
-5. **CSV Import Documentation**
-   - Add comprehensive documentation on how to use CSV lists for importing filaments
-   - Provide example CSV templates and formatting guidelines
-
-## �🙏 Acknowledgements
+## 🙏 Acknowledgements
 
 - All the contributors who have helped shape this project
 - The 3D printing community for inspiration and feedback

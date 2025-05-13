@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/components/ui/use-toast";
+import { Logo } from "@/components/logo";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -79,8 +80,11 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-[350px]">
         <CardHeader className="text-center theme-primary-bg text-white rounded-t-lg">
-          <CardTitle>Filadex</CardTitle>
-          <CardDescription className="text-white/80">Login to manage your filaments</CardDescription>
+          <div className="flex flex-col items-center">
+            <Logo size={60} color="white" />
+            <CardTitle className="mt-2">Filadex</CardTitle>
+            <CardDescription className="text-white/80">Login to manage your filaments</CardDescription>
+          </div>
         </CardHeader>
         <CardContent className="pt-6">
           <Form {...form}>
