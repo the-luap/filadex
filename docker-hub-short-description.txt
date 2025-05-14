@@ -1,0 +1,1 @@
+Filadex is a self-hosted 3D printing filament management system with inventory tracking, usage statistics, material visualization, user management, and filament sharing capabilities.
