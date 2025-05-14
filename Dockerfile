@@ -12,6 +12,8 @@ RUN npm ci
 
 # Copy source code
 COPY . .
+# Copy migration script
+COPY run-migration.js ./run-migration.js
 
 # Build the application - only build the frontend
 RUN npm run vite:build
@@ -51,6 +53,7 @@ COPY --from=build /app/server ./server
 COPY --from=build /app/shared ./shared
 COPY --from=build /app/migrations ./migrations
 COPY --from=build /app/init-data.js ./init-data.js
+COPY run-migration.js ./run-migration.js
 
 # Kopiere das Entrypoint-Skript
 COPY docker-entrypoint.sh /docker-entrypoint.sh

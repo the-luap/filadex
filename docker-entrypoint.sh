@@ -131,7 +131,10 @@ PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -v
     spool_type TEXT,
     dryer_count INTEGER DEFAULT 0 NOT NULL,
     last_drying_date DATE,
-    storage_location TEXT
+    storage_location TEXT,
+    user_id INTEGER REFERENCES public.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS public.user_sharing (
@@ -203,6 +206,10 @@ else
     touch "$LOCK_FILE"
   fi
 fi
+
+# Run the migration to add user_id column
+echo "Running migration to add user_id column to filaments table..."
+node run-migration.js || echo "Migration failed, but continuing..."
 
 # Start the application
 echo "Starting application..."

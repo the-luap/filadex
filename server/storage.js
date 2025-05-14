@@ -38,6 +38,11 @@ class DatabaseStorage {
   async createFilament(data) {
     try {
       // Create a new filament
+      // Make sure userId is properly set
+      if (!data.userId) {
+        console.warn('No userId provided for createFilament, this may cause issues');
+      }
+
       const newFilament = await db.insert(schema.filaments).values({
         ...data,
         createdAt: new Date(),
