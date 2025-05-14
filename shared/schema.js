@@ -8,12 +8,14 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   isAdmin: boolean("is_admin").default(false),
   forceChangePassword: boolean("force_change_password").default(true),
+  language: text("language").default("en"),
   lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const filaments = pgTable("filaments", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   manufacturer: text("manufacturer"),
   material: text("material").notNull(),
@@ -30,6 +32,8 @@ export const filaments = pgTable("filaments", {
   dryerCount: integer("dryer_count").default(0), // Anzahl der Trocknungen
   lastDryingDate: date("last_drying_date"), // Datum der letzten Trocknung
   storageLocation: text("storage_location"), // Lagerort
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({

@@ -63,6 +63,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useTranslation } from "@/i18n";
 
 // Liste der Bambulab Materialtypen
 const MATERIAL_TYPES = [
@@ -101,6 +102,7 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importExportOpen, setImportExportOpen] = useState<string>("");
+  const { t } = useTranslation();
   const [csvUploadStatus, setCsvUploadStatus] = useState<{
     status: "idle" | "processing" | "success" | "error";
     message: string;
@@ -120,10 +122,10 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Setze Status auf 'processing'
+    // Set status to 'processing'
     setCsvUploadStatus({
       status: "processing",
-      message: "Verarbeitung der CSV-Datei...",
+      message: t('common.importExport.processing'),
       added: 0,
       skipped: 0,
       errored: 0
@@ -140,10 +142,14 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
           body: JSON.stringify({ csvData })
         });
 
-        // Aktualisiere Status
+        // Update status
         setCsvUploadStatus({
           status: "success",
-          message: `Import abgeschlossen: ${result.created} einträge hinzugefügt, ${result.duplicates} übersprungen (bereits vorhanden), ${result.errors} fehler.`,
+          message: t('common.importExport.successMessage', {
+            created: result.created,
+            duplicates: result.duplicates,
+            errors: result.errors
+          }),
           added: result.created,
           skipped: result.duplicates,
           errored: result.errors
@@ -153,10 +159,10 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
         queryClient.invalidateQueries({ queryKey: [endpoint] });
         queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       } catch (error) {
-        console.error("Fehler beim Verarbeiten der CSV-Datei:", error);
+        console.error("Error processing CSV file:", error);
         setCsvUploadStatus({
           status: "error",
-          message: "Fehler beim Verarbeiten der CSV-Datei. Bitte überprüfen Sie das Format und versuchen Sie es erneut.",
+          message: t('common.importExport.errorMessage'),
           added: 0,
           skipped: 0,
           errored: 0
@@ -177,10 +183,10 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
       // CSV über API abholen
       window.location.href = `${endpoint}?export=csv`;
     } catch (error) {
-      console.error("Fehler beim Exportieren der Daten:", error);
+      console.error("Error exporting data:", error);
       toast({
-        title: "Fehler beim Exportieren",
-        description: "Die Daten konnten nicht exportiert werden.",
+        title: t('common.importExport.exportErrorTitle'),
+        description: t('common.importExport.exportErrorDescription'),
         variant: "destructive"
       });
     }
@@ -205,9 +211,9 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
           <div className="space-y-4">
             <Alert>
               <Info className="h-4 w-4" />
-              <AlertTitle>CSV-Format</AlertTitle>
+              <AlertTitle>{t('common.importExport.csvFormatTitle')}</AlertTitle>
               <AlertDescription className="text-xs">
-                Die CSV-Datei muss folgenden Aufbau haben:
+                {t('common.importExport.csvFormatDescription')}
                 <pre className="mt-2 p-2 dark:bg-neutral-900 bg-gray-100 rounded text-xs overflow-x-auto dark:text-white text-gray-800">
                   {csvFormat}
                 </pre>
@@ -228,7 +234,7 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
                 disabled={csvUploadStatus.status === "processing"}
               >
                 <Upload className="mr-2 h-4 w-4" />
-                CSV-Datei importieren
+                {t('common.importExport.importButton')}
               </Button>
 
               <Button
@@ -236,7 +242,7 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
                 className="w-full bg-emerald-900/20 hover:bg-emerald-900/30 text-white border-white/20"
               >
                 <Download className="mr-2 h-4 w-4" />
-                Daten als CSV exportieren
+                {t('common.importExport.exportButton')}
               </Button>
             </div>
 
@@ -248,9 +254,9 @@ function ImportExportCard({ endpoint, csvFormat, hasHeaders = true, fields, titl
                 {csvUploadStatus.status === "success" && <FileText className="h-4 w-4" />}
                 {csvUploadStatus.status === "processing" && <span className="animate-pulse">⏳</span>}
                 <AlertTitle>
-                  {csvUploadStatus.status === "error" ? "Fehler beim Import" :
-                  csvUploadStatus.status === "success" ? "Import abgeschlossen" :
-                  "Verarbeitung läuft..."}
+                  {csvUploadStatus.status === "error" ? t('common.importExport.errorTitle') :
+                  csvUploadStatus.status === "success" ? t('common.importExport.successTitle') :
+                  t('common.importExport.processingTitle')}
                 </AlertTitle>
                 <AlertDescription className="text-xs">
                   {csvUploadStatus.message}
@@ -349,26 +355,26 @@ interface StorageLocation {
   createdAt: string;
 }
 
-// Validierungsschemas für die Formulare
-const manufacturerSchema = z.object({
-  name: z.string().min(1, "Name ist erforderlich")
+// Validation schemas with translations
+const createManufacturerSchema = (t: (key: string) => string) => z.object({
+  name: z.string().min(1, t('settings.manufacturers.nameRequired'))
 });
 
-const materialSchema = z.object({
-  name: z.string().min(1, "Name ist erforderlich")
+const createMaterialSchema = (t: (key: string) => string) => z.object({
+  name: z.string().min(1, t('settings.materials.nameRequired'))
 });
 
-const colorSchema = z.object({
-  name: z.string().min(1, "Name ist erforderlich"),
-  code: z.string().min(1, "Farbcode ist erforderlich")
+const createColorSchema = (t: (key: string) => string) => z.object({
+  name: z.string().min(1, t('settings.colors.nameRequired')),
+  code: z.string().min(1, t('settings.colors.codeRequired'))
 });
 
-const diameterSchema = z.object({
-  value: z.string().min(1, "Wert ist erforderlich")
+const createDiameterSchema = (t: (key: string) => string) => z.object({
+  value: z.string().min(1, t('settings.diameters.valueRequired'))
 });
 
-const storageLocationSchema = z.object({
-  name: z.string().min(1, "Name ist erforderlich")
+const createStorageLocationSchema = (t: (key: string) => string) => z.object({
+  name: z.string().min(1, t('settings.storageLocations.nameRequired'))
 });
 
 interface SettingsDialogProps {
@@ -379,6 +385,7 @@ interface SettingsDialogProps {
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("manufacturers");
+  const { t } = useTranslation();
   const { data: filaments = [] } = useQuery({
     queryKey: ["/api/filaments"],
     queryFn: () => apiRequest<Filament[]>("/api/filaments")
@@ -589,19 +596,19 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Einstellungen</DialogTitle>
+          <DialogTitle>{t('settings.title')}</DialogTitle>
           <DialogDescription>
-            Verwalten Sie die Listen für Hersteller, Materialien, Farben, Durchmesser und Lagerorte.
+            {t('settings.description')}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="manufacturers" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6 w-full">
-            <TabsTrigger value="manufacturers">Hersteller</TabsTrigger>
-            <TabsTrigger value="materials">Materialien</TabsTrigger>
-            <TabsTrigger value="colors">Farben</TabsTrigger>
-            <TabsTrigger value="diameters">Durchmesser</TabsTrigger>
-            <TabsTrigger value="storage-locations">Lagerorte</TabsTrigger>
+            <TabsTrigger value="manufacturers">{t('settings.manufacturers.title')}</TabsTrigger>
+            <TabsTrigger value="materials">{t('settings.materials.title')}</TabsTrigger>
+            <TabsTrigger value="colors">{t('settings.colors.title')}</TabsTrigger>
+            <TabsTrigger value="diameters">{t('settings.diameters.title')}</TabsTrigger>
+            <TabsTrigger value="storage-locations">{t('settings.storageLocations.title')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="manufacturers">
@@ -629,12 +636,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   );
 }
 
-// Komponente für die Herstellerliste
+// Component for manufacturers list
 function ManufacturersList() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [importExportOpen, setImportExportOpen] = useState<string>("");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const { t } = useTranslation();
   const { data: manufacturers = [], isLoading } = useQuery({
     queryKey: ["/api/manufacturers"],
     queryFn: () => apiRequest<Manufacturer[]>("/api/manufacturers")
@@ -688,10 +696,11 @@ Polymaker
     );
   }, [manufacturers, searchTerm]);
 
-  // Schema für das Formular
+  // Create schema with translations
+  const manufacturerSchema = createManufacturerSchema(t);
   type FormValues = z.infer<typeof manufacturerSchema>;
 
-  // Form-Hook
+  // Form hook
   const form = useForm<FormValues>({
     resolver: zodResolver(manufacturerSchema),
     defaultValues: {
@@ -699,7 +708,7 @@ Polymaker
     }
   });
 
-  // Mutation zum Hinzufügen eines Herstellers
+  // Mutation to add a manufacturer
   const addManufacturerMutation = useMutation({
     mutationFn: async (data: FormValues) => {
       return apiRequest<Manufacturer>("/api/manufacturers", {
@@ -712,20 +721,20 @@ Polymaker
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       form.reset();
       toast({
-        title: "Hersteller hinzugefügt",
-        description: "Der Hersteller wurde erfolgreich hinzugefügt."
+        title: t('settings.manufacturers.addSuccess'),
+        description: t('settings.manufacturers.addSuccessDescription')
       });
     },
-    onError: (error) => {
+    onError: () => {
       toast({
-        title: "Fehler",
-        description: "Der Hersteller konnte nicht hinzugefügt werden.",
+        title: t('common.error'),
+        description: t('settings.manufacturers.addError'),
         variant: "destructive"
       });
     }
   });
 
-  // Mutation zum Löschen eines Herstellers
+  // Mutation to delete a manufacturer
   const deleteManufacturerMutation = useMutation({
     mutationFn: async (id: number) => {
       return apiRequest(`/api/manufacturers/${id}`, {
@@ -736,39 +745,38 @@ Polymaker
       queryClient.invalidateQueries({ queryKey: ["/api/manufacturers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       toast({
-        title: "Hersteller gelöscht",
-        description: "Der Hersteller wurde erfolgreich gelöscht."
+        title: t('settings.manufacturers.deleteSuccess'),
+        description: t('settings.manufacturers.deleteSuccessDescription')
       });
     },
     onError: (error: any) => {
-      let errorMessage = "Der Hersteller konnte nicht gelöscht werden.";
+      let errorMessage = t('settings.manufacturers.deleteError');
 
-      // Versuche, die genaue Fehlermeldung aus der API-Antwort zu extrahieren
+      // Try to extract the exact error message from the API response
       if (error?.detail) {
         errorMessage = error.detail;
       } else if (error?.message?.includes("in use by filaments")) {
-        errorMessage = "Dieser Hersteller wird von einem oder mehreren Filamenten verwendet und kann nicht gelöscht werden.";
+        errorMessage = t('settings.manufacturers.deleteErrorInUse');
       }
 
       toast({
-        title: "Fehler beim Löschen",
+        title: t('settings.manufacturers.deleteErrorTitle'),
         description: errorMessage,
         variant: "destructive"
       });
     }
   });
 
-  // Handler für das Absenden des Formulars
-  // Mutation zum Löschen aller Hersteller
+  // Mutation to delete all manufacturers
   const deleteAllManufacturersMutation = useMutation({
     mutationFn: async () => {
-      // Lösche alle Hersteller parallel und ignoriere Fehler bei einzelnen
+      // Delete all manufacturers in parallel and ignore errors for individual ones
       const deletePromises = manufacturers.map(manufacturer =>
         apiRequest(`/api/manufacturers/${manufacturer.id}`, {
           method: "DELETE"
         }).catch(err => {
-          console.warn(`Fehler beim Löschen des Herstellers ${manufacturer.id}:`, err);
-          return null; // Ignoriere Fehler bei einzelnen Herstellern
+          console.warn(`Error deleting manufacturer ${manufacturer.id}:`, err);
+          return null; // Ignore errors for individual manufacturers
         })
       );
 
@@ -779,19 +787,19 @@ Polymaker
       queryClient.invalidateQueries({ queryKey: ["/api/manufacturers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       toast({
-        title: "Hersteller gelöscht",
-        description: "Alle Hersteller wurden erfolgreich gelöscht."
+        title: t('settings.manufacturers.deleteAllSuccess'),
+        description: t('settings.manufacturers.deleteAllSuccessDescription')
       });
       setIsDeleteConfirmOpen(false);
     },
     onError: (error) => {
-      console.error("Fehler beim Löschen aller Hersteller:", error);
+      console.error("Error deleting all manufacturers:", error);
       toast({
-        title: "Fehler",
-        description: "Nicht alle Hersteller konnten gelöscht werden. Bitte versuchen Sie es erneut.",
+        title: t('common.error'),
+        description: t('settings.manufacturers.deleteAllError'),
         variant: "destructive"
       });
-      // Trotzdem Herstellerliste aktualisieren, damit gelöschte Hersteller nicht mehr angezeigt werden
+      // Still update the manufacturers list so deleted manufacturers are no longer shown
       queryClient.invalidateQueries({ queryKey: ["/api/manufacturers"] });
       setIsDeleteConfirmOpen(false);
     }
@@ -810,7 +818,7 @@ Polymaker
               <div className="relative w-full">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Hersteller suchen..."
+                  placeholder={t('settings.manufacturers.searchPlaceholder')}
                   className="pl-8"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -835,23 +843,23 @@ Polymaker
                       disabled={manufacturers.length === 0}
                       className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     >
-                      Alle Hersteller löschen
+                      {t('settings.manufacturers.deleteAll')}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Alle Hersteller wirklich löschen?</AlertDialogTitle>
+                      <AlertDialogTitle>{t('settings.manufacturers.deleteAllConfirmTitle')}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie alle {manufacturers.length} Hersteller löschen möchten?
+                        {t('settings.manufacturers.deleteAllConfirmDescription', { count: manufacturers.length })}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                      <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() => deleteAllManufacturersMutation.mutate()}
                         className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                       >
-                        Alle löschen
+                        {t('settings.manufacturers.deleteAllConfirm')}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -861,10 +869,10 @@ Polymaker
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-4">Lade Daten...</div>
+              <div className="text-center py-4">{t('settings.manufacturers.loading')}</div>
             ) : filteredManufacturers.length === 0 ? (
               <div className="text-center py-4 text-neutral-400">
-                {manufacturers.length === 0 ? "Keine Hersteller vorhanden" : "Keine Ergebnisse für Ihre Suche"}
+                {manufacturers.length === 0 ? t('settings.manufacturers.noManufacturers') : t('common.noResults')}
               </div>
             ) : (
               <div className="max-h-[350px] overflow-y-auto">
@@ -934,9 +942,9 @@ Polymaker
         <div className="space-y-6">
           <Card>
             <CardContent className="pt-6">
-              <h3 className="text-lg font-medium mb-2">Hersteller hinzufügen</h3>
+              <h3 className="text-lg font-medium mb-2">{t('settings.manufacturers.addTitle')}</h3>
               <p className="text-sm text-neutral-400 mb-4">
-                Fügen Sie einen neuen Hersteller zur Liste hinzu
+                {t('settings.manufacturers.addDescription')}
               </p>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -945,9 +953,9 @@ Polymaker
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name</FormLabel>
+                        <FormLabel>{t('common.name')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="Herstellername" {...field} />
+                          <Input placeholder={t('settings.manufacturers.namePlaceholder')} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -958,7 +966,7 @@ Polymaker
                     className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     disabled={addManufacturerMutation.isPending}
                   >
-                    Hersteller hinzufügen
+                    {t('settings.manufacturers.addButton')}
                   </Button>
                 </form>
               </Form>
@@ -971,18 +979,19 @@ Polymaker
         endpoint="/api/manufacturers"
         csvFormat={manufacturersCsvFormat}
         fields={["name"]}
-        title="Hersteller Import/Export"
+        title={t('settings.manufacturers.importExport')}
       />
     </div>
   );
 }
 
-// Komponente für die Materialliste
+// Component for materials list
 function MaterialsList() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [importExportOpen, setImportExportOpen] = useState<string>("");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const { t } = useTranslation();
   const { data: materials = [], isLoading } = useQuery({
     queryKey: ["/api/materials"],
     queryFn: () => apiRequest<Material[]>("/api/materials")
@@ -1037,10 +1046,11 @@ ABS
 TPU
 ...`;
 
-  // Schema für das Formular
+  // Create schema with translations
+  const materialSchema = createMaterialSchema(t);
   type FormValues = z.infer<typeof materialSchema>;
 
-  // Form-Hook
+  // Form hook
   const form = useForm<FormValues>({
     resolver: zodResolver(materialSchema),
     defaultValues: {
@@ -1048,7 +1058,7 @@ TPU
     }
   });
 
-  // Mutation zum Hinzufügen eines Materials
+  // Mutation to add a material
   const addMaterialMutation = useMutation({
     mutationFn: async (data: FormValues) => {
       return apiRequest<Material>("/api/materials", {
@@ -1061,20 +1071,20 @@ TPU
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       form.reset();
       toast({
-        title: "Material hinzugefügt",
-        description: "Das Material wurde erfolgreich hinzugefügt."
+        title: t('settings.materials.addSuccess'),
+        description: t('settings.materials.addSuccessDescription')
       });
     },
-    onError: (error) => {
+    onError: () => {
       toast({
-        title: "Fehler",
-        description: "Das Material konnte nicht hinzugefügt werden.",
+        title: t('common.error'),
+        description: t('settings.materials.addError'),
         variant: "destructive"
       });
     }
   });
 
-  // Mutation zum Löschen eines Materials
+  // Mutation to delete a material
   const deleteMaterialMutation = useMutation({
     mutationFn: async (id: number) => {
       return apiRequest(`/api/materials/${id}`, {
@@ -1085,38 +1095,38 @@ TPU
       queryClient.invalidateQueries({ queryKey: ["/api/materials"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       toast({
-        title: "Material gelöscht",
-        description: "Das Material wurde erfolgreich gelöscht."
+        title: t('settings.materials.deleteSuccess'),
+        description: t('settings.materials.deleteSuccessDescription')
       });
     },
     onError: (error: any) => {
-      let errorMessage = "Das Material konnte nicht gelöscht werden.";
+      let errorMessage = t('settings.materials.deleteError');
 
-      // Versuche, die genaue Fehlermeldung aus der API-Antwort zu extrahieren
+      // Try to extract the exact error message from the API response
       if (error?.detail) {
         errorMessage = error.detail;
       } else if (error?.message?.includes("in use by filaments")) {
-        errorMessage = "Dieses Material wird von einem oder mehreren Filamenten verwendet und kann nicht gelöscht werden.";
+        errorMessage = t('settings.materials.deleteErrorInUse');
       }
 
       toast({
-        title: "Fehler beim Löschen",
+        title: t('settings.materials.deleteErrorTitle'),
         description: errorMessage,
         variant: "destructive"
       });
     }
   });
 
-  // Mutation zum Löschen aller Materialien
+  // Mutation to delete all materials
   const deleteAllMaterialsMutation = useMutation({
     mutationFn: async () => {
-      // Lösche alle Materialien parallel und ignoriere Fehler bei einzelnen
+      // Delete all materials in parallel and ignore errors for individual ones
       const deletePromises = materials.map(material =>
         apiRequest(`/api/materials/${material.id}`, {
           method: "DELETE"
         }).catch(err => {
-          console.warn(`Fehler beim Löschen des Materials ${material.id}:`, err);
-          return null; // Ignoriere Fehler bei einzelnen Materialien
+          console.warn(`Error deleting material ${material.id}:`, err);
+          return null; // Ignore errors for individual materials
         })
       );
 
@@ -1127,19 +1137,19 @@ TPU
       queryClient.invalidateQueries({ queryKey: ["/api/materials"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       toast({
-        title: "Materialien gelöscht",
-        description: "Alle Materialien wurden erfolgreich gelöscht."
+        title: t('settings.materials.deleteAllSuccess'),
+        description: t('settings.materials.deleteAllSuccessDescription')
       });
       setIsDeleteConfirmOpen(false);
     },
     onError: (error) => {
-      console.error("Fehler beim Löschen aller Materialien:", error);
+      console.error("Error deleting all materials:", error);
       toast({
-        title: "Fehler",
-        description: "Nicht alle Materialien konnten gelöscht werden. Bitte versuchen Sie es erneut.",
+        title: t('common.error'),
+        description: t('settings.materials.deleteAllError'),
         variant: "destructive"
       });
-      // Trotzdem Materialliste aktualisieren, damit gelöschte Materialien nicht mehr angezeigt werden
+      // Still update the materials list so deleted materials are no longer shown
       queryClient.invalidateQueries({ queryKey: ["/api/materials"] });
       setIsDeleteConfirmOpen(false);
     }
@@ -1159,7 +1169,7 @@ TPU
               <div className="w-full">
                 <Input
                   type="text"
-                  placeholder="Materialien suchen..."
+                  placeholder={t('settings.materials.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full"
@@ -1174,23 +1184,23 @@ TPU
                       disabled={materials.length === 0}
                       className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     >
-                      Alle Materialien löschen
+                      {t('settings.materials.deleteAll')}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Alle Materialien wirklich löschen?</AlertDialogTitle>
+                      <AlertDialogTitle>{t('settings.materials.deleteAllConfirmTitle')}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie alle {materials.length} Materialien löschen möchten?
+                        {t('settings.materials.deleteAllConfirmDescription', { count: materials.length })}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                      <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() => deleteAllMaterialsMutation.mutate()}
                         className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                       >
-                        Alle löschen
+                        {t('settings.materials.deleteAllConfirm')}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -1200,10 +1210,10 @@ TPU
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-4">Lade Daten...</div>
+              <div className="text-center py-4">{t('settings.materials.loading')}</div>
             ) : filteredMaterials.length === 0 ? (
               <div className="text-center py-4 text-neutral-400">
-                {materials.length === 0 ? "Keine Materialien vorhanden" : "Keine Ergebnisse für Ihre Suche"}
+                {materials.length === 0 ? t('settings.materials.noMaterials') : t('common.noResults')}
               </div>
             ) : (
               <div className="max-h-[400px] overflow-y-auto">
@@ -1211,8 +1221,8 @@ TPU
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-10"></TableHead>
-                      <TableHead className="w-[65%]">Name</TableHead>
-                      <TableHead className="text-right w-16">Aktionen</TableHead>
+                      <TableHead className="w-[65%]">{t('common.name')}</TableHead>
+                      <TableHead className="text-right w-16">{t('common.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <DragDropContext onDragEnd={handleDragEnd}>
@@ -1275,9 +1285,9 @@ TPU
         <div className="space-y-6">
           <Card>
             <CardContent className="pt-6">
-              <h3 className="text-lg font-medium mb-2">Material hinzufügen</h3>
+              <h3 className="text-lg font-medium mb-2">{t('settings.materials.addTitle')}</h3>
               <p className="text-sm text-neutral-400 mb-4">
-                Fügen Sie ein neues Material zur Liste hinzu
+                {t('settings.materials.addDescription')}
               </p>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -1286,9 +1296,9 @@ TPU
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name</FormLabel>
+                        <FormLabel>{t('common.name')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="Materialname" {...field} />
+                          <Input placeholder={t('settings.materials.namePlaceholder')} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1299,7 +1309,7 @@ TPU
                     className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     disabled={addMaterialMutation.isPending}
                   >
-                    Material hinzufügen
+                    {t('settings.materials.addButton')}
                   </Button>
                 </form>
               </Form>
@@ -1312,19 +1322,20 @@ TPU
         endpoint="/api/materials"
         csvFormat={materialsCsvFormat}
         fields={["name"]}
-        title="Material Import/Export"
+        title={t('settings.materials.importExport')}
       />
     </div>
   );
 }
 
-// Komponente für die Farbenliste
+// Component for colors list
 function ColorsList() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [importExportOpen, setImportExportOpen] = useState<string>("");
+  const { t } = useTranslation();
   const [csvUploadStatus, setCsvUploadStatus] = useState<{
     status: "idle" | "processing" | "success" | "error";
     message: string;
@@ -1357,10 +1368,11 @@ Prusament,Galaxy Black,#111111
     );
   }, [colors, searchTerm]);
 
-  // Schema für das Formular
+  // Create schema with translations
+  const colorSchema = createColorSchema(t);
   type FormValues = z.infer<typeof colorSchema>;
 
-  // Form-Hook
+  // Form hook
   const form = useForm<FormValues>({
     resolver: zodResolver(colorSchema),
     defaultValues: {
@@ -1369,7 +1381,7 @@ Prusament,Galaxy Black,#111111
     }
   });
 
-  // Mutation zum Hinzufügen einer Farbe
+  // Mutation to add a color
   const addColorMutation = useMutation({
     mutationFn: async (data: FormValues) => {
       return apiRequest<Color>("/api/colors", {
@@ -1382,20 +1394,20 @@ Prusament,Galaxy Black,#111111
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       form.reset({ name: "", code: "#000000" });
       toast({
-        title: "Farbe hinzugefügt",
-        description: "Die Farbe wurde erfolgreich hinzugefügt."
+        title: t('settings.colors.addSuccess'),
+        description: t('settings.colors.addSuccessDescription')
       });
     },
-    onError: (error) => {
+    onError: () => {
       toast({
-        title: "Fehler",
-        description: "Die Farbe konnte nicht hinzugefügt werden.",
+        title: t('common.error'),
+        description: t('settings.colors.addError'),
         variant: "destructive"
       });
     }
   });
 
-  // Mutation zum Löschen einer Farbe
+  // Mutation to delete a color
   const deleteColorMutation = useMutation({
     mutationFn: async (id: number) => {
       return apiRequest(`/api/colors/${id}`, {
@@ -1406,22 +1418,22 @@ Prusament,Galaxy Black,#111111
       queryClient.invalidateQueries({ queryKey: ["/api/colors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       toast({
-        title: "Farbe gelöscht",
-        description: "Die Farbe wurde erfolgreich gelöscht."
+        title: t('settings.colors.deleteSuccess'),
+        description: t('settings.colors.deleteSuccessDescription')
       });
     },
     onError: (error: any) => {
-      let errorMessage = "Die Farbe konnte nicht gelöscht werden.";
+      let errorMessage = t('settings.colors.deleteError');
 
-      // Versuche, die genaue Fehlermeldung aus der API-Antwort zu extrahieren
+      // Try to extract the exact error message from the API response
       if (error?.detail) {
         errorMessage = error.detail;
       } else if (error?.message?.includes("in use by filaments")) {
-        errorMessage = "Diese Farbe wird von einem oder mehreren Filamenten verwendet und kann nicht gelöscht werden.";
+        errorMessage = t('settings.colors.deleteErrorInUse');
       }
 
       toast({
-        title: "Fehler beim Löschen",
+        title: t('settings.colors.deleteErrorTitle'),
         description: errorMessage,
         variant: "destructive"
       });
@@ -1569,16 +1581,16 @@ Prusament,Galaxy Black,#111111
     reader.readAsText(file);
   };
 
-  // Lösche alle Farben
+  // Delete all colors
   const deleteAllColorsMutation = useMutation({
     mutationFn: async () => {
-      // Lösche alle Farben parallel und ignoriere Fehler bei einzelnen
+      // Delete all colors in parallel and ignore errors for individual ones
       const deletePromises = colors.map(color =>
         apiRequest(`/api/colors/${color.id}`, {
           method: "DELETE"
         }).catch(err => {
-          console.warn(`Fehler beim Löschen der Farbe ${color.id}:`, err);
-          return null; // Ignoriere Fehler bei einzelnen Farben
+          console.warn(`Error deleting color ${color.id}:`, err);
+          return null; // Ignore errors for individual colors
         })
       );
 
@@ -1589,19 +1601,19 @@ Prusament,Galaxy Black,#111111
       queryClient.invalidateQueries({ queryKey: ["/api/colors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       toast({
-        title: "Farben gelöscht",
-        description: "Die Farben wurden erfolgreich gelöscht. Keine Farben werden automatisch neu erstellt."
+        title: t('settings.colors.deleteAllSuccess'),
+        description: t('settings.colors.deleteAllSuccessDescription')
       });
       setIsDeleteConfirmOpen(false);
     },
     onError: (error) => {
-      console.error("Fehler beim Löschen aller Farben:", error);
+      console.error("Error deleting all colors:", error);
       toast({
-        title: "Fehler",
-        description: "Nicht alle Farben konnten gelöscht werden. Bitte versuchen Sie es erneut.",
+        title: t('common.error'),
+        description: t('settings.colors.deleteAllError'),
         variant: "destructive"
       });
-      // Trotzdem Farbliste aktualisieren, damit gelöschte Farben nicht mehr angezeigt werden
+      // Still update the colors list so deleted colors are no longer shown
       queryClient.invalidateQueries({ queryKey: ["/api/colors"] });
       setIsDeleteConfirmOpen(false);
     }
@@ -1616,7 +1628,7 @@ Prusament,Galaxy Black,#111111
               <div className="relative w-full">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Farben suchen..."
+                  placeholder={t('settings.colors.searchPlaceholder')}
                   className="pl-8"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -1641,23 +1653,23 @@ Prusament,Galaxy Black,#111111
                       disabled={colors.length === 0}
                       className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     >
-                      Alle Farben löschen
+                      {t('settings.colors.deleteAll')}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Alle Farben wirklich löschen?</AlertDialogTitle>
+                      <AlertDialogTitle>{t('settings.colors.deleteAllConfirmTitle')}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie alle {colors.length} Farben löschen möchten?
+                        {t('settings.colors.deleteAllConfirmDescription', { count: colors.length })}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                      <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() => deleteAllColorsMutation.mutate()}
                         className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                       >
-                        Alle löschen
+                        {t('settings.colors.deleteAllConfirm')}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -1667,10 +1679,10 @@ Prusament,Galaxy Black,#111111
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-4">Lade Daten...</div>
+              <div className="text-center py-4">{t('settings.colors.loading')}</div>
             ) : filteredColors.length === 0 ? (
               <div className="text-center py-4 text-neutral-400">
-                {colors.length === 0 ? "Keine Farben vorhanden" : "Keine Ergebnisse für Ihre Suche"}
+                {colors.length === 0 ? t('settings.colors.noColors') : t('common.noResults')}
               </div>
             ) : (
               <div className="max-h-[350px] overflow-y-auto">
@@ -1678,9 +1690,9 @@ Prusament,Galaxy Black,#111111
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-10"></TableHead>
-                      <TableHead className="w-[45%]">Name</TableHead>
-                      <TableHead className="w-24">Farbcode</TableHead>
-                      <TableHead className="text-right w-16">Aktionen</TableHead>
+                      <TableHead className="w-[45%]">{t('common.name')}</TableHead>
+                      <TableHead className="w-24">{t('filaments.colorCode')}</TableHead>
+                      <TableHead className="text-right w-16">{t('common.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1720,9 +1732,9 @@ Prusament,Galaxy Black,#111111
         <div className="space-y-6">
           <Card>
             <CardContent className="pt-6">
-              <h3 className="text-lg font-medium mb-2">Farbe hinzufügen</h3>
+              <h3 className="text-lg font-medium mb-2">{t('settings.colors.addTitle')}</h3>
               <p className="text-sm text-neutral-400 mb-4">
-                Fügen Sie eine neue Farbe zur Liste hinzu
+                {t('settings.colors.addDescription')}
               </p>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -1731,9 +1743,9 @@ Prusament,Galaxy Black,#111111
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name</FormLabel>
+                        <FormLabel>{t('common.name')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="Farbname" {...field} />
+                          <Input placeholder={t('settings.colors.namePlaceholder')} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1744,7 +1756,7 @@ Prusament,Galaxy Black,#111111
                     name="code"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Farbcode</FormLabel>
+                        <FormLabel>{t('filaments.colorCode')}</FormLabel>
                         <FormControl>
                           <div className="flex gap-3">
                             <div
@@ -1763,7 +1775,7 @@ Prusament,Galaxy Black,#111111
                     className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     disabled={addColorMutation.isPending}
                   >
-                    Farbe hinzufügen
+                    {t('settings.colors.addButton')}
                   </Button>
                 </form>
               </Form>
@@ -1776,18 +1788,19 @@ Prusament,Galaxy Black,#111111
         endpoint="/api/colors"
         csvFormat={colorsCsvFormat}
         fields={["name", "code"]}
-        title="Farben Import/Export"
+        title={t('settings.colors.importExport')}
         hasHeaders={true}
       />
     </div>
   );
 }
 
-// Komponente für die Durchmesserliste
+// Component for diameters list
 function DiametersList() {
   const queryClient = useQueryClient();
   const [importExportOpen, setImportExportOpen] = useState<string>("");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const { t } = useTranslation();
   const { data: diameters = [], isLoading } = useQuery({
     queryKey: ["/api/diameters"],
     queryFn: () => apiRequest<Diameter[]>("/api/diameters")
@@ -1800,10 +1813,11 @@ function DiametersList() {
 3.00
 ...`;
 
-  // Schema für das Formular
+  // Create schema with translations
+  const diameterSchema = createDiameterSchema(t);
   type FormValues = z.infer<typeof diameterSchema>;
 
-  // Form-Hook
+  // Form hook
   const form = useForm<FormValues>({
     resolver: zodResolver(diameterSchema),
     defaultValues: {
@@ -1811,7 +1825,7 @@ function DiametersList() {
     }
   });
 
-  // Mutation zum Hinzufügen eines Durchmessers
+  // Mutation to add a diameter
   const addDiameterMutation = useMutation({
     mutationFn: async (data: FormValues) => {
       return apiRequest<Diameter>("/api/diameters", {
@@ -1824,20 +1838,20 @@ function DiametersList() {
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       form.reset();
       toast({
-        title: "Durchmesser hinzugefügt",
-        description: "Der Durchmesser wurde erfolgreich hinzugefügt."
+        title: t('settings.diameters.addSuccess'),
+        description: t('settings.diameters.addSuccessDescription')
       });
     },
-    onError: (error) => {
+    onError: () => {
       toast({
-        title: "Fehler",
-        description: "Der Durchmesser konnte nicht hinzugefügt werden.",
+        title: t('common.error'),
+        description: t('settings.diameters.addError'),
         variant: "destructive"
       });
     }
   });
 
-  // Mutation zum Löschen eines Durchmessers
+  // Mutation to delete a diameter
   const deleteDiameterMutation = useMutation({
     mutationFn: async (id: number) => {
       return apiRequest(`/api/diameters/${id}`, {
@@ -1848,38 +1862,38 @@ function DiametersList() {
       queryClient.invalidateQueries({ queryKey: ["/api/diameters"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       toast({
-        title: "Durchmesser gelöscht",
-        description: "Der Durchmesser wurde erfolgreich gelöscht."
+        title: t('settings.diameters.deleteSuccess'),
+        description: t('settings.diameters.deleteSuccessDescription')
       });
     },
     onError: (error: any) => {
-      let errorMessage = "Der Durchmesser konnte nicht gelöscht werden.";
+      let errorMessage = t('settings.diameters.deleteError');
 
-      // Versuche, die genaue Fehlermeldung aus der API-Antwort zu extrahieren
+      // Try to extract the exact error message from the API response
       if (error?.detail) {
         errorMessage = error.detail;
       } else if (error?.message?.includes("in use by filaments")) {
-        errorMessage = "Dieser Durchmesser wird von einem oder mehreren Filamenten verwendet und kann nicht gelöscht werden.";
+        errorMessage = t('settings.diameters.deleteErrorInUse');
       }
 
       toast({
-        title: "Fehler beim Löschen",
+        title: t('settings.diameters.deleteErrorTitle'),
         description: errorMessage,
         variant: "destructive"
       });
     }
   });
 
-  // Mutation zum Löschen aller Durchmesser
+  // Mutation to delete all diameters
   const deleteAllDiametersMutation = useMutation({
     mutationFn: async () => {
-      // Lösche alle Durchmesser parallel und ignoriere Fehler bei einzelnen
+      // Delete all diameters in parallel and ignore errors for individual ones
       const deletePromises = diameters.map(diameter =>
         apiRequest(`/api/diameters/${diameter.id}`, {
           method: "DELETE"
         }).catch(err => {
-          console.warn(`Fehler beim Löschen des Durchmessers ${diameter.id}:`, err);
-          return null; // Ignoriere Fehler bei einzelnen Durchmessern
+          console.warn(`Error deleting diameter ${diameter.id}:`, err);
+          return null; // Ignore errors for individual diameters
         })
       );
 
@@ -1890,19 +1904,19 @@ function DiametersList() {
       queryClient.invalidateQueries({ queryKey: ["/api/diameters"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       toast({
-        title: "Durchmesser gelöscht",
-        description: "Alle Durchmesser wurden erfolgreich gelöscht."
+        title: t('settings.diameters.deleteAllSuccess'),
+        description: t('settings.diameters.deleteAllSuccessDescription')
       });
       setIsDeleteConfirmOpen(false);
     },
     onError: (error) => {
-      console.error("Fehler beim Löschen aller Durchmesser:", error);
+      console.error("Error deleting all diameters:", error);
       toast({
-        title: "Fehler",
-        description: "Nicht alle Durchmesser konnten gelöscht werden. Bitte versuchen Sie es erneut.",
+        title: t('common.error'),
+        description: t('settings.diameters.deleteAllError'),
         variant: "destructive"
       });
-      // Trotzdem Durchmesserliste aktualisieren, damit gelöschte Durchmesser nicht mehr angezeigt werden
+      // Still update the diameters list so deleted diameters are no longer shown
       queryClient.invalidateQueries({ queryKey: ["/api/diameters"] });
       setIsDeleteConfirmOpen(false);
     }
@@ -1927,23 +1941,23 @@ function DiametersList() {
                     disabled={diameters.length === 0}
                     className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                   >
-                    Alle Durchmesser löschen
+                    {t('settings.diameters.deleteAll')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Alle Durchmesser wirklich löschen?</AlertDialogTitle>
+                    <AlertDialogTitle>{t('settings.diameters.deleteAllConfirmTitle')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie alle {diameters.length} Durchmesser löschen möchten?
+                      {t('settings.diameters.deleteAllConfirmDescription', { count: diameters.length })}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => deleteAllDiametersMutation.mutate()}
                       className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     >
-                      Alle löschen
+                      {t('settings.diameters.deleteAllConfirm')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -1952,10 +1966,10 @@ function DiametersList() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-4">Lade Daten...</div>
+              <div className="text-center py-4">{t('settings.diameters.loading')}</div>
             ) : diameters.length === 0 ? (
               <div className="text-center py-4 text-neutral-400">
-                Keine Durchmesser vorhanden
+                {t('settings.diameters.noDiameters')}
               </div>
             ) : (
               <div className="flex flex-wrap gap-2 max-h-[400px] overflow-y-auto">
@@ -1983,9 +1997,9 @@ function DiametersList() {
         <div className="space-y-6">
           <Card>
             <CardContent className="pt-6">
-              <h3 className="text-lg font-medium mb-2">Durchmesser hinzufügen</h3>
+              <h3 className="text-lg font-medium mb-2">{t('settings.diameters.addTitle')}</h3>
               <p className="text-sm text-neutral-400 mb-4">
-                Fügen Sie einen neuen Durchmesser zur Liste hinzu
+                {t('settings.diameters.addDescription')}
               </p>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -1994,9 +2008,9 @@ function DiametersList() {
                     name="value"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Wert (mm)</FormLabel>
+                        <FormLabel>{t('settings.diameters.value')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="1.75" {...field} type="number" step="0.01" />
+                          <Input placeholder={t('settings.diameters.valuePlaceholder')} {...field} type="number" step="0.01" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -2007,7 +2021,7 @@ function DiametersList() {
                     className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     disabled={addDiameterMutation.isPending}
                   >
-                    Durchmesser hinzufügen
+                    {t('settings.diameters.addButton')}
                   </Button>
                 </form>
               </Form>
@@ -2020,17 +2034,18 @@ function DiametersList() {
         endpoint="/api/diameters"
         csvFormat={diametersCsvFormat}
         fields={["value"]}
-        title="Durchmesser Import/Export"
+        title={t('settings.diameters.importExport')}
       />
     </div>
   );
 }
 
-// Komponente für die Lagerorteliste
+// Component for storage locations list
 function StorageLocationsList() {
   const queryClient = useQueryClient();
   const [importExportOpen, setImportExportOpen] = useState<string>("");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const { t } = useTranslation();
   const { data: locations = [], isLoading } = useQuery({
     queryKey: ["/api/storage-locations"],
     queryFn: () => apiRequest<StorageLocation[]>("/api/storage-locations")
@@ -2078,10 +2093,11 @@ Regal A
 Regal B
 ...`;
 
-  // Schema für das Formular
+  // Create schema with translations
+  const storageLocationSchema = createStorageLocationSchema(t);
   type FormValues = z.infer<typeof storageLocationSchema>;
 
-  // Form-Hook
+  // Form hook
   const form = useForm<FormValues>({
     resolver: zodResolver(storageLocationSchema),
     defaultValues: {
@@ -2089,7 +2105,7 @@ Regal B
     }
   });
 
-  // Mutation zum Hinzufügen eines Lagerorts
+  // Mutation to add a storage location
   const addLocationMutation = useMutation({
     mutationFn: async (data: FormValues) => {
       return apiRequest<StorageLocation>("/api/storage-locations", {
@@ -2102,20 +2118,20 @@ Regal B
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       form.reset();
       toast({
-        title: "Lagerort hinzugefügt",
-        description: "Der Lagerort wurde erfolgreich hinzugefügt."
+        title: t('settings.storageLocations.addSuccess'),
+        description: t('settings.storageLocations.addSuccessDescription')
       });
     },
-    onError: (error) => {
+    onError: () => {
       toast({
-        title: "Fehler",
-        description: "Der Lagerort konnte nicht hinzugefügt werden.",
+        title: t('common.error'),
+        description: t('settings.storageLocations.addError'),
         variant: "destructive"
       });
     }
   });
 
-  // Mutation zum Löschen eines Lagerorts
+  // Mutation to delete a storage location
   const deleteLocationMutation = useMutation({
     mutationFn: async (id: number) => {
       return apiRequest(`/api/storage-locations/${id}`, {
@@ -2126,38 +2142,38 @@ Regal B
       queryClient.invalidateQueries({ queryKey: ["/api/storage-locations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       toast({
-        title: "Lagerort gelöscht",
-        description: "Der Lagerort wurde erfolgreich gelöscht."
+        title: t('settings.storageLocations.deleteSuccess'),
+        description: t('settings.storageLocations.deleteSuccessDescription')
       });
     },
     onError: (error: any) => {
-      let errorMessage = "Der Lagerort konnte nicht gelöscht werden.";
+      let errorMessage = t('settings.storageLocations.deleteError');
 
-      // Versuche, die genaue Fehlermeldung aus der API-Antwort zu extrahieren
+      // Try to extract the exact error message from the API response
       if (error?.detail) {
         errorMessage = error.detail;
       } else if (error?.message?.includes("in use by filaments")) {
-        errorMessage = "Dieser Lagerort wird von einem oder mehreren Filamenten verwendet und kann nicht gelöscht werden.";
+        errorMessage = t('settings.storageLocations.deleteErrorInUse');
       }
 
       toast({
-        title: "Fehler beim Löschen",
+        title: t('settings.storageLocations.deleteErrorTitle'),
         description: errorMessage,
         variant: "destructive"
       });
     }
   });
 
-  // Mutation zum Löschen aller Lagerorte
+  // Mutation to delete all storage locations
   const deleteAllLocationsMutation = useMutation({
     mutationFn: async () => {
-      // Lösche alle Lagerorte parallel und ignoriere Fehler bei einzelnen
+      // Delete all storage locations in parallel and ignore errors for individual ones
       const deletePromises = locations.map(location =>
         apiRequest(`/api/storage-locations/${location.id}`, {
           method: "DELETE"
         }).catch(err => {
-          console.warn(`Fehler beim Löschen des Lagerorts ${location.id}:`, err);
-          return null; // Ignoriere Fehler bei einzelnen Lagerorten
+          console.warn(`Error deleting storage location ${location.id}:`, err);
+          return null; // Ignore errors for individual storage locations
         })
       );
 
@@ -2168,19 +2184,19 @@ Regal B
       queryClient.invalidateQueries({ queryKey: ["/api/storage-locations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/filaments"] });
       toast({
-        title: "Lagerorte gelöscht",
-        description: "Alle Lagerorte wurden erfolgreich gelöscht."
+        title: t('settings.storageLocations.deleteAllSuccess'),
+        description: t('settings.storageLocations.deleteAllSuccessDescription')
       });
       setIsDeleteConfirmOpen(false);
     },
     onError: (error) => {
-      console.error("Fehler beim Löschen aller Lagerorte:", error);
+      console.error("Error deleting all storage locations:", error);
       toast({
-        title: "Fehler",
-        description: "Nicht alle Lagerorte konnten gelöscht werden. Bitte versuchen Sie es erneut.",
+        title: t('common.error'),
+        description: t('settings.storageLocations.deleteAllError'),
         variant: "destructive"
       });
-      // Trotzdem Lagerortliste aktualisieren, damit gelöschte Lagerorte nicht mehr angezeigt werden
+      // Still update the storage locations list so deleted locations are no longer shown
       queryClient.invalidateQueries({ queryKey: ["/api/storage-locations"] });
       setIsDeleteConfirmOpen(false);
     }
@@ -2205,23 +2221,23 @@ Regal B
                     disabled={locations.length === 0}
                     className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                   >
-                    Alle Lagerorte löschen
+                    {t('settings.storageLocations.deleteAll')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Alle Lagerorte wirklich löschen?</AlertDialogTitle>
+                    <AlertDialogTitle>{t('settings.storageLocations.deleteAllConfirmTitle')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie alle {locations.length} Lagerorte löschen möchten?
+                      {t('settings.storageLocations.deleteAllConfirmDescription', { count: locations.length })}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => deleteAllLocationsMutation.mutate()}
                       className="theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     >
-                      Alle löschen
+                      {t('settings.storageLocations.deleteAllConfirm')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -2230,10 +2246,10 @@ Regal B
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-4">Lade Daten...</div>
+              <div className="text-center py-4">{t('settings.storageLocations.loading')}</div>
             ) : locations.length === 0 ? (
               <div className="text-center py-4 text-neutral-400">
-                Keine Lagerorte vorhanden
+                {t('settings.storageLocations.noStorageLocations')}
               </div>
             ) : (
               <div className="max-h-[400px] overflow-y-auto">
@@ -2303,9 +2319,9 @@ Regal B
         <div className="space-y-6">
           <Card>
             <CardContent className="pt-6">
-              <h3 className="text-lg font-medium mb-2">Lagerort hinzufügen</h3>
+              <h3 className="text-lg font-medium mb-2">{t('settings.storageLocations.addTitle')}</h3>
               <p className="text-sm text-neutral-400 mb-4">
-                Fügen Sie einen neuen Lagerort zur Liste hinzu
+                {t('settings.storageLocations.addDescription')}
               </p>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -2314,9 +2330,9 @@ Regal B
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name</FormLabel>
+                        <FormLabel>{t('common.name')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="Lagerortname" {...field} />
+                          <Input placeholder={t('settings.storageLocations.namePlaceholder')} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -2327,7 +2343,7 @@ Regal B
                     className="w-full theme-primary-bg-20 hover:theme-primary-bg-30 text-white border-white/20"
                     disabled={addLocationMutation.isPending}
                   >
-                    Lagerort hinzufügen
+                    {t('settings.storageLocations.addButton')}
                   </Button>
                 </form>
               </Form>
@@ -2340,7 +2356,7 @@ Regal B
         endpoint="/api/storage-locations"
         csvFormat={locationsCsvFormat}
         fields={["name"]}
-        title="Lagerorte Import/Export"
+        title={t('settings.storageLocations.importExport')}
       />
     </div>
   );

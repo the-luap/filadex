@@ -8,6 +8,25 @@ By participating in this project, you are expected to uphold our [Code of Conduc
 
 ## How Can I Contribute?
 
+### Contributing Translations
+
+Filadex aims to be accessible to users worldwide. We welcome translations to make the application available in multiple languages.
+
+**Before Contributing Translations:**
+
+* Check the existing translations in `client/src/i18n/locales/` to see if your language is already supported
+* Review our [Translation Guide](docs/TRANSLATION_GUIDE.md) for detailed instructions
+* Consult the [Translation Glossary](docs/TRANSLATION_GLOSSARY.md) for terminology consistency
+* For technical details, see the [Technical Translation Guide](docs/TRANSLATION_TECHNICAL.md)
+
+**How to Contribute Translations:**
+
+1. Fork the repository
+2. Create a new branch for your translation work
+3. Add or update the translation files following the guidelines
+4. Test your translations by running the application locally
+5. Submit a pull request with your changes
+
 ### Reporting Bugs
 
 This section guides you through submitting a bug report for Filadex. Following these guidelines helps maintainers and the community understand your report, reproduce the behavior, and find related reports.
@@ -128,5 +147,6 @@ This section lists the labels we use to help us track and manage issues and pull
 * `invalid` - Issues that are invalid or non-reproducible
 * `question` - Issues that are questions
 * `wontfix` - Issues that will not be fixed
+* `translation` - Issues or PRs related to translations
 
 Thank you for contributing to Filadex!

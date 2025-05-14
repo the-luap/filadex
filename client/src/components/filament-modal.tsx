@@ -4,34 +4,35 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { de } from "date-fns/locale";
+import { de, enUS } from "date-fns/locale";
 import { CalendarIcon, Scan, ScanFace, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useTranslation } from "@/i18n";
 
-// List of Bambulab material types
-const MATERIAL_TYPES = [
+// Material types will be created with translations in the component
+const createMaterialTypes = (t: (key: string) => string) => [
   { value: "PLA", label: "PLA" },
   { value: "PETG", label: "PETG" },
   { value: "ABS", label: "ABS" },
   { value: "TPU", label: "TPU" },
   { value: "ASA", label: "ASA" },
-  { value: "PA", label: "PA (Nylon)" },
-  { value: "PC", label: "PC (Polycarbonat)" },
+  { value: "PA", label: `PA (${t('settings.materials.nylon') || 'Nylon'})` },
+  { value: "PC", label: `PC (${t('settings.materials.polycarbonate') || 'Polycarbonate'})` },
   { value: "PVA", label: "PVA" },
   { value: "HIPS", label: "HIPS" },
-  { value: "PLA-CF", label: "PLA-CF (Karbon)" },
-  { value: "PA-CF", label: "PA-CF (Nylon Karbon)" },
-  { value: "PETG-CF", label: "PETG-CF (Karbon)" },
-  { value: "PET-CF", label: "PET-CF (Karbon)" },
-  { value: "PLA-HF", label: "PLA-HF (HighFlow)" },
-  { value: "PP", label: "PP (Polypropylen)" },
-  { value: "PETG-HF", label: "PETG-HF (HighFlow)" },
+  { value: "PLA-CF", label: `PLA-CF (${t('settings.materials.carbon') || 'Carbon'})` },
+  { value: "PA-CF", label: `PA-CF (${t('settings.materials.nylonCarbon') || 'Nylon Carbon'})` },
+  { value: "PETG-CF", label: `PETG-CF (${t('settings.materials.carbon') || 'Carbon'})` },
+  { value: "PET-CF", label: `PET-CF (${t('settings.materials.carbon') || 'Carbon'})` },
+  { value: "PLA-HF", label: `PLA-HF (${t('settings.materials.highFlow') || 'High Flow'})` },
+  { value: "PP", label: `PP (${t('settings.materials.polypropylene') || 'Polypropylene'})` },
+  { value: "PETG-HF", label: `PETG-HF (${t('settings.materials.highFlow') || 'High Flow'})` },
   { value: "PPS", label: "PPS" },
   { value: "PEEK", label: "PEEK" },
   { value: "PEI", label: "PEI/ULTEM" },
-  { value: "OTHER", label: "Anderes" }
+  { value: "OTHER", label: t('settings.materials.other') || 'Other' }
 ];
 
 // List of known filament manufacturers
@@ -79,56 +80,56 @@ const MANUFACTURERS = [
   "ZYYX"
 ];
 
-// Bambulab colors
-const BAMBULAB_COLORS = [
+// Colors will be created with translations in the component
+const createColorsList = (t: (key: string) => string) => [
   // Standard colors
-  { name: "Schwarz", code: "#000000" },
-  { name: "Weiß", code: "#FFFFFF" },
-  { name: "Grau", code: "#808080" },
-  { name: "Dunkelgrau", code: "#444444" },
-  { name: "Hellgrau", code: "#D3D3D3" },
-  { name: "Silber", code: "#C0C0C0" },
-  { name: "Rot", code: "#FF0000" },
-  { name: "Hellrot", code: "#FF5252" },
-  { name: "Dunkelrot", code: "#8B0000" },
-  { name: "Blau", code: "#0000FF" },
-  { name: "Hellblau", code: "#ADD8E6" },
-  { name: "Dunkelblau", code: "#00008B" },
-  { name: "Grün", code: "#00FF00" },
-  { name: "Hellgrün", code: "#90EE90" },
-  { name: "Dunkelgrün", code: "#006400" },
-  { name: "Gelb", code: "#FFFF00" },
-  { name: "Orange", code: "#FFA500" },
-  { name: "Lila", code: "#800080" },
-  { name: "Rosa", code: "#FFC0CB" },
-  { name: "Braun", code: "#A52A2A" },
+  { name: t('settings.colors.black') || 'Black', code: "#000000" },
+  { name: t('settings.colors.white') || 'White', code: "#FFFFFF" },
+  { name: t('settings.colors.gray') || 'Gray', code: "#808080" },
+  { name: t('settings.colors.darkGray') || 'Dark Gray', code: "#444444" },
+  { name: t('settings.colors.lightGray') || 'Light Gray', code: "#D3D3D3" },
+  { name: t('settings.colors.silver') || 'Silver', code: "#C0C0C0" },
+  { name: t('settings.colors.red') || 'Red', code: "#FF0000" },
+  { name: t('settings.colors.lightRed') || 'Light Red', code: "#FF5252" },
+  { name: t('settings.colors.darkRed') || 'Dark Red', code: "#8B0000" },
+  { name: t('settings.colors.blue') || 'Blue', code: "#0000FF" },
+  { name: t('settings.colors.lightBlue') || 'Light Blue', code: "#ADD8E6" },
+  { name: t('settings.colors.darkBlue') || 'Dark Blue', code: "#00008B" },
+  { name: t('settings.colors.green') || 'Green', code: "#00FF00" },
+  { name: t('settings.colors.lightGreen') || 'Light Green', code: "#90EE90" },
+  { name: t('settings.colors.darkGreen') || 'Dark Green', code: "#006400" },
+  { name: t('settings.colors.yellow') || 'Yellow', code: "#FFFF00" },
+  { name: t('settings.colors.orange') || 'Orange', code: "#FFA500" },
+  { name: t('settings.colors.purple') || 'Purple', code: "#800080" },
+  { name: t('settings.colors.pink') || 'Pink', code: "#FFC0CB" },
+  { name: t('settings.colors.brown') || 'Brown', code: "#A52A2A" },
 
   // Special finishes
-  { name: "Gold", code: "#FFD700" },
-  { name: "Kupfer", code: "#B87333" },
-  { name: "Transparent", code: "#FFFFFF", opacity: 0.3 },
-  { name: "Glitzer Silber", code: "#E0E0E0" },
-  { name: "Glitzer Gold", code: "#FFD700" },
-  { name: "Glitzer Blau", code: "#4169E1" },
-  { name: "Perlmutt", code: "#EAEAEA" },
-  { name: "Neon Gelb", code: "#FFFF00" },
-  { name: "Neon Grün", code: "#39FF14" },
-  { name: "Neon Rosa", code: "#FF69B4" },
-  { name: "Nachtleuchtend", code: "#CCFFCC" },
+  { name: t('settings.colors.gold') || 'Gold', code: "#FFD700" },
+  { name: t('settings.colors.copper') || 'Copper', code: "#B87333" },
+  { name: t('settings.colors.transparent') || 'Transparent', code: "#FFFFFF", opacity: 0.3 },
+  { name: t('settings.colors.glitterSilver') || 'Glitter Silver', code: "#E0E0E0" },
+  { name: t('settings.colors.glitterGold') || 'Glitter Gold', code: "#FFD700" },
+  { name: t('settings.colors.glitterBlue') || 'Glitter Blue', code: "#4169E1" },
+  { name: t('settings.colors.pearlescent') || 'Pearlescent', code: "#EAEAEA" },
+  { name: t('settings.colors.neonYellow') || 'Neon Yellow', code: "#FFFF00" },
+  { name: t('settings.colors.neonGreen') || 'Neon Green', code: "#39FF14" },
+  { name: t('settings.colors.neonPink') || 'Neon Pink', code: "#FF69B4" },
+  { name: t('settings.colors.glow') || 'Glow in the Dark', code: "#CCFFCC" },
 
   // Wood series
-  { name: "Wood - Birke", code: "#F5DEB3" },
-  { name: "Wood - Eiche", code: "#DEB887" },
-  { name: "Wood - Ahorn", code: "#EADDCA" },
-  { name: "Wood - Kirsche", code: "#954535" },
-  { name: "Wood - Wallnuss", code: "#614126" },
-  { name: "Wood - Ebenholz", code: "#3D2B1F" },
+  { name: `${t('settings.colors.wood') || 'Wood'} - ${t('settings.colors.birch') || 'Birch'}`, code: "#F5DEB3" },
+  { name: `${t('settings.colors.wood') || 'Wood'} - ${t('settings.colors.oak') || 'Oak'}`, code: "#DEB887" },
+  { name: `${t('settings.colors.wood') || 'Wood'} - ${t('settings.colors.maple') || 'Maple'}`, code: "#EADDCA" },
+  { name: `${t('settings.colors.wood') || 'Wood'} - ${t('settings.colors.cherry') || 'Cherry'}`, code: "#954535" },
+  { name: `${t('settings.colors.wood') || 'Wood'} - ${t('settings.colors.walnut') || 'Walnut'}`, code: "#614126" },
+  { name: `${t('settings.colors.wood') || 'Wood'} - ${t('settings.colors.ebony') || 'Ebony'}`, code: "#3D2B1F" },
 
   // Cool/Marble series
-  { name: "Marmor", code: "#F5F5F5" },
-  { name: "Galaxy", code: "#191970" },
-  { name: "Farbwechselnd Blau-Grün", code: "#1E90FF" },
-  { name: "Farbwechselnd Rot-Gelb", code: "#FF4500" }
+  { name: t('settings.colors.marble') || 'Marble', code: "#F5F5F5" },
+  { name: t('settings.colors.galaxy') || 'Galaxy', code: "#191970" },
+  { name: t('settings.colors.colorChangingBlueGreen') || 'Color Changing Blue-Green', code: "#1E90FF" },
+  { name: t('settings.colors.colorChangingRedYellow') || 'Color Changing Red-Yellow', code: "#FF4500" }
 ];
 
 // Print temperatures by material type
@@ -187,16 +188,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRScanner } from "./qr-scanner";
 import { NFCScanner } from "./nfc-scanner";
 
-// Create a custom schema for the form
-const formSchema = z.object({
-  name: z.string().min(1, "Name ist erforderlich"),
+// Create a custom schema for the form with translations
+const createFormSchema = (t: (key: string) => string) => z.object({
+  name: z.string().min(1, t('filaments.nameRequired')),
   manufacturer: z.string().optional(),
-  material: z.string().min(1, "Material ist erforderlich"),
-  colorName: z.string().min(1, "Farbe ist erforderlich"),
+  material: z.string().min(1, t('filaments.materialRequired')),
+  colorName: z.string().min(1, t('filaments.colorRequired')),
   colorCode: z.string().optional(),
   diameter: z.number().optional(),
   printTemp: z.string().optional(),
-  totalWeight: z.number().min(0.1, "Gesamtgewicht muss mindestens 0.1kg sein"),
+  totalWeight: z.number().min(0.1, t('filaments.weightRequired')),
   remainingPercentage: z.number().min(0).max(100),
   purchaseDate: z.date().optional(),
   purchasePrice: z.number().min(0).optional(),
@@ -207,12 +208,14 @@ const formSchema = z.object({
   storageLocation: z.string().optional(),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+// This will be defined in the component
+type FormSchema = ReturnType<typeof createFormSchema>;
+type FormValues = z.infer<FormSchema>;
 
 interface FilamentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (filament: FormValues) => void;
+  onSave: (filament: any) => void;
   filament?: Filament;
 }
 
@@ -242,12 +245,22 @@ export function FilamentModal({
   onSave,
   filament,
 }: FilamentModalProps) {
+  const { t, language } = useTranslation();
   const isEditing = !!filament;
   const [remainingPercentage, setRemainingPercentage] = useState(100);
   const [totalWeight, setTotalWeight] = useState<number | string>(1);
   const [customWeightVisible, setCustomWeightVisible] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showNFCScanner, setShowNFCScanner] = useState(false);
+
+  // Create form schema with translations
+  const formSchema = createFormSchema(t);
+
+  // Create material types with translations
+  const materialTypes = createMaterialTypes(t);
+
+  // Create colors list with translations
+  const colorsList = createColorsList(t);
 
   // Load data from the database
   const { data: manufacturers = [] } = useQuery({
@@ -496,7 +509,7 @@ export function FilamentModal({
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto dark:bg-neutral-900 bg-white">
           <DialogHeader>
-            <DialogTitle>{isEditing ? "Filament bearbeiten" : "Filament hinzufügen"}</DialogTitle>
+            <DialogTitle>{isEditing ? t('filaments.editFilament') : t('filaments.addFilament')}</DialogTitle>
           </DialogHeader>
 
           <Form {...form}>
@@ -510,7 +523,7 @@ export function FilamentModal({
                   className="flex items-center"
                 >
                   <Scan className="mr-2 h-4 w-4" />
-                  QR-Code scannen
+                  {t('common.scanQRCode')}
                 </Button>
                 <Button
                   type="button"
@@ -520,7 +533,7 @@ export function FilamentModal({
                   className="flex items-center"
                 >
                   <ScanFace className="mr-2 h-4 w-4" />
-                  NFC scannen
+                  {t('common.scanNFC')}
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -529,10 +542,10 @@ export function FilamentModal({
                   name="name"
                   render={({ field }) => (
                     <FormItem className="col-span-2">
-                      <FormLabel>Name*</FormLabel>
+                      <FormLabel>{t('filaments.name')}*</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="z.B. PLA Schwarz Bambu Lab"
+                          placeholder={t('filaments.namePlaceholder')}
                           {...field}
                         />
                       </FormControl>
@@ -546,23 +559,23 @@ export function FilamentModal({
                   name="manufacturer"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Hersteller</FormLabel>
+                      <FormLabel>{t('filaments.manufacturer')}</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         value={typeof field.value === 'string' ? field.value : ''}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Hersteller wählen oder eingeben" />
+                            <SelectValue placeholder={t('filaments.selectManufacturer')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           <div className="relative">
                             <Input
                               className="mb-2 sticky top-0 z-10"
-                              placeholder="Hersteller suchen oder eingeben..."
-                              onChange={(e) => {
-                                // Nur für die Suche verwenden, keine Wertänderung
+                              placeholder={t('filaments.searchManufacturer')}
+                              onChange={() => {
+                                // Only used for search, not for changing value
                               }}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
@@ -595,15 +608,15 @@ export function FilamentModal({
                   name="material"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Material*</FormLabel>
+                      <FormLabel>{t('filaments.material')}*</FormLabel>
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value);
-                          // Automatisch Drucktemperatur einstellen
+                          // Automatically set print temperature
                           if (value in PRINT_TEMPERATURES) {
                             form.setValue('printTemp', PRINT_TEMPERATURES[value as keyof typeof PRINT_TEMPERATURES]);
                           }
-                          // Automatisch Namen aktualisieren, wenn Material und Farbe vorhanden
+                          // Automatically update name if material and color are present
                           const colorName = form.getValues('colorName');
                           const manufacturer = form.getValues('manufacturer');
                           if (colorName && value) {
@@ -616,17 +629,16 @@ export function FilamentModal({
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Bitte auswählen" />
+                            <SelectValue placeholder={t('common.pleaseSelect')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           <div className="relative">
                             <Input
                               className="mb-2 sticky top-0 z-10"
-                              placeholder="Material suchen..."
-                              onChange={(e) => {
-                                // Einfach nur den Wert setzen - diese Eingabe wird für die Suche verwendet,
-                                // ohne den tatsächlichen Wert des Feldes zu ändern
+                              placeholder={t('filaments.searchMaterial')}
+                              onChange={() => {
+                                // Only used for search, not for changing value
                               }}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
@@ -644,6 +656,12 @@ export function FilamentModal({
                               {material.name}
                             </SelectItem>
                           ))}
+                          {/* Add predefined material types */}
+                          {materialTypes.map((material) => (
+                            <SelectItem key={material.value} value={material.value}>
+                              {material.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -656,16 +674,16 @@ export function FilamentModal({
                   name="colorName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Farbe Name*</FormLabel>
+                      <FormLabel>{t('filaments.color')}*</FormLabel>
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value);
-                          // Setze automatisch den Farbcode
+                          // Automatically set color code
                           const colorObj = colors.find(c => c.name === value);
                           if (colorObj) {
                             form.setValue('colorCode', colorObj.code);
                           }
-                          // Automatisch Namen aktualisieren, wenn Material und Farbe vorhanden
+                          // Automatically update name if material and color are present
                           const material = form.getValues('material');
                           const manufacturer = form.getValues('manufacturer');
                           if (material && value) {
@@ -678,16 +696,16 @@ export function FilamentModal({
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Farbe wählen" />
+                            <SelectValue placeholder={t('filaments.selectColor')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           <div className="relative">
                             <Input
                               className="mb-2 sticky top-0 z-10"
-                              placeholder="Farbe suchen..."
-                              onChange={(e) => {
-                                // Nur für die Suche verwenden, keine Wertänderung
+                              placeholder={t('filaments.searchColor')}
+                              onChange={() => {
+                                // Only used for search, not for changing value
                               }}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
@@ -711,18 +729,33 @@ export function FilamentModal({
                               </div>
                             </SelectItem>
                           ))}
-                          <SelectItem value="Benutzerdefiniert">
+                          {/* Add predefined colors */}
+                          {colorsList.map((color) => (
+                            <SelectItem key={color.code} value={color.name}>
+                              <div className="flex items-center">
+                                <div
+                                  className="h-4 w-4 rounded-full mr-2 border border-neutral-300"
+                                  style={{
+                                    backgroundColor: color.code,
+                                    opacity: color.opacity || 1
+                                  }}
+                                />
+                                {color.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="Custom">
                             <div className="flex items-center">
                               <div className="h-4 w-4 rounded-full mr-2 border border-neutral-300 bg-gradient-to-r from-red-500 via-green-500 to-blue-500" />
-                              Benutzerdefiniert
+                              {t('common.custom')}
                             </div>
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      {field.value === "Benutzerdefiniert" && (
+                      {field.value === "Custom" && (
                         <div className="mt-2">
                           <Input
-                            placeholder="Eigene Farbbezeichnung"
+                            placeholder={t('filaments.customColorName')}
                             onChange={(e) => field.onChange(e.target.value)}
                           />
                         </div>
@@ -737,7 +770,7 @@ export function FilamentModal({
                   name="colorCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Farbe Code</FormLabel>
+                      <FormLabel>{t('filaments.colorCode')}</FormLabel>
                       <FormControl>
                         <div className="flex">
                           <Input
@@ -768,7 +801,7 @@ export function FilamentModal({
                   name="diameter"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Durchmesser (mm)</FormLabel>
+                      <FormLabel>{t('filaments.diameter')} (mm)</FormLabel>
                       <Select
                         onValueChange={(value) => field.onChange(parseFloat(value))}
                         defaultValue={field.value ? field.value.toString() : "1.75"}
@@ -776,7 +809,7 @@ export function FilamentModal({
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Durchmesser wählen" />
+                            <SelectValue placeholder={t('filaments.selectDiameter')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -800,10 +833,10 @@ export function FilamentModal({
                   name="printTemp"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Druck-Temperatur (°C)</FormLabel>
+                      <FormLabel>{t('filaments.printTemp')} (°C)</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="z.B. 200-220"
+                          placeholder={t('filaments.printTempPlaceholder')}
                           {...field}
                         />
                       </FormControl>
@@ -814,10 +847,10 @@ export function FilamentModal({
               </div>
 
               <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200">
-                <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3">Menge</h4>
+                <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3">{t('filaments.quantity')}</h4>
                 <div className="space-y-4">
                   <div>
-                    <FormLabel>Gesamtgewicht (kg)*</FormLabel>
+                    <FormLabel>{t('filaments.totalWeight')} (kg)*</FormLabel>
                     <Select
                       onValueChange={handleTotalWeightChange}
                       defaultValue={customWeightVisible ? "custom" : totalWeight.toString()}
@@ -825,7 +858,7 @@ export function FilamentModal({
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Gesamtgewicht wählen" />
+                          <SelectValue placeholder={t('filaments.selectTotalWeight')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -838,7 +871,7 @@ export function FilamentModal({
                         <SelectItem value="2.5">2.5kg</SelectItem>
                         <SelectItem value="3">3kg</SelectItem>
                         <SelectItem value="5">5kg</SelectItem>
-                        <SelectItem value="custom">Benutzerdefiniert</SelectItem>
+                        <SelectItem value="custom">{t('common.custom')}</SelectItem>
                       </SelectContent>
                     </Select>
 
@@ -848,7 +881,7 @@ export function FilamentModal({
                           type="number"
                           step="0.01"
                           min="0.1"
-                          placeholder="Gewicht in kg eingeben"
+                          placeholder={t('filaments.enterWeightInKg')}
                           value={typeof totalWeight === 'number' ? totalWeight : ''}
                           onChange={handleCustomWeightChange}
                         />
@@ -861,7 +894,7 @@ export function FilamentModal({
                     name="remainingPercentage"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Restmenge (%)*</FormLabel>
+                        <FormLabel>{t('filaments.remainingPercentage')} (%)*</FormLabel>
                         <div className="flex items-center">
                           <FormControl>
                             <Slider
@@ -888,7 +921,7 @@ export function FilamentModal({
 
                   <div>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="dark:text-neutral-300 text-gray-600">Entspricht:</span>
+                      <span className="dark:text-neutral-300 text-gray-600">{t('filaments.equivalentTo')}:</span>
                       <span className="font-medium dark:text-neutral-400 text-gray-700">
                         {calculateRemainingWeight()}kg
                       </span>
@@ -898,14 +931,14 @@ export function FilamentModal({
               </div>
 
               <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200">
-                <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3">Zusätzliche Informationen</h4>
+                <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3">{t('filaments.additionalInfo')}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="purchaseDate"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>Kaufdatum</FormLabel>
+                        <FormLabel>{t('filaments.purchaseDate')}</FormLabel>
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
@@ -916,9 +949,9 @@ export function FilamentModal({
                                 }
                               >
                                 {field.value ? (
-                                  format(field.value, "dd.MM.yyyy", { locale: de })
+                                  format(field.value, "dd.MM.yyyy", { locale: language === 'de' ? de : enUS })
                                 ) : (
-                                  <span className="dark:text-neutral-400 text-gray-500">Datum wählen</span>
+                                  <span className="dark:text-neutral-400 text-gray-500">{t('common.selectDate')}</span>
                                 )}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                               </Button>
@@ -932,7 +965,7 @@ export function FilamentModal({
                               disabled={(date) =>
                                 date > new Date() || date < new Date("1900-01-01")
                               }
-                              locale={de}
+                              locale={language === 'de' ? de : enUS}
                               initialFocus
                             />
                           </PopoverContent>
@@ -947,13 +980,13 @@ export function FilamentModal({
                     name="purchasePrice"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>Kaufpreis (€)</FormLabel>
+                        <FormLabel>{t('filaments.purchasePrice')} (€)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
                             step="0.01"
                             min="0"
-                            placeholder="z.B. 20.99"
+                            placeholder={t('filaments.purchasePricePlaceholder')}
                             value={field.value !== undefined ? field.value : ''}
                             onChange={(e) => {
                               const value = e.target.value !== '' ? parseFloat(e.target.value) : undefined;
@@ -971,23 +1004,23 @@ export function FilamentModal({
                     name="storageLocation"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>Lagerort</FormLabel>
+                        <FormLabel>{t('filaments.storageLocation')}</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           value={field.value || ""}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Lagerort auswählen oder eingeben" />
+                              <SelectValue placeholder={t('filaments.selectStorageLocation')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <div className="relative">
                               <Input
                                 className="mb-2 sticky top-0 z-10"
-                                placeholder="Lagerort eingeben..."
-                                onChange={(e) => {
-                                  // Nur für die Suche verwenden, keine Wertänderung
+                                placeholder={t('filaments.enterStorageLocation')}
+                                onChange={() => {
+                                  // Only used for search, not for changing value
                                 }}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
@@ -1018,26 +1051,26 @@ export function FilamentModal({
               </div>
 
               <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200">
-                <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3">Status</h4>
+                <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3">{t('filaments.status')}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="status"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Verpackung</FormLabel>
+                        <FormLabel>{t('filaments.packaging')}</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Bitte wählen..." />
+                              <SelectValue placeholder={t('common.pleaseSelect')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="sealed">Versiegelt (noch nicht geöffnet)</SelectItem>
-                            <SelectItem value="opened">Geöffnet (in Benutzung)</SelectItem>
+                            <SelectItem value="sealed">{t('filaments.sealed')}</SelectItem>
+                            <SelectItem value="opened">{t('filaments.opened')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -1050,19 +1083,19 @@ export function FilamentModal({
                     name="spoolType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Rollentyp</FormLabel>
+                        <FormLabel>{t('filaments.spoolType')}</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Bitte wählen..." />
+                              <SelectValue placeholder={t('common.pleaseSelect')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="spooled">Spule (Standard)</SelectItem>
-                            <SelectItem value="spoolless">Spulenlos</SelectItem>
+                            <SelectItem value="spooled">{t('filaments.spooled')}</SelectItem>
+                            <SelectItem value="spoolless">{t('filaments.spoolless')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -1071,14 +1104,14 @@ export function FilamentModal({
                   />
                 </div>
 
-                <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3 mt-4">Trocknung</h4>
+                <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3 mt-4">{t('filaments.drying')}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="dryerCount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Trocknungsanzahl</FormLabel>
+                        <FormLabel>{t('filaments.dryerCount')}</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -1090,7 +1123,7 @@ export function FilamentModal({
                           />
                         </FormControl>
                         <FormDescription className="text-xs">
-                          Wie oft wurde dieses Filament getrocknet?
+                          {t('filaments.dryerCountDescription')}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -1102,7 +1135,7 @@ export function FilamentModal({
                     name="lastDryingDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Letzte Trocknung</FormLabel>
+                        <FormLabel>{t('filaments.lastDryingDate')}</FormLabel>
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
@@ -1114,9 +1147,9 @@ export function FilamentModal({
                                 )}
                               >
                                 {field.value ? (
-                                  format(field.value, "dd.MM.yyyy")
+                                  format(field.value, "dd.MM.yyyy", { locale: language === 'de' ? de : enUS })
                                 ) : (
-                                  <span>Kein Datum</span>
+                                  <span>{t('common.noDate')}</span>
                                 )}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                               </Button>
@@ -1127,12 +1160,13 @@ export function FilamentModal({
                               mode="single"
                               selected={field.value}
                               onSelect={field.onChange}
+                              locale={language === 'de' ? de : enUS}
                               initialFocus
                             />
                           </PopoverContent>
                         </Popover>
                         <FormDescription className="text-xs">
-                          Wann wurde das Filament zuletzt getrocknet?
+                          {t('filaments.lastDryingDateDescription')}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -1148,7 +1182,7 @@ export function FilamentModal({
                     variant="outline"
                     size="icon"
                     onClick={() => setShowQRScanner(true)}
-                    title="QR-Code scannen"
+                    title={t('common.scanQRCode')}
                   >
                     <Scan className="h-4 w-4" />
                   </Button>
@@ -1157,7 +1191,7 @@ export function FilamentModal({
                     variant="outline"
                     size="icon"
                     onClick={() => setShowNFCScanner(true)}
-                    title="NFC scannen"
+                    title={t('common.scanNFC')}
                   >
                     <ScanFace className="h-4 w-4" />
                   </Button>
@@ -1167,10 +1201,10 @@ export function FilamentModal({
                   variant="outline"
                   onClick={onClose}
                 >
-                  Abbrechen
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit">
-                  Speichern
+                  {t('common.save')}
                 </Button>
               </DialogFooter>
             </form>

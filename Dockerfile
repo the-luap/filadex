@@ -19,9 +19,13 @@ RUN npm run vite:build
 RUN mkdir -p dist
 COPY server.js dist/index.js
 # Create server directory structure
-RUN mkdir -p dist/server dist/shared
+RUN mkdir -p dist/server dist/shared dist/migrations
 # Copy schema.js to the correct location
 COPY shared/schema.js dist/shared/schema.js
+# Copy migrations
+COPY migrations/ dist/migrations/
+# Copy server directory to dist/server
+COPY server/ dist/server/
 
 # Production image
 FROM node:20-alpine as production
@@ -45,6 +49,7 @@ RUN npm install pg drizzle-orm zod
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
 COPY --from=build /app/shared ./shared
+COPY --from=build /app/migrations ./migrations
 COPY --from=build /app/init-data.js ./init-data.js
 
 # Kopiere das Entrypoint-Skript

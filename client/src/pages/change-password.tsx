@@ -4,26 +4,33 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/api";
+import { useTranslation } from "@/i18n";
+import { useErrorTranslation } from "@/lib/error-handler";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 
-const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
-  newPassword: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(1, "Please confirm your password"),
+// Create a function to generate the schema with translations
+const createChangePasswordSchema = (t: (key: string) => string) => z.object({
+  currentPassword: z.string().min(1, t('auth.currentPasswordRequired')),
+  newPassword: z.string().min(6, t('auth.passwordRequirements')),
+  confirmPassword: z.string().min(1, t('auth.confirmPasswordRequired')),
 }).refine(data => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
+  message: t('auth.passwordsDontMatch'),
   path: ["confirmPassword"],
 });
-
-type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
 export default function ChangePasswordPage() {
   const { toast } = useToast();
   const [_, navigate] = useLocation();
+  const { t } = useTranslation();
+  const { getErrorMessage } = useErrorTranslation();
+
+  // Create the schema with translations
+  const changePasswordSchema = createChangePasswordSchema(t);
+  type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
   const form = useForm<ChangePasswordFormValues>({
     resolver: zodResolver(changePasswordSchema),
@@ -51,8 +58,8 @@ export default function ChangePasswordPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Password updated",
-        description: "Your password has been changed successfully.",
+        title: t('auth.passwordChanged'),
+        description: t('auth.passwordChangedDescription'),
         variant: "success",
         duration: 5000, // Show for 5 seconds
       });
@@ -62,10 +69,11 @@ export default function ChangePasswordPage() {
         navigate("/");
       }, 1000);
     },
-    onError: () => {
+    onError: (error) => {
+      const errorMessage = getErrorMessage(error);
       toast({
-        title: "Error",
-        description: "Failed to change password. Please check your current password.",
+        title: t('common.error'),
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -79,8 +87,8 @@ export default function ChangePasswordPage() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-[400px]">
         <CardHeader className="bg-primary dark:bg-primary text-white rounded-t-lg">
-          <CardTitle>Change Password</CardTitle>
-          <CardDescription className="text-white/80">Update your password to continue</CardDescription>
+          <CardTitle>{t('auth.changePassword')}</CardTitle>
+          <CardDescription className="text-white/80">{t('auth.changePasswordDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           <Form {...form}>
@@ -90,9 +98,9 @@ export default function ChangePasswordPage() {
                 name="currentPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Current Password</FormLabel>
+                    <FormLabel>{t('auth.currentPassword')}</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Enter current password" {...field} />
+                      <Input type="password" placeholder={t('auth.currentPasswordPlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -103,9 +111,9 @@ export default function ChangePasswordPage() {
                 name="newPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>New Password</FormLabel>
+                    <FormLabel>{t('auth.newPassword')}</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Enter new password" {...field} />
+                      <Input type="password" placeholder={t('auth.newPasswordPlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -116,9 +124,9 @@ export default function ChangePasswordPage() {
                 name="confirmPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
+                    <FormLabel>{t('auth.confirmPassword')}</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Confirm new password" {...field} />
+                      <Input type="password" placeholder={t('auth.confirmPasswordPlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -126,10 +134,10 @@ export default function ChangePasswordPage() {
               />
               <Button
                 type="submit"
-                className="w-full bg-secondary hover:bg-secondary-dark"
+                className="w-full bg-primary text-white hover:bg-primary/90"
                 disabled={changePasswordMutation.isPending}
               >
-                {changePasswordMutation.isPending ? "Updating..." : "Update Password"}
+                {changePasswordMutation.isPending ? t('auth.updating') : t('auth.updatePassword')}
               </Button>
             </form>
           </Form>

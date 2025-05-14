@@ -7,17 +7,18 @@ import { Paintbrush } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
 
-// Voreingestellte Farboptionen
-const PRESET_COLORS = [
-  { name: "Rot", value: "#E11D48" },  // Standard
-  { name: "Blau", value: "#0369A1" },
-  { name: "Grün", value: "#16A34A" },
-  { name: "Lila", value: "#9333EA" },
-  { name: "Orange", value: "#EA580C" },
-  { name: "Gelb", value: "#CA8A04" },
-  { name: "Pink", value: "#DB2777" },
-  { name: "Türkis", value: "#0D9488" },
+// Preset color options
+const getPresetColors = (t: (key: string) => string) => [
+  { name: t('settings.colors.red') || "Red", value: "#E11D48" },  // Default
+  { name: t('settings.colors.blue') || "Blue", value: "#0369A1" },
+  { name: t('settings.colors.green') || "Green", value: "#16A34A" },
+  { name: t('settings.colors.purple') || "Purple", value: "#9333EA" },
+  { name: t('settings.colors.orange') || "Orange", value: "#EA580C" },
+  { name: t('settings.colors.yellow') || "Yellow", value: "#CA8A04" },
+  { name: t('settings.colors.pink') || "Pink", value: "#DB2777" },
+  { name: t('settings.colors.teal') || "Teal", value: "#0D9488" },
 ];
 
 interface ThemeSelectorProps {
@@ -26,16 +27,18 @@ interface ThemeSelectorProps {
 }
 
 export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
-  const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0].value);
+  const { t } = useTranslation();
+  const presetColors = getPresetColors(t);
+  const [selectedColor, setSelectedColor] = useState(presetColors[0].value);
   const [customColor, setCustomColor] = useState("");
 
-  // Lade das aktuelle Theme vom Server
+  // Load current theme from server
   const { data: themeData } = useQuery({
     queryKey: ['/api/theme'],
     queryFn: () => apiRequest<{ variant: string; primary: string; appearance: string; radius: number }>('/api/theme')
   });
 
-  // Theme-Mutation zum Update der Theme-Datei
+  // Theme mutation to update the theme file
   const updateThemeMutation = useMutation({
     mutationFn: (newTheme: { variant: string; primary: string; appearance: string; radius: number }) => {
       return apiRequest('/api/theme', {
@@ -45,57 +48,57 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
     },
     onSuccess: () => {
       toast({
-        title: "Thema aktualisiert",
-        description: "Die Einstellungen wurden erfolgreich gespeichert."
+        title: t('settings.themeUpdated'),
+        description: t('settings.themeUpdatedDescription') || "Settings saved successfully."
       });
       onOpenChange(false);
     },
     onError: (error) => {
-      console.error("Fehler beim Aktualisieren des Themes:", error);
+      console.error("Error updating theme:", error);
       toast({
-        title: "Fehler",
-        description: "Das Thema konnte nicht aktualisiert werden.",
+        title: t('common.error'),
+        description: t('settings.themeUpdateError') || "The theme could not be updated.",
         variant: "destructive"
       });
     }
   });
 
-  // Beim ersten Laden die aktuelle Farbe aus dem Theme oder localStorage holen
+  // Load current color from theme or localStorage on first load
   useEffect(() => {
-    // Wenn Theme-Daten vom Server geladen wurden, diese verwenden
+    // If theme data is loaded from server, use it
     if (themeData?.primary) {
       setSelectedColor(themeData.primary);
       setCustomColor(themeData.primary);
-      // Setze die Farbe als CSS-Variable
+      // Set the color as CSS variable
       document.documentElement.style.setProperty("--theme-primary", themeData.primary);
       document.documentElement.style.setProperty("--theme-loaded-primary", themeData.primary);
       return;
     }
 
-    // Ansonsten aus localStorage verwenden (Fallback)
+    // Otherwise use from localStorage (fallback)
     const savedColor = localStorage.getItem("themeColor");
     if (savedColor) {
       setSelectedColor(savedColor);
       setCustomColor(savedColor);
-      // Setze die gespeicherte Farbe als CSS-Variable
+      // Set the saved color as CSS variable
       document.documentElement.style.setProperty("--theme-primary", savedColor);
       document.documentElement.style.setProperty("--theme-loaded-primary", savedColor);
     }
   }, [themeData]);
 
-  // Funktion zum Anwenden des Farbschemas
+  // Function to apply the color scheme
   const applyTheme = (color: string) => {
-    // Farbe im localStorage speichern (als Fallback)
+    // Save color in localStorage (as fallback)
     localStorage.setItem("themeColor", color);
 
-    // CSS-Variable aktualisieren
+    // Update CSS variable
     document.documentElement.style.setProperty("--theme-primary", color);
     document.documentElement.style.setProperty("--theme-loaded-primary", color);
 
     // Get current theme mode from localStorage or use dark as default
     const currentTheme = localStorage.getItem("theme") || "dark";
 
-    // Neues Theme-Objekt erstellen und an den Server senden
+    // Create new theme object and send to server
     const updatedTheme = {
       variant: themeData?.variant || "professional",
       primary: color,
@@ -103,16 +106,16 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
       radius: themeData?.radius || 0.8
     };
 
-    // API-Call zum Update des Themes
+    // API call to update the theme
     updateThemeMutation.mutate(updatedTheme);
   };
 
-  // Farbe auswählen
+  // Select color
   const handleSelectPreset = (color: string) => {
     setSelectedColor(color);
   };
 
-  // Eigene Farbe anwenden
+  // Apply custom color
   const handleApplyCustom = () => {
     if (customColor) {
       setSelectedColor(customColor);
@@ -125,19 +128,19 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Paintbrush className="mr-2 h-5 w-5" />
-            Akzentfarbe anpassen
+            {t('settings.customizeAccentColor')}
           </DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="presets" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="presets">Voreinstellungen</TabsTrigger>
-            <TabsTrigger value="custom">Benutzerdefiniert</TabsTrigger>
+            <TabsTrigger value="presets">{t('settings.presets')}</TabsTrigger>
+            <TabsTrigger value="custom">{t('settings.custom')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="presets" className="mt-4">
             <div className="grid grid-cols-4 gap-2">
-              {PRESET_COLORS.map((color) => (
+              {presetColors.map((color) => (
                 <button
                   key={color.value}
                   className={`w-full h-12 rounded-md transition-all ${
@@ -153,7 +156,7 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
 
           <TabsContent value="custom" className="mt-4 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="custom-color">Eigene Farbe (HEX-Code)</Label>
+              <Label htmlFor="custom-color">{t('settings.customColor')}</Label>
               <div className="flex space-x-2">
                 <input
                   id="custom-color"
@@ -166,18 +169,18 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
                   type="text"
                   value={customColor}
                   onChange={(e) => setCustomColor(e.target.value)}
-                  placeholder="#HEX-Code"
+                  placeholder="#HEX"
                   className="flex-1 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                 />
                 <Button variant="outline" onClick={handleApplyCustom}>
-                  Anwenden
+                  {t('settings.apply')}
                 </Button>
               </div>
             </div>
 
             <div className="h-12 rounded-md transition-all" style={{ backgroundColor: selectedColor }}>
               <div className="w-full h-full flex items-center justify-center">
-                <span className="text-white text-shadow-sm shadow-black">Vorschau</span>
+                <span className="text-white text-shadow-sm shadow-black">{t('settings.preview')}</span>
               </div>
             </div>
           </TabsContent>
@@ -189,7 +192,7 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
             onClick={() => onOpenChange(false)}
             className="sm:mt-0 w-full sm:w-auto"
           >
-            Abbrechen
+            {t('settings.cancel')}
           </Button>
           <Button
             onClick={() => applyTheme(selectedColor)}
@@ -197,9 +200,9 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
             disabled={updateThemeMutation.isPending}
           >
             {updateThemeMutation.isPending ? (
-              <>Speichere Einstellungen...</>
+              <>{t('settings.savingSettings')}</>
             ) : (
-              <>Farbe anwenden</>
+              <>{t('settings.applyColor')}</>
             )}
           </Button>
         </DialogFooter>

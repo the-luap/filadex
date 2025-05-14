@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
+import { useTranslation } from "@/i18n";
+import { useErrorTranslation } from "@/lib/error-handler";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Share2, Globe, Tag } from "lucide-react";
@@ -29,6 +31,8 @@ type SharingSetting = {
 
 export function SharingModal({ open, onOpenChange }: SharingModalProps) {
   const { toast } = useToast();
+  const { t } = useTranslation();
+  const { getErrorMessage } = useErrorTranslation();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("settings");
   const [shareUrl, setShareUrl] = useState("");
@@ -59,30 +63,72 @@ export function SharingModal({ open, onOpenChange }: SharingModalProps) {
 
   const updateSharingMutation = useMutation({
     mutationFn: (data: { materialId: number | null; isPublic: boolean }) => {
+      console.log("Sending sharing update request:", data);
       return apiRequest("/api/user-sharing", {
         method: "POST",
-        body: JSON.stringify(data),
+        body: data, // Don't stringify here, apiRequest will do it
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
     },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Sharing settings updated" });
+    onSuccess: (data) => {
+      console.log("Sharing update successful:", data);
+      toast({
+        title: t('common.success'),
+        description: t('sharing.settingsUpdated')
+      });
       queryClient.invalidateQueries({ queryKey: ["sharing-settings"] });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update sharing settings", variant: "destructive" });
+    onError: (error) => {
+      console.error("Sharing update error:", error);
+      const errorMessage = getErrorMessage(error);
+      toast({
+        title: t('common.error'),
+        description: errorMessage || t('sharing.updateError'),
+        variant: "destructive"
+      });
     },
   });
 
   const handleToggleGlobalSharing = (isPublic: boolean) => {
-    updateSharingMutation.mutate({ materialId: null, isPublic });
+    console.log("Toggling global sharing to:", isPublic);
+
+    // If enabling global sharing, disable all material-specific sharing
+    if (isPublic) {
+      // First update global sharing
+      updateSharingMutation.mutate({ materialId: null, isPublic });
+
+      // Then disable all material-specific sharing
+      materials.forEach((material: Material) => {
+        const setting = getSettingForMaterial(material.id);
+        if (setting && setting.isPublic) {
+          updateSharingMutation.mutate({ materialId: material.id, isPublic: false });
+        }
+      });
+    } else {
+      // Just disable global sharing
+      updateSharingMutation.mutate({ materialId: null, isPublic });
+    }
   };
 
   const handleToggleMaterialSharing = (materialId: number, isPublic: boolean) => {
+    console.log("Toggling material sharing for material ID:", materialId, "to:", isPublic);
+
+    // If enabling a material-specific sharing, disable global sharing
+    if (isPublic) {
+      const globalSetting = getSettingForMaterial(null);
+      if (globalSetting && globalSetting.isPublic) {
+        updateSharingMutation.mutate({ materialId: null, isPublic: false });
+      }
+    }
+
+    // Update the material-specific sharing
     updateSharingMutation.mutate({ materialId, isPublic });
   };
 
   const getSettingForMaterial = (materialId: number | null) => {
-    return sharingSettings.find((setting: SharingSetting) => 
+    return sharingSettings.find((setting: SharingSetting) =>
       setting.materialId === materialId
     );
   };
@@ -93,62 +139,136 @@ export function SharingModal({ open, onOpenChange }: SharingModalProps) {
   };
 
   const copyShareUrl = () => {
-    navigator.clipboard.writeText(shareUrl);
-    toast({ title: "Success", description: "Share URL copied to clipboard" });
+    console.log("Attempting to copy URL:", shareUrl);
+
+    // Simple approach - try Clipboard API first
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => {
+        console.log("Clipboard API copy succeeded");
+        toast({
+          title: t('common.success'),
+          description: t('sharing.urlCopied'),
+          variant: "default"
+        });
+      })
+      .catch((err) => {
+        console.error("Clipboard API copy failed, trying fallback:", err);
+
+        // Fallback method
+        try {
+          // Create a temporary input element
+          const tempInput = document.createElement("input");
+          tempInput.style.position = "absolute";
+          tempInput.style.left = "-1000px";
+          tempInput.style.top = "-1000px";
+          tempInput.value = shareUrl;
+          document.body.appendChild(tempInput);
+
+          // Select and copy
+          tempInput.select();
+          tempInput.setSelectionRange(0, 99999); // For mobile devices
+
+          const successful = document.execCommand('copy');
+          document.body.removeChild(tempInput);
+
+          if (successful) {
+            console.log("Fallback copy succeeded");
+            toast({
+              title: t('common.success'),
+              description: t('sharing.urlCopied'),
+              variant: "default"
+            });
+          } else {
+            console.error("Fallback copy failed");
+            toast({
+              title: t('common.error'),
+              description: t('sharing.copyError'),
+              variant: "destructive"
+            });
+          }
+        } catch (fallbackErr) {
+          console.error("All copy methods failed:", fallbackErr);
+          toast({
+            title: t('common.error'),
+            description: t('sharing.copyError'),
+            variant: "destructive"
+          });
+        }
+      });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Filament Sharing Settings</DialogTitle>
+          <DialogTitle>{t('sharing.title')}</DialogTitle>
         </DialogHeader>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="settings">Sharing Settings</TabsTrigger>
-            <TabsTrigger value="share">Share Your Collection</TabsTrigger>
+            <TabsTrigger value="settings">{t('sharing.settingsTab')}</TabsTrigger>
+            <TabsTrigger value="share">{t('sharing.shareTab')}</TabsTrigger>
           </TabsList>
-          <TabsContent value="settings" className="mt-4">
+          <TabsContent value="settings" className="mt-4 overflow-y-auto max-h-[60vh] pr-2">
             {isLoadingSettings ? (
-              <div className="text-center py-4">Loading settings...</div>
+              <div className="text-center py-4">{t('sharing.loadingSettings')}</div>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-md">
+                <div
+                  className="flex items-center justify-between p-4 border rounded-md cursor-pointer hover:bg-muted/50 relative"
+                  onClick={() => handleToggleGlobalSharing(!isGlobalSharingEnabled())}
+                >
                   <div className="flex items-center space-x-2">
                     <Globe className="h-5 w-5 text-primary" />
                     <div>
-                      <p className="font-medium">Share All Filaments</p>
-                      <p className="text-sm text-muted-foreground">Make your entire filament collection public</p>
+                      <p className="font-medium">{t('sharing.shareAllFilaments')}</p>
+                      <p className="text-sm text-muted-foreground">{t('sharing.shareAllDescription')}</p>
                     </div>
                   </div>
-                  <Switch 
-                    checked={isGlobalSharingEnabled()}
-                    onCheckedChange={handleToggleGlobalSharing}
-                  />
+                  <div className="z-20" onClick={(e) => e.stopPropagation()}>
+                    <Switch
+                      checked={isGlobalSharingEnabled()}
+                      onCheckedChange={handleToggleGlobalSharing}
+                      className="cursor-pointer"
+                      aria-label={t('sharing.shareAllFilaments')}
+                    />
+                  </div>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <h3 className="text-lg font-medium">Share by Material Type</h3>
+                  <h3 className="text-lg font-medium">{t('sharing.shareByMaterial')}</h3>
                   <p className="text-sm text-muted-foreground">
-                    Choose specific material types to share
+                    {t('sharing.shareByMaterialDescription')}
                   </p>
-                  
+
                   <div className="space-y-2 mt-2">
                     {materials.map((material: Material) => {
                       const setting = getSettingForMaterial(material.id);
                       const isEnabled = setting ? setting.isPublic : false;
-                      
+
                       return (
-                        <div key={material.id} className="flex items-center justify-between p-3 border rounded-md">
+                        <div
+                          key={material.id}
+                          className="flex items-center justify-between p-3 border rounded-md cursor-pointer hover:bg-muted/50 relative"
+                          onClick={() => handleToggleMaterialSharing(material.id, !isEnabled)}
+                        >
                           <div className="flex items-center space-x-2">
                             <Tag className="h-4 w-4 text-primary" />
-                            <Label htmlFor={`material-${material.id}`}>{material.name}</Label>
+                            <Label
+                              htmlFor={`material-${material.id}`}
+                              className="cursor-pointer"
+                            >
+                              {material.name}
+                            </Label>
                           </div>
-                          <Switch 
-                            id={`material-${material.id}`}
-                            checked={isEnabled}
-                            onCheckedChange={(checked) => handleToggleMaterialSharing(material.id, checked)}
-                          />
+                          <div className="z-20" onClick={(e) => e.stopPropagation()}>
+                            <Switch
+                              id={`material-${material.id}`}
+                              checked={isEnabled}
+                              onCheckedChange={(checked) => handleToggleMaterialSharing(material.id, checked)}
+                              className="cursor-pointer"
+                              aria-label={`${t('sharing.shareByMaterial')}: ${material.name}`}
+                            />
+                          </div>
                         </div>
                       );
                     })}
@@ -157,28 +277,34 @@ export function SharingModal({ open, onOpenChange }: SharingModalProps) {
               </div>
             )}
           </TabsContent>
-          <TabsContent value="share" className="mt-4">
+          <TabsContent value="share" className="mt-4 overflow-y-auto max-h-[60vh] pr-2">
             <Card>
               <CardHeader>
-                <CardTitle>Share Your Filament Collection</CardTitle>
+                <CardTitle>{t('sharing.shareCollection')}</CardTitle>
                 <CardDescription>
-                  Share this link with others to let them view your filament collection
+                  {t('sharing.shareCollectionDescription')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center space-x-2">
-                  <input
-                    className="flex-1 p-2 border rounded-md bg-muted"
-                    value={shareUrl}
-                    readOnly
-                  />
-                  <Button onClick={copyShareUrl}>
+                  <div className="relative flex-1">
+                    <input
+                      className="w-full p-2 border rounded-md bg-muted pr-10"
+                      value={shareUrl}
+                      readOnly
+                      onClick={(e) => e.currentTarget.select()}
+                    />
+                  </div>
+                  <Button
+                    onClick={copyShareUrl}
+                    className="transition-all duration-300 hover:bg-primary/80"
+                  >
                     <Share2 className="h-4 w-4 mr-2" />
-                    Copy
+                    {t('sharing.copyButton')}
                   </Button>
                 </div>
                 <p className="mt-4 text-sm text-muted-foreground">
-                  Note: Only filaments from materials you've enabled sharing for will be visible to others.
+                  {t('sharing.visibilityNote')}
                 </p>
               </CardContent>
             </Card>

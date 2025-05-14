@@ -1,4 +1,4 @@
-import { 
+import {
   filaments, type Filament, type InsertFilament,
   manufacturers, type Manufacturer, type InsertManufacturer,
   materials, type Material, type InsertMaterial,
@@ -16,36 +16,36 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Filament operations
-  getFilaments(): Promise<Filament[]>;
-  getFilament(id: number): Promise<Filament | undefined>;
+  getFilaments(userId: number): Promise<Filament[]>;
+  getFilament(id: number, userId: number): Promise<Filament | undefined>;
   createFilament(filament: InsertFilament): Promise<Filament>;
-  updateFilament(id: number, filament: Partial<InsertFilament>): Promise<Filament | undefined>;
-  deleteFilament(id: number): Promise<boolean>;
-  
+  updateFilament(id: number, filament: Partial<InsertFilament>, userId: number): Promise<Filament | undefined>;
+  deleteFilament(id: number, userId: number): Promise<boolean>;
+
   // Manufacturer operations
   getManufacturers(): Promise<Manufacturer[]>;
   createManufacturer(manufacturer: InsertManufacturer): Promise<Manufacturer>;
   deleteManufacturer(id: number): Promise<boolean>;
   updateManufacturerOrder(id: number, newOrder: number): Promise<Manufacturer | undefined>;
-  
+
   // Material operations
   getMaterials(): Promise<Material[]>;
   createMaterial(material: InsertMaterial): Promise<Material>;
   deleteMaterial(id: number): Promise<boolean>;
   updateMaterialOrder(id: number, newOrder: number): Promise<Material | undefined>;
-  
+
   // Color operations
   getColors(): Promise<Color[]>;
   createColor(color: InsertColor): Promise<Color>;
   deleteColor(id: number): Promise<boolean>;
-  
+
   // Diameter operations
   getDiameters(): Promise<Diameter[]>;
   createDiameter(diameter: InsertDiameter): Promise<Diameter>;
   deleteDiameter(id: number): Promise<boolean>;
-  
+
   // Storage Location operations
   getStorageLocations(): Promise<StorageLocation[]>;
   createStorageLocation(location: InsertStorageLocation): Promise<StorageLocation>;
@@ -72,17 +72,19 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return user;
   }
-  
+
   // Filament implementations
-  async getFilaments(): Promise<Filament[]> {
-    return await db.select().from(filaments);
+  async getFilaments(userId: number): Promise<Filament[]> {
+    return await db.select().from(filaments).where(eq(filaments.userId, userId));
   }
-  
-  async getFilament(id: number): Promise<Filament | undefined> {
-    const [filament] = await db.select().from(filaments).where(eq(filaments.id, id));
+
+  async getFilament(id: number, userId: number): Promise<Filament | undefined> {
+    const [filament] = await db.select().from(filaments)
+      .where(eq(filaments.id, id))
+      .where(eq(filaments.userId, userId));
     return filament || undefined;
   }
-  
+
   async createFilament(insertFilament: InsertFilament): Promise<Filament> {
     const [filament] = await db
       .insert(filaments)
@@ -90,29 +92,31 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return filament;
   }
-  
-  async updateFilament(id: number, updateFilament: Partial<InsertFilament>): Promise<Filament | undefined> {
+
+  async updateFilament(id: number, updateFilament: Partial<InsertFilament>, userId: number): Promise<Filament | undefined> {
     const [updated] = await db
       .update(filaments)
       .set(updateFilament)
       .where(eq(filaments.id, id))
+      .where(eq(filaments.userId, userId))
       .returning();
     return updated || undefined;
   }
-  
-  async deleteFilament(id: number): Promise<boolean> {
+
+  async deleteFilament(id: number, userId: number): Promise<boolean> {
     const [deleted] = await db
       .delete(filaments)
       .where(eq(filaments.id, id))
+      .where(eq(filaments.userId, userId))
       .returning();
     return !!deleted;
   }
-  
+
   // Manufacturer implementations
   async getManufacturers(): Promise<Manufacturer[]> {
     return await db.select().from(manufacturers).orderBy(manufacturers.sortOrder, manufacturers.name);
   }
-  
+
   async createManufacturer(insertManufacturer: InsertManufacturer): Promise<Manufacturer> {
     const [manufacturer] = await db
       .insert(manufacturers)
@@ -120,7 +124,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return manufacturer;
   }
-  
+
   async deleteManufacturer(id: number): Promise<boolean> {
     const [deleted] = await db
       .delete(manufacturers)
@@ -128,7 +132,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return !!deleted;
   }
-  
+
   async updateManufacturerOrder(id: number, newOrder: number): Promise<Manufacturer | undefined> {
     const [updated] = await db
       .update(manufacturers)
@@ -137,12 +141,12 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated || undefined;
   }
-  
+
   // Material implementations
   async getMaterials(): Promise<Material[]> {
     return await db.select().from(materials).orderBy(materials.sortOrder, materials.name);
   }
-  
+
   async createMaterial(insertMaterial: InsertMaterial): Promise<Material> {
     const [material] = await db
       .insert(materials)
@@ -150,7 +154,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return material;
   }
-  
+
   async deleteMaterial(id: number): Promise<boolean> {
     const [deleted] = await db
       .delete(materials)
@@ -158,7 +162,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return !!deleted;
   }
-  
+
   async updateMaterialOrder(id: number, newOrder: number): Promise<Material | undefined> {
     const [updated] = await db
       .update(materials)
@@ -167,12 +171,12 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated || undefined;
   }
-  
+
   // Color implementations
   async getColors(): Promise<Color[]> {
     return await db.select().from(colors);
   }
-  
+
   async createColor(insertColor: InsertColor): Promise<Color> {
     const [color] = await db
       .insert(colors)
@@ -180,7 +184,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return color;
   }
-  
+
   async deleteColor(id: number): Promise<boolean> {
     const [deleted] = await db
       .delete(colors)
@@ -188,12 +192,12 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return !!deleted;
   }
-  
+
   // Diameter implementations
   async getDiameters(): Promise<Diameter[]> {
     return await db.select().from(diameters);
   }
-  
+
   async createDiameter(insertDiameter: InsertDiameter): Promise<Diameter> {
     const [diameter] = await db
       .insert(diameters)
@@ -201,7 +205,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return diameter;
   }
-  
+
   async deleteDiameter(id: number): Promise<boolean> {
     const [deleted] = await db
       .delete(diameters)
@@ -209,12 +213,12 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return !!deleted;
   }
-  
+
   // Storage Location implementations
   async getStorageLocations(): Promise<StorageLocation[]> {
     return await db.select().from(storageLocations).orderBy(storageLocations.sortOrder, storageLocations.name);
   }
-  
+
   async createStorageLocation(insertLocation: InsertStorageLocation): Promise<StorageLocation> {
     const [location] = await db
       .insert(storageLocations)
@@ -222,7 +226,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return location;
   }
-  
+
   async deleteStorageLocation(id: number): Promise<boolean> {
     const [deleted] = await db
       .delete(storageLocations)
@@ -230,7 +234,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return !!deleted;
   }
-  
+
   async updateStorageLocationOrder(id: number, newOrder: number): Promise<StorageLocation | undefined> {
     const [updated] = await db
       .update(storageLocations)
@@ -250,7 +254,7 @@ export class MemStorage implements IStorage {
   private colorStore: Map<number, Color>;
   private diameterStore: Map<number, Diameter>;
   private storageLocationStore: Map<number, StorageLocation>;
-  
+
   userCurrentId: number;
   filamentCurrentId: number;
   manufacturerCurrentId: number;
@@ -267,7 +271,7 @@ export class MemStorage implements IStorage {
     this.colorStore = new Map();
     this.diameterStore = new Map();
     this.storageLocationStore = new Map();
-    
+
     this.userCurrentId = 1;
     this.filamentCurrentId = 1;
     this.manufacturerCurrentId = 1;
@@ -275,7 +279,7 @@ export class MemStorage implements IStorage {
     this.colorCurrentId = 1;
     this.diameterCurrentId = 1;
     this.storageLocationCurrentId = 1;
-    
+
     // Add some initial data
     this.createFilament({
       name: "PLA Schwarz Bambu Lab",
@@ -288,7 +292,7 @@ export class MemStorage implements IStorage {
       totalWeight: "1",
       remainingPercentage: "65"
     });
-    
+
     this.createFilament({
       name: "PETG Transparent",
       manufacturer: "Prusament",
@@ -300,7 +304,7 @@ export class MemStorage implements IStorage {
       totalWeight: "1",
       remainingPercentage: "15"
     });
-    
+
     this.createFilament({
       name: "ABS Rot",
       manufacturer: "Filamentworld",
@@ -312,7 +316,7 @@ export class MemStorage implements IStorage {
       totalWeight: "1",
       remainingPercentage: "0"
     });
-    
+
     this.createFilament({
       name: "TPU Flexibel Grau",
       manufacturer: "Ninjatek",
@@ -342,36 +346,45 @@ export class MemStorage implements IStorage {
     this.users.set(id, user);
     return user;
   }
-  
+
   // Filament implementations
-  async getFilaments(): Promise<Filament[]> {
-    return Array.from(this.filamentStore.values());
+  async getFilaments(userId: number): Promise<Filament[]> {
+    return Array.from(this.filamentStore.values())
+      .filter(filament => filament.userId === userId);
   }
-  
-  async getFilament(id: number): Promise<Filament | undefined> {
-    return this.filamentStore.get(id);
+
+  async getFilament(id: number, userId: number): Promise<Filament | undefined> {
+    const filament = this.filamentStore.get(id);
+    if (filament && filament.userId === userId) {
+      return filament;
+    }
+    return undefined;
   }
-  
+
   async createFilament(insertFilament: InsertFilament): Promise<Filament> {
     const id = this.filamentCurrentId++;
     const filament: Filament = { ...insertFilament, id };
     this.filamentStore.set(id, filament);
     return filament;
   }
-  
-  async updateFilament(id: number, updateFilament: Partial<InsertFilament>): Promise<Filament | undefined> {
+
+  async updateFilament(id: number, updateFilament: Partial<InsertFilament>, userId: number): Promise<Filament | undefined> {
     const existing = this.filamentStore.get(id);
-    if (!existing) return undefined;
-    
+    if (!existing || existing.userId !== userId) return undefined;
+
     const updated: Filament = { ...existing, ...updateFilament };
     this.filamentStore.set(id, updated);
     return updated;
   }
-  
-  async deleteFilament(id: number): Promise<boolean> {
-    return this.filamentStore.delete(id);
+
+  async deleteFilament(id: number, userId: number): Promise<boolean> {
+    const filament = this.filamentStore.get(id);
+    if (filament && filament.userId === userId) {
+      return this.filamentStore.delete(id);
+    }
+    return false;
   }
-  
+
   // Manufacturer implementations
   async getManufacturers(): Promise<Manufacturer[]> {
     return Array.from(this.manufacturerStore.values())
@@ -382,32 +395,32 @@ export class MemStorage implements IStorage {
         return a.name.localeCompare(b.name);
       });
   }
-  
+
   async createManufacturer(insertManufacturer: InsertManufacturer): Promise<Manufacturer> {
     const id = this.manufacturerCurrentId++;
-    const manufacturer: Manufacturer = { 
-      ...insertManufacturer, 
-      id, 
+    const manufacturer: Manufacturer = {
+      ...insertManufacturer,
+      id,
       createdAt: new Date(),
       sortOrder: 999 // Default to end of list
     };
     this.manufacturerStore.set(id, manufacturer);
     return manufacturer;
   }
-  
+
   async deleteManufacturer(id: number): Promise<boolean> {
     return this.manufacturerStore.delete(id);
   }
-  
+
   async updateManufacturerOrder(id: number, newOrder: number): Promise<Manufacturer | undefined> {
     const manufacturer = this.manufacturerStore.get(id);
     if (!manufacturer) return undefined;
-    
+
     const updated = { ...manufacturer, sortOrder: newOrder };
     this.manufacturerStore.set(id, updated);
     return updated;
   }
-  
+
   // Material implementations
   async getMaterials(): Promise<Material[]> {
     return Array.from(this.materialStore.values())
@@ -418,64 +431,64 @@ export class MemStorage implements IStorage {
         return a.name.localeCompare(b.name);
       });
   }
-  
+
   async createMaterial(insertMaterial: InsertMaterial): Promise<Material> {
     const id = this.materialCurrentId++;
-    const material: Material = { 
-      ...insertMaterial, 
-      id, 
+    const material: Material = {
+      ...insertMaterial,
+      id,
       createdAt: new Date(),
       sortOrder: 999 // Default to end of list
     };
     this.materialStore.set(id, material);
     return material;
   }
-  
+
   async deleteMaterial(id: number): Promise<boolean> {
     return this.materialStore.delete(id);
   }
-  
+
   async updateMaterialOrder(id: number, newOrder: number): Promise<Material | undefined> {
     const material = this.materialStore.get(id);
     if (!material) return undefined;
-    
+
     const updated = { ...material, sortOrder: newOrder };
     this.materialStore.set(id, updated);
     return updated;
   }
-  
+
   // Color implementations
   async getColors(): Promise<Color[]> {
     return Array.from(this.colorStore.values());
   }
-  
+
   async createColor(insertColor: InsertColor): Promise<Color> {
     const id = this.colorCurrentId++;
     const color: Color = { ...insertColor, id, createdAt: new Date() };
     this.colorStore.set(id, color);
     return color;
   }
-  
+
   async deleteColor(id: number): Promise<boolean> {
     return this.colorStore.delete(id);
   }
-  
+
   // Diameter implementations
   async getDiameters(): Promise<Diameter[]> {
     return Array.from(this.diameterStore.values());
   }
-  
+
   async createDiameter(insertDiameter: InsertDiameter): Promise<Diameter> {
     const id = this.diameterCurrentId++;
     const diameter: Diameter = { ...insertDiameter, id, createdAt: new Date() };
     this.diameterStore.set(id, diameter);
     return diameter;
   }
-  
+
   async deleteDiameter(id: number): Promise<boolean> {
     return this.diameterStore.delete(id);
   }
-  
+
   // Storage Location implementations
   async getStorageLocations(): Promise<StorageLocation[]> {
     return Array.from(this.storageLocationStore.values())
@@ -486,27 +499,27 @@ export class MemStorage implements IStorage {
         return a.name.localeCompare(b.name);
       });
   }
-  
+
   async createStorageLocation(insertLocation: InsertStorageLocation): Promise<StorageLocation> {
     const id = this.storageLocationCurrentId++;
-    const location: StorageLocation = { 
-      ...insertLocation, 
-      id, 
+    const location: StorageLocation = {
+      ...insertLocation,
+      id,
       createdAt: new Date(),
       sortOrder: 999 // Default to end of list
     };
     this.storageLocationStore.set(id, location);
     return location;
   }
-  
+
   async deleteStorageLocation(id: number): Promise<boolean> {
     return this.storageLocationStore.delete(id);
   }
-  
+
   async updateStorageLocationOrder(id: number, newOrder: number): Promise<StorageLocation | undefined> {
     const location = this.storageLocationStore.get(id);
     if (!location) return undefined;
-    
+
     const updated = { ...location, sortOrder: newOrder };
     this.storageLocationStore.set(id, updated);
     return updated;

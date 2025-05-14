@@ -5,12 +5,12 @@ import * as path from "path";
 import { storage } from "./storage";
 import { z } from "zod";
 import {
-  insertFilamentSchema, InsertFilament,
-  insertManufacturerSchema, InsertManufacturer,
-  insertMaterialSchema, InsertMaterial,
-  insertColorSchema, InsertColor,
-  insertDiameterSchema, InsertDiameter,
-  insertStorageLocationSchema, InsertStorageLocation
+  InsertFilament,
+  insertManufacturerSchema,
+  insertMaterialSchema,
+  insertColorSchema,
+  insertDiameterSchema,
+  insertStorageLocationSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -18,8 +18,9 @@ import { authenticate, isAdmin, hashPassword, verifyPassword, generateToken, ini
 import { users, userSharing, changePasswordSchema } from "../shared/schema";
 import { db } from "./db";
 import { eq, count, isNull, and } from "drizzle-orm";
+import "./types"; // Import types for Express Request extension
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express, authenticate: any, db: any, schema: any, logger: any): Promise<Server> {
   // Initialize admin user
   await initializeAdminUser();
 
@@ -115,6 +116,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user language preference
+  app.post("/api/users/language", authenticate, async (req, res) => {
+    try {
+      const { language } = req.body;
+
+      // Validate language
+      if (language !== 'en' && language !== 'de') {
+        return res.status(400).json({ message: "Invalid language. Supported languages are 'en' and 'de'." });
+      }
+
+      // Update user language
+      await db.update(users)
+        .set({ language })
+        .where(eq(users.id, req.userId));
+
+      res.json({ message: "Language preference updated successfully" });
+    } catch (error) {
+      console.error("Update language error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   // User management routes (admin only)
   app.get("/api/users", authenticate, isAdmin, async (_req, res) => {
     try {
@@ -123,6 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         username: users.username,
         isAdmin: users.isAdmin,
         forceChangePassword: users.forceChangePassword,
+        language: users.language,
         createdAt: users.createdAt,
         lastLogin: users.lastLogin
       }).from(users);
@@ -366,8 +390,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .filter((s: any) => s.materialId !== null)
         .map((s: any) => s.materialId);
 
-      // Get all filaments
-      const filaments = await storage.getFilaments();
+      // Get all filaments for this user
+      const filaments = await storage.getFilaments(parseInt(req.params.userId));
 
       // Filter filaments based on sharing settings
       const publicFilaments = filaments.filter((filament: any) => {
@@ -387,9 +411,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Protect existing routes with authentication
-  app.get("/api/filaments", authenticate, async (_req, res) => {
+  app.get("/api/filaments", authenticate, async (req, res) => {
     try {
-      const filaments = await storage.getFilaments();
+      const filaments = await storage.getFilaments(req.userId);
       res.json(filaments);
     } catch (error) {
       console.error("Error fetching filaments:", error);
@@ -405,7 +429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid filament ID" });
       }
 
-      const filament = await storage.getFilament(id);
+      const filament = await storage.getFilament(id, req.userId);
       if (!filament) {
         return res.status(404).json({ message: "Filament not found" });
       }
@@ -425,6 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Manuell die Eingabedaten für die Datenbank vorbereiten
       const data = req.body;
       const insertData: InsertFilament = {
+        userId: req.userId,
         name: data.name,
         manufacturer: data.manufacturer,
         material: data.material,
@@ -497,7 +522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("Prepared update data:", updateData);
 
-      const updatedFilament = await storage.updateFilament(id, updateData);
+      const updatedFilament = await storage.updateFilament(id, updateData, req.userId);
       if (!updatedFilament) {
         return res.status(404).json({ message: "Filament not found" });
       }
@@ -523,7 +548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid filament ID" });
       }
 
-      const success = await storage.deleteFilament(id);
+      const success = await storage.deleteFilament(id, req.userId);
       if (!success) {
         return res.status(404).json({ message: "Filament not found" });
       }
@@ -536,9 +561,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET statistics for the dashboard
-  app.get("/api/statistics", authenticate, async (_req, res) => {
+  app.get("/api/statistics", authenticate, async (req, res) => {
     try {
-      const filaments = await storage.getFilaments();
+      const filaments = await storage.getFilaments(req.userId);
 
       const totalSpools = filaments.length;
 
@@ -841,7 +866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 2. Check if any filaments use this manufacturer
-      const filaments = await storage.getFilaments();
+      const filaments = await storage.getFilaments(req.userId);
       const inUse = filaments.some(f => f.manufacturer === manufacturer.name);
 
       if (inUse) {
@@ -1036,7 +1061,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 2. Check if any filaments use this material
-      const filaments = await storage.getFilaments();
+      const filaments = await storage.getFilaments(req.userId);
       const inUse = filaments.some(f => f.material === material.name);
 
       if (inUse) {
@@ -1228,7 +1253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 2. Check if any filaments use this color name or color code
-      const filaments = await storage.getFilaments();
+      const filaments = await storage.getFilaments(req.userId);
       const inUse = filaments.some(f =>
         f.colorName === color.name ||
         f.colorCode === color.code
@@ -1359,7 +1384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 2. Check if any filaments use this diameter
-      const filaments = await storage.getFilaments();
+      const filaments = await storage.getFilaments(req.userId);
       const inUse = filaments.some(f => f.diameter === diameter.value.toString());
 
       if (inUse) {
@@ -1496,7 +1521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 2. Check if any filaments use this storage location
-      const filaments = await storage.getFilaments();
+      const filaments = await storage.getFilaments(req.userId);
       const inUse = filaments.some(f => f.storageLocation === location.name);
 
       if (inUse) {
@@ -1597,8 +1622,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if sharing already exists
       const existingSharing = await db.select()
         .from(userSharing)
-        .where(eq(userSharing.userId, req.userId))
-        .where(materialId ? eq(userSharing.materialId, materialId) : isNull(userSharing.materialId));
+        .where(
+          and(
+            eq(userSharing.userId, req.userId),
+            materialId ? eq(userSharing.materialId, materialId) : isNull(userSharing.materialId)
+          )
+        );
 
       if (existingSharing.length > 0) {
         // Update existing sharing
@@ -1666,8 +1695,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .filter((s: any) => s.materialId !== null)
         .map((s: any) => s.materialId);
 
-      // Get all filaments
-      const allFilaments = await storage.getFilaments();
+      // Get all filaments for this user
+      const allFilaments = await storage.getFilaments(req.userId);
 
       // Filter filaments based on sharing settings
       const sharedFilaments = allFilaments.filter((filament: any) => {

@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Scan, X } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
+import { useTranslation } from "@/i18n";
 
 interface QRScannerProps {
   onScanSuccess: (decodedText: string) => void;
@@ -22,6 +23,7 @@ interface BambuFilamentData {
 }
 
 export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
+  const { t } = useTranslation();
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -32,23 +34,23 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     const setupScanner = async () => {
       try {
         if (!document.getElementById(qrScannerElementId)) {
-          console.error(`Element mit ID '${qrScannerElementId}' wurde nicht gefunden`);
+          console.error(`Element with ID '${qrScannerElementId}' not found`);
           return;
         }
 
-        // Erstellen der HTML5 QR-Code Instanz
+        // Create HTML5 QR-Code instance
         scannerRef.current = new Html5Qrcode(qrScannerElementId);
 
         setIsScanning(true);
 
-        // Kamerazugriff anfordern und den QR-Scanner starten
+        // Request camera access and start the QR scanner
         await scannerRef.current.start(
-          { facingMode: "environment" }, // für Rückkamera
+          { facingMode: "environment" }, // for back camera
           {
-            fps: 10, // Bilder pro Sekunde
-            qrbox: { width: 250, height: 250 }, // Größe des Scan-Bereichs
-            aspectRatio: 1, // Seitenverhältnis
-            // Aktiviere Barcode-Formate zusätzlich zu QR-Codes
+            fps: 10, // frames per second
+            qrbox: { width: 250, height: 250 }, // size of scan area
+            aspectRatio: 1, // aspect ratio
+            // Enable barcode formats in addition to QR codes
             formatsToSupport: [
               Html5Qrcode.FORMATS.QR_CODE,
               Html5Qrcode.FORMATS.CODE_128,
@@ -60,39 +62,39 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
             ]
           },
           (decodedText) => {
-            // Erfolgreich gescannt
+            // Successfully scanned
             handleScanSuccess(decodedText);
           },
           (errorMessage) => {
-            // Fehler treten bei jedem Frame auf, bei dem kein Code erkannt wird
-            // Daher sollten wir hier kein Logging machen, es sei denn, für Debugging-Zwecke
+            // Errors occur on every frame where no code is detected
+            // So we should not log here unless for debugging purposes
           }
         );
       } catch (err) {
-        console.error("Fehler beim Initialisieren des QR-Scanners:", err);
+        console.error("Error initializing QR scanner:", err);
         setIsScanning(false);
       }
     };
 
-    // Verzögerung, damit das DOM-Element Zeit hat, gerendert zu werden
+    // Delay to give the DOM element time to be rendered
     const timer = setTimeout(() => {
       setupScanner();
     }, 500);
 
-    // Aufräumen beim Unmount
+    // Cleanup on unmount
     return () => {
       clearTimeout(timer);
       if (scannerRef.current && isScanning) {
         scannerRef.current.stop().catch(err => {
-          console.error("Fehler beim Stoppen des QR-Scanners:", err);
+          console.error("Error stopping QR scanner:", err);
         });
       }
     };
   }, []);
 
-  // Handler für erfolgreichen Scan
+  // Handler for successful scan
   const handleScanSuccess = (decodedText: string) => {
-    // Scanner stoppen nach erfolgreichem Scan
+    // Stop scanner after successful scan
     if (scannerRef.current) {
       scannerRef.current.stop().then(() => {
         setScanResult(decodedText);
@@ -103,7 +105,7 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
           onScanSuccess(decodedText);
         }
       }).catch(err => {
-        console.error("Fehler beim Stoppen des QR-Scanners:", err);
+        console.error("Error stopping QR scanner:", err);
         setScanResult(decodedText);
         const processedData = processScanResult(decodedText);
         if (processedData) {
@@ -198,25 +200,25 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     // Versuchen, Farbe zu erkennen (falls vorhanden)
     if (parts.length > 2) {
       const colorCode = parts[2];
-      // Häufige Farben
+      // Common colors
       if (colorCode.includes('BK')) {
-        colorName = 'Schwarz';
+        colorName = t('settings.colors.black') || 'Black';
       } else if (colorCode.includes('WH')) {
-        colorName = 'Weiß';
+        colorName = t('settings.colors.white') || 'White';
       } else if (colorCode.includes('GY')) {
-        colorName = 'Grau';
+        colorName = t('settings.colors.gray') || 'Gray';
       } else if (colorCode.includes('RD')) {
-        colorName = 'Rot';
+        colorName = t('settings.colors.red') || 'Red';
       } else if (colorCode.includes('BL')) {
-        colorName = 'Blau';
+        colorName = t('settings.colors.blue') || 'Blue';
       } else if (colorCode.includes('GN')) {
-        colorName = 'Grün';
+        colorName = t('settings.colors.green') || 'Green';
       } else if (colorCode.includes('YL')) {
-        colorName = 'Gelb';
+        colorName = t('settings.colors.yellow') || 'Yellow';
       } else if (colorCode.includes('NT')) {
-        colorName = 'Natur';
+        colorName = t('settings.colors.natural') || 'Natural';
       } else {
-        colorName = colorCode; // Falls nicht erkannt, den Code als Farbnamen verwenden
+        colorName = colorCode; // If not recognized, use the code as color name
       }
     }
 
@@ -238,15 +240,15 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       printTemp = '240-260';
     }
 
-    // Generiere einen materialbezogenen HEX-Farbcode basierend auf typischen Materialfarben
-    let colorCode = '#000000'; // Standard ist Schwarz
-    if (colorName === 'Weiß') colorCode = '#FFFFFF';
-    if (colorName === 'Rot') colorCode = '#FF0000';
-    if (colorName === 'Blau') colorCode = '#0000FF';
-    if (colorName === 'Grün') colorCode = '#00FF00';
-    if (colorName === 'Gelb') colorCode = '#FFFF00';
-    if (colorName === 'Grau') colorCode = '#808080';
-    if (colorName === 'Natur') colorCode = '#F5F5DC';
+    // Generate a material-related HEX color code based on typical material colors
+    let colorCode = '#000000'; // Default is black
+    if (colorName === (t('settings.colors.white') || 'White')) colorCode = '#FFFFFF';
+    if (colorName === (t('settings.colors.red') || 'Red')) colorCode = '#FF0000';
+    if (colorName === (t('settings.colors.blue') || 'Blue')) colorCode = '#0000FF';
+    if (colorName === (t('settings.colors.green') || 'Green')) colorCode = '#00FF00';
+    if (colorName === (t('settings.colors.yellow') || 'Yellow')) colorCode = '#FFFF00';
+    if (colorName === (t('settings.colors.gray') || 'Gray')) colorCode = '#808080';
+    if (colorName === (t('settings.colors.natural') || 'Natural')) colorCode = '#F5F5DC';
 
     // Bestimme Materialname auf Deutsch für die Anzeige
     const materialMap: Record<string, string> = {
@@ -391,23 +393,23 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       colorName = 'Standard';
     }
 
-    // Translate color names to German if they are in English
+    // Translate color names to the current language if they are in English
     const colorTranslations: Record<string, string> = {
-      'Black': 'Schwarz',
-      'White': 'Weiß',
-      'Red': 'Rot',
-      'Blue': 'Blau',
-      'Green': 'Grün',
-      'Yellow': 'Gelb',
-      'Gray': 'Grau',
-      'Grey': 'Grau',
-      'Orange': 'Orange',
-      'Purple': 'Lila',
-      'Pink': 'Rosa',
-      'Brown': 'Braun',
-      'Matte Black': 'Matt Schwarz',
-      'Matte White': 'Matt Weiß',
-      'Transparent': 'Transparent'
+      'Black': t('settings.colors.black') || 'Black',
+      'White': t('settings.colors.white') || 'White',
+      'Red': t('settings.colors.red') || 'Red',
+      'Blue': t('settings.colors.blue') || 'Blue',
+      'Green': t('settings.colors.green') || 'Green',
+      'Yellow': t('settings.colors.yellow') || 'Yellow',
+      'Gray': t('settings.colors.gray') || 'Gray',
+      'Grey': t('settings.colors.gray') || 'Gray',
+      'Orange': t('settings.colors.orange') || 'Orange',
+      'Purple': t('settings.colors.purple') || 'Purple',
+      'Pink': t('settings.colors.pink') || 'Pink',
+      'Brown': t('settings.colors.brown') || 'Brown',
+      'Matte Black': `Matt ${t('settings.colors.black') || 'Black'}`,
+      'Matte White': `Matt ${t('settings.colors.white') || 'White'}`,
+      'Transparent': t('settings.colors.transparent') || 'Transparent'
     };
 
     // Check if the color name needs to be translated
@@ -449,13 +451,13 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     };
   };
 
-  // Scanner beim Schließen des Dialogs stoppen
+  // Stop scanner when closing the dialog
   const handleClose = () => {
     if (scannerRef.current && isScanning) {
       scannerRef.current.stop().then(() => {
         onClose();
       }).catch(err => {
-        console.error("Fehler beim Stoppen des QR-Scanners:", err);
+        console.error("Error stopping QR scanner:", err);
         onClose();
       });
     } else {
@@ -469,7 +471,7 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
         <DialogHeader className="justify-between flex-row items-center">
           <DialogTitle className="flex items-center">
             <Scan className="mr-2 h-5 w-5" />
-            Barcode/QR-Code scannen
+            {t('common.scanQRCode')}
           </DialogTitle>
           <Button variant="ghost" size="icon" onClick={handleClose}>
             <X className="h-4 w-4" />
@@ -480,14 +482,14 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
           <div id={qrScannerElementId} className="w-full h-64 overflow-hidden rounded-lg border border-neutral-700"></div>
 
           <p className="text-sm text-neutral-400 text-center">
-            Positionieren Sie den Barcode oder QR-Code in der Mitte des Scanfensters.
+            {t('common.scanner.positionCode')}
             <br />
-            Der Scan erfolgt automatisch.
+            {t('common.scanner.scanHappensAuto')}
           </p>
 
           {scanResult && (
             <div className="w-full p-3 bg-neutral-800 rounded-md text-sm">
-              <p className="text-neutral-300 font-semibold mb-1">Gescannter Code:</p>
+              <p className="text-neutral-300 font-semibold mb-1">{t('common.scanner.scannedCode')}</p>
               <p className="text-neutral-400 break-all">{scanResult}</p>
             </div>
           )}
@@ -495,7 +497,7 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
 
         <DialogFooter>
           <Button onClick={handleClose} variant="outline" className="w-full">
-            Abbrechen
+            {t('common.scanner.cancel')}
           </Button>
         </DialogFooter>
       </DialogContent>

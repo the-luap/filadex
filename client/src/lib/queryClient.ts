@@ -4,22 +4,24 @@ async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     try {
       const textResponse = await res.text();
-      // Versuche, die Antwort als JSON zu parsen
+      // Try to parse the response as JSON
       try {
         const jsonData = JSON.parse(textResponse);
-        // Wenn 'message' oder 'detail' vorhanden ist, gib es zurück
+        // If 'message' or 'detail' is present, return it
         if (jsonData.message || jsonData.detail) {
+          // Add status code to the error object for better error handling
+          jsonData.status = res.status;
           throw jsonData;
         }
       } catch (parseError) {
-        // Wenn kein gültiges JSON, verwende den Text
+        // If not valid JSON, use the text
       }
       throw new Error(`${res.status}: ${textResponse || res.statusText}`);
     } catch (error) {
       if (error instanceof Error) {
         throw error;
       } else {
-        throw error; // Wenn es bereits ein JSON-Objekt ist
+        throw error; // If it's already a JSON object
       }
     }
   }

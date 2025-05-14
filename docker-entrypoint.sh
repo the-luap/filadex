@@ -73,9 +73,12 @@ PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -v
     password TEXT NOT NULL,
     is_admin BOOLEAN DEFAULT FALSE,
     force_change_password BOOLEAN DEFAULT TRUE,
+    language TEXT DEFAULT 'en',
     last_login TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
   );
+
+
 
   CREATE TABLE IF NOT EXISTS public.manufacturers (
     id SERIAL PRIMARY KEY,
@@ -147,6 +150,16 @@ for TABLE in users manufacturers materials colors diameters storage_locations fi
 done
 
 echo "Database schema created!"
+
+# Add language column if it doesn't exist
+LANGUAGE_COLUMN_EXISTS=$(PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'language')")
+if [ "$LANGUAGE_COLUMN_EXISTS" = "f" ]; then
+  echo "Adding language column to users table..."
+  PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -v ON_ERROR_STOP=0 -c "ALTER TABLE public.users ADD COLUMN language TEXT DEFAULT 'en';"
+  echo "Language column added."
+else
+  echo "Language column already exists."
+fi
 
 # Insert sample data, but only if the table is empty and the file /app/.init_done does not exist
 echo "Checking for existing data..."

@@ -8,12 +8,14 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   isAdmin: boolean("is_admin").default(false),
   forceChangePassword: boolean("force_change_password").default(true),
+  language: text("language").default("en"),
   lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const filaments = pgTable("filaments", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   manufacturer: text("manufacturer"),
   material: text("material").notNull(),
@@ -37,6 +39,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   isAdmin: true,
   forceChangePassword: true,
+  language: true,
 });
 
 export const changePasswordSchema = z.object({

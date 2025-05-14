@@ -5,6 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useTranslation } from "@/i18n";
+import { useErrorTranslation } from "@/lib/error-handler";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,17 +14,22 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/components/ui/use-toast";
 import { Logo } from "@/components/logo";
 
-const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
+// Create a function to generate the schema with translations
+const createLoginSchema = (t: (key: string) => string) => z.object({
+  username: z.string().min(1, t('auth.usernameRequired')),
+  password: z.string().min(1, t('auth.passwordRequired')),
 });
-
-type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const { toast } = useToast();
   const [_, navigate] = useLocation();
   const { login } = useAuth();
+  const { t } = useTranslation();
+  const { getErrorMessage } = useErrorTranslation();
+
+  // Create the schema with translations
+  const loginSchema = createLoginSchema(t);
+  type LoginFormValues = z.infer<typeof loginSchema>;
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -47,8 +54,8 @@ export default function LoginPage() {
       setTimeout(() => {
         if (data.forceChangePassword) {
           toast({
-            title: "Password change required",
-            description: "Please change your password before continuing.",
+            title: t('auth.passwordChangeRequired'),
+            description: t('auth.forceChangePassword'),
           });
           navigate("/change-password");
         } else {
@@ -58,16 +65,18 @@ export default function LoginPage() {
     },
     onError: (error) => {
       console.error("Login error:", error);
+      const errorMessage = getErrorMessage(error);
+
       toast({
-        title: "Login failed",
-        description: "Invalid username or password.",
+        title: t('auth.loginFailed'),
+        description: errorMessage,
         variant: "destructive",
       });
 
       // Show error message in the form
       form.setError("password", {
         type: "manual",
-        message: "Invalid username or password"
+        message: errorMessage
       });
     },
   });
@@ -83,7 +92,7 @@ export default function LoginPage() {
           <div className="flex flex-col items-center">
             <Logo size={60} color="white" />
             <CardTitle className="mt-2">Filadex</CardTitle>
-            <CardDescription className="text-white/80">Login to manage your filaments</CardDescription>
+            <CardDescription className="text-white/80">{t('auth.loginDescription')}</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="pt-6">
@@ -94,9 +103,9 @@ export default function LoginPage() {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>{t('auth.username')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter your username" {...field} />
+                      <Input placeholder={t('auth.usernamePlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -107,16 +116,16 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t('auth.password')}</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Enter your password" {...field} />
+                      <Input type="password" placeholder={t('auth.passwordPlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage className="text-red-500" />
                   </FormItem>
                 )}
               />
               <Button type="submit" className="w-full bg-primary text-white hover:bg-primary/90" disabled={loginMutation.isPending}>
-                {loginMutation.isPending ? "Logging in..." : "Login"}
+                {loginMutation.isPending ? t('auth.loggingIn') : t('auth.login')}
               </Button>
             </form>
           </Form>

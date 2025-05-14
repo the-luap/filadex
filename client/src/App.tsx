@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation, useRouter } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { useEffect } from "react";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
@@ -7,6 +7,7 @@ import ChangePasswordPage from "@/pages/change-password";
 import PublicFilamentsPage from "@/pages/public-filaments";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Toaster } from "@/components/ui/toaster";
+import { LanguageProvider } from "@/i18n/LanguageProvider";
 
 // Initialize theme from localStorage on page load
 const initializeTheme = () => {
@@ -68,7 +69,7 @@ function Router() {
         <ProtectedRoute component={ChangePasswordPage} />
       </Route>
       <Route path="/public/filaments/:userId" component={PublicFilamentsPage} />
-      <Route exact path="/">
+      <Route path="/">
         <ProtectedRoute component={Home} />
       </Route>
       <Route component={NotFound} />
@@ -79,8 +80,10 @@ function Router() {
 function App() {
   return (
     <AuthProvider>
-      <Router />
-      <Toaster />
+      <LanguageProvider>
+        <Router />
+        <Toaster />
+      </LanguageProvider>
     </AuthProvider>
   );
 }

@@ -4,25 +4,32 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
+import { useTranslation } from "@/i18n";
+import { useErrorTranslation } from "@/lib/error-handler";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/components/ui/use-toast";
 
-const passwordFormSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
-  newPassword: z.string().min(6, "New password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Confirm password must be at least 6 characters"),
+// Create a function to generate the schema with translations
+const createPasswordFormSchema = (t: (key: string) => string) => z.object({
+  currentPassword: z.string().min(1, t('auth.currentPasswordRequired')),
+  newPassword: z.string().min(6, t('auth.passwordRequirements')),
+  confirmPassword: z.string().min(6, t('auth.confirmPasswordRequired')),
 }).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords do not match",
+  message: t('auth.passwordsDontMatch'),
   path: ["confirmPassword"],
 });
 
-type PasswordFormValues = z.infer<typeof passwordFormSchema>;
-
 export function ChangePasswordModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
+  const { getErrorMessage } = useErrorTranslation();
+
+  // Create the schema with translations
+  const passwordFormSchema = createPasswordFormSchema(t);
+  type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
   const form = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordFormSchema),
@@ -39,7 +46,7 @@ export function ChangePasswordModal({ open, onOpenChange }: { open: boolean; onO
         currentPassword: data.currentPassword,
         newPassword: data.newPassword
       });
-      
+
       return apiRequest("/api/auth/change-password", {
         method: "POST",
         body: {
@@ -50,18 +57,19 @@ export function ChangePasswordModal({ open, onOpenChange }: { open: boolean; onO
     },
     onSuccess: () => {
       toast({
-        title: "Password updated",
-        description: "Your password has been changed successfully.",
+        title: t('auth.passwordChanged'),
+        description: t('auth.passwordChangedDescription'),
         variant: "success",
         duration: 5000, // Show for 5 seconds
       });
       form.reset();
       onOpenChange(false);
     },
-    onError: () => {
+    onError: (error) => {
+      const errorMessage = getErrorMessage(error);
       toast({
-        title: "Error",
-        description: "Failed to change password. Please check your current password.",
+        title: t('common.error'),
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -75,7 +83,7 @@ export function ChangePasswordModal({ open, onOpenChange }: { open: boolean; onO
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
-          <DialogTitle>Change Your Password</DialogTitle>
+          <DialogTitle>{t('auth.changePassword')}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -84,9 +92,9 @@ export function ChangePasswordModal({ open, onOpenChange }: { open: boolean; onO
               name="currentPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Current Password</FormLabel>
+                  <FormLabel>{t('auth.currentPassword')}</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Enter current password" {...field} />
+                    <Input type="password" placeholder={t('auth.currentPasswordPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage className="text-red-500" />
                 </FormItem>
@@ -97,9 +105,9 @@ export function ChangePasswordModal({ open, onOpenChange }: { open: boolean; onO
               name="newPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>New Password</FormLabel>
+                  <FormLabel>{t('auth.newPassword')}</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Enter new password" {...field} />
+                    <Input type="password" placeholder={t('auth.newPasswordPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage className="text-red-500" />
                 </FormItem>
@@ -110,9 +118,9 @@ export function ChangePasswordModal({ open, onOpenChange }: { open: boolean; onO
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
+                  <FormLabel>{t('auth.confirmPassword')}</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Confirm new password" {...field} />
+                    <Input type="password" placeholder={t('auth.confirmPasswordPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage className="text-red-500" />
                 </FormItem>
@@ -120,10 +128,10 @@ export function ChangePasswordModal({ open, onOpenChange }: { open: boolean; onO
             />
             <div className="flex justify-end space-x-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button type="submit" disabled={changePasswordMutation.isPending}>
-                {changePasswordMutation.isPending ? "Updating..." : "Update Password"}
+                {changePasswordMutation.isPending ? t('auth.updating') : t('auth.updatePassword')}
               </Button>
             </div>
           </form>

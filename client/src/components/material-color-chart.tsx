@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import type { Filament } from "@shared/schema";
+import { useTranslation } from "@/i18n";
 
 interface MaterialColorChartProps {
   filaments: Filament[];
@@ -15,7 +16,8 @@ interface ChartData {
 }
 
 export function MaterialColorChart({ filaments }: MaterialColorChartProps) {
-  // Daten für das Diagramm vorbereiten
+  const { t } = useTranslation();
+  // Prepare data for the chart
   const chartData = useMemo(() => {
     const materialColorMap = new Map<string, Map<string, number>>();
     const colorMap = new Map<string, string>();
@@ -102,11 +104,11 @@ export function MaterialColorChart({ filaments }: MaterialColorChartProps) {
 
   return (
     <div className="w-full h-[300px] flex flex-col items-center">
-      <h3 className="text-lg font-semibold mb-2">Materialien und Farben</h3>
+      <h3 className="text-lg font-semibold mb-2">{t('charts.materialsAndColors')}</h3>
 
       <ResponsiveContainer width="100%" height="100%">
         <PieChart style={{ backgroundColor: 'var(--chart-bg, #1c1c1c)', borderRadius: '0.5rem' }}>
-          {/* Material-Ring (äußerer Ring) */}
+          {/* Material ring (outer ring) */}
           <Pie
             data={materialGroups.map((group, i) => ({
               name: group.category,
@@ -131,7 +133,7 @@ export function MaterialColorChart({ filaments }: MaterialColorChartProps) {
             ))}
           </Pie>
 
-          {/* Farbring (innerer Ring) */}
+          {/* Color ring (inner ring) */}
           <Pie
             data={chartData}
             cx="50%"
@@ -155,15 +157,15 @@ export function MaterialColorChart({ filaments }: MaterialColorChartProps) {
                   return (
                     <div className="dark:bg-neutral-800 light:bg-white border dark:border-neutral-700 light:border-gray-200 p-2 rounded-md shadow-md">
                       <p className="font-semibold">{data.name}</p>
-                      <p>Material: {data.category}</p>
-                      <p>Anzahl: {data.value}</p>
+                      <p>{t('charts.material')}: {data.category}</p>
+                      <p>{t('charts.count')}: {data.value}</p>
                     </div>
                   );
                 } else {
                   return (
                     <div className="dark:bg-neutral-800 light:bg-white border dark:border-neutral-700 light:border-gray-200 p-2 rounded-md shadow-md">
                       <p className="font-semibold">{data.name}</p>
-                      <p>Anzahl: {data.value}</p>
+                      <p>{t('charts.count')}: {data.value}</p>
                     </div>
                   );
                 }

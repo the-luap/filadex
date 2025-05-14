@@ -2,6 +2,7 @@ import { Filament } from "@shared/schema";
 import { FilamentSpool } from "@/components/ui/filament-spool";
 import { Card } from "@/components/ui/card";
 import { Copy } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 interface FilamentCardProps {
   filament: Filament;
@@ -12,6 +13,7 @@ interface FilamentCardProps {
 }
 
 export function FilamentCard({ filament, onEdit, onDelete, onCopy, readOnly = false }: FilamentCardProps) {
+  const { t } = useTranslation();
   // Calculate the remaining weight
   const totalWeight = Number(filament.totalWeight);
   const remainingPercentage = Number(filament.remainingPercentage);
@@ -24,8 +26,7 @@ export function FilamentCard({ filament, onEdit, onDelete, onCopy, readOnly = fa
     return "bg-green-500";
   };
 
-  // Format temperatures
-  const printTemp = filament.printTemp || "N/A";
+  // Format temperatures if needed in the future
 
   return (
     <Card className="filament-card card-hover dark:bg-neutral-800 bg-white">
@@ -43,7 +44,7 @@ export function FilamentCard({ filament, onEdit, onDelete, onCopy, readOnly = fa
                 <button
                   className="dark:text-neutral-400 text-gray-500 hover:text-secondary p-1 rounded-full hover:bg-secondary/10 transition-colors"
                   onClick={() => onCopy(filament)}
-                  title="Copy"
+                  title={t('common.copy')}
                 >
                   <Copy size={16} />
                 </button>
@@ -51,7 +52,7 @@ export function FilamentCard({ filament, onEdit, onDelete, onCopy, readOnly = fa
               <button
                 className="dark:text-neutral-400 text-gray-500 hover:text-primary p-1 rounded-full hover:bg-primary/10 transition-colors"
                 onClick={() => onEdit(filament)}
-                title="Edit"
+                title={t('common.edit')}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -71,7 +72,7 @@ export function FilamentCard({ filament, onEdit, onDelete, onCopy, readOnly = fa
               <button
                 className="dark:text-neutral-400 text-gray-500 hover:text-error p-1 rounded-full hover:bg-error/10 transition-colors"
                 onClick={() => onDelete(filament)}
-                title="Delete"
+                title={t('common.delete')}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -106,7 +107,7 @@ export function FilamentCard({ filament, onEdit, onDelete, onCopy, readOnly = fa
           />
           <div className="flex-grow">
             <div className="flex justify-between text-sm mb-1">
-              <span className="dark:text-neutral-400 text-gray-500 font-medium">Remaining:</span>
+              <span className="dark:text-neutral-400 text-gray-500 font-medium">{t('filters.remaining')}:</span>
               <span className="font-bold theme-primary">{remainingPercentage}%</span>
             </div>
             <div className="w-full dark:bg-neutral-700 bg-gray-200 rounded-full h-3">
@@ -116,21 +117,21 @@ export function FilamentCard({ filament, onEdit, onDelete, onCopy, readOnly = fa
               ></div>
             </div>
             <div className="flex justify-between text-xs mt-2 dark:text-neutral-300 text-gray-600 font-medium">
-              <span>{remainingWeight.toFixed(2)}kg available</span>
-              <span>of {totalWeight}kg total</span>
+              <span>{remainingWeight.toFixed(2)}kg {t('filters.available')}</span>
+              <span>{t('filters.of')} {totalWeight}kg {t('filters.total')}</span>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-y-3 gap-x-2 text-sm dark:bg-neutral-900 bg-gray-100 p-3 rounded-lg">
           <div>
-            <span className="dark:text-neutral-400 text-gray-500 block text-xs mb-1">Material</span>
+            <span className="dark:text-neutral-400 text-gray-500 block text-xs mb-1">{t('filters.material')}</span>
             <span className="font-medium dark:text-neutral-300 text-gray-700" title={filament.material}>
               {filament.material ? filament.material.replace(/\s*\([^)]*\)/g, '') : '-'}
             </span>
           </div>
           <div>
-            <span className="dark:text-neutral-400 text-gray-500 block text-xs mb-1">Farbe</span>
+            <span className="dark:text-neutral-400 text-gray-500 block text-xs mb-1">{t('filters.color')}</span>
             <span className="flex items-center">
               <span
                 className="inline-block w-4 h-4 rounded-full mr-2 shadow-sm"
@@ -147,25 +148,25 @@ export function FilamentCard({ filament, onEdit, onDelete, onCopy, readOnly = fa
             </span>
           </div>
           <div>
-            <span className="dark:text-neutral-400 text-gray-500 block text-xs mb-1">Status</span>
+            <span className="dark:text-neutral-400 text-gray-500 block text-xs mb-1">{t('filters.status')}</span>
             <span className="font-medium dark:text-neutral-300 text-gray-700">
-              {filament.status === 'sealed' ? 'Sealed' :
-               filament.status === 'opened' ? 'Opened' : '-'}
+              {filament.status === 'sealed' ? t('filters.sealed') :
+               filament.status === 'opened' ? t('filters.opened') : '-'}
             </span>
           </div>
           <div>
-            <span className="dark:text-neutral-400 text-gray-500 block text-xs mb-1">Spool Type</span>
+            <span className="dark:text-neutral-400 text-gray-500 block text-xs mb-1">{t('filters.spoolType')}</span>
             <span className="font-medium dark:text-neutral-300 text-gray-700">
-              {filament.spoolType === 'spooled' ? 'Spooled' :
-               filament.spoolType === 'spoolless' ? 'Spoolless' : '-'}
+              {filament.spoolType === 'spooled' ? t('filters.spooled') :
+               filament.spoolType === 'spoolless' ? t('filters.spoolless') : '-'}
             </span>
           </div>
           <div>
-            <span className="dark:text-neutral-400 text-gray-500 block text-xs mb-1">Dry Count</span>
+            <span className="dark:text-neutral-400 text-gray-500 block text-xs mb-1">{t('filters.dryCount')}</span>
             <span className="font-medium dark:text-neutral-300 text-gray-700">{filament.dryerCount || 0}</span>
           </div>
           <div>
-            <span className="dark:text-neutral-400 text-gray-500 block text-xs mb-1">Purchase Date</span>
+            <span className="dark:text-neutral-400 text-gray-500 block text-xs mb-1">{t('filters.purchaseDate')}</span>
             <span className="font-medium dark:text-neutral-300 text-gray-700">
               {filament.purchaseDate
                 ? new Date(filament.purchaseDate).toLocaleDateString()

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { ArrowLeft, Search, SlidersHorizontal, X } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { MaterialColorChart } from "@/components/material-color-chart";
 
 type Filament = {
   id: number;
@@ -26,44 +27,52 @@ type Filament = {
 export default function PublicFilamentsPage() {
   const { userId } = useParams();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedMaterial, setSelectedMaterial] = useState<string>("");
-  const [selectedManufacturer, setSelectedManufacturer] = useState<string>("");
+  const [selectedMaterial, setSelectedMaterial] = useState<string>("all");
+  const [selectedManufacturer, setSelectedManufacturer] = useState<string>("all");
   const [remainingRange, setRemainingRange] = useState<[number, number]>([0, 100]);
   const [showFilters, setShowFilters] = useState(false);
 
   const { data: filaments = [], isLoading, error } = useQuery({
     queryKey: ["public-filaments", userId],
-    queryFn: () => apiRequest(`/api/public/filaments/${userId}`),
+    queryFn: () => apiRequest(`/api/public/filaments/${userId}`, {
+      // Skip authentication for public endpoints
+      skipAuth: true
+    }),
   });
 
-  const materials = [...new Set(filaments.map((f: Filament) => f.material))].filter(Boolean).sort();
-  const manufacturers = [...new Set(filaments.map((f: Filament) => f.manufacturer))].filter(Boolean).sort();
+  const materials = Array.isArray(filaments)
+    ? [...new Set(filaments.map((f: Filament) => f.material))].filter(Boolean).sort()
+    : [];
+  const manufacturers = Array.isArray(filaments)
+    ? [...new Set(filaments.map((f: Filament) => f.manufacturer))].filter(Boolean).sort()
+    : [];
 
-  const filteredFilaments = filaments.filter((filament: Filament) => {
+  // Ensure filaments is an array before filtering
+  const filteredFilaments = Array.isArray(filaments) ? filaments.filter((filament: Filament) => {
     // Search term filter
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       filament.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (filament.manufacturer && filament.manufacturer.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (filament.material && filament.material.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (filament.colorName && filament.colorName.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+
     // Material filter
-    const matchesMaterial = selectedMaterial === "" || filament.material === selectedMaterial;
-    
+    const matchesMaterial = selectedMaterial === "all" || filament.material === selectedMaterial;
+
     // Manufacturer filter
-    const matchesManufacturer = selectedManufacturer === "" || filament.manufacturer === selectedManufacturer;
-    
+    const matchesManufacturer = selectedManufacturer === "all" || filament.manufacturer === selectedManufacturer;
+
     // Remaining percentage filter
-    const remaining = parseFloat(filament.remainingPercentage);
-    const matchesRemaining = remaining >= remainingRange[0] && remaining <= remainingRange[1];
-    
+    const remaining = parseFloat(filament.remainingPercentage || "0");
+    const matchesRemaining = !isNaN(remaining) && remaining >= remainingRange[0] && remaining <= remainingRange[1];
+
     return matchesSearch && matchesMaterial && matchesManufacturer && matchesRemaining;
-  });
+  }) : [];
 
   const resetFilters = () => {
     setSearchTerm("");
-    setSelectedMaterial("");
-    setSelectedManufacturer("");
+    setSelectedMaterial("all");
+    setSelectedManufacturer("all");
     setRemainingRange([0, 100]);
   };
 
@@ -76,10 +85,10 @@ export default function PublicFilamentsPage() {
       <header className="theme-primary-bg text-white shadow-md">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center">
-            <Button 
-              onClick={goBack} 
-              variant="outline" 
-              size="icon" 
+            <Button
+              onClick={goBack}
+              variant="outline"
+              size="icon"
               className="mr-4 bg-primary/20 hover:bg-primary/30 text-white border-white/20"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -124,7 +133,7 @@ export default function PublicFilamentsPage() {
                   </Button>
                 )}
               </div>
-              
+
               <Button
                 variant="outline"
                 onClick={() => setShowFilters(!showFilters)}
@@ -133,8 +142,8 @@ export default function PublicFilamentsPage() {
                 <SlidersHorizontal className="mr-2 h-4 w-4" />
                 Filters
               </Button>
-              
-              {(selectedMaterial || selectedManufacturer || remainingRange[0] > 0 || remainingRange[1] < 100) && (
+
+              {(selectedMaterial !== "all" || selectedManufacturer !== "all" || remainingRange[0] > 0 || remainingRange[1] < 100) && (
                 <Button
                   variant="ghost"
                   onClick={resetFilters}
@@ -143,12 +152,12 @@ export default function PublicFilamentsPage() {
                   Reset Filters
                 </Button>
               )}
-              
+
               <div className="ml-auto text-sm text-muted-foreground">
                 {filteredFilaments.length} filament{filteredFilaments.length !== 1 ? 's' : ''}
               </div>
             </div>
-            
+
             {showFilters && (
               <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-md bg-card">
                 <div>
@@ -158,7 +167,7 @@ export default function PublicFilamentsPage() {
                       <SelectValue placeholder="All materials" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All materials</SelectItem>
+                      <SelectItem value="all">All materials</SelectItem>
                       {materials.map((material) => (
                         <SelectItem key={material} value={material}>
                           {material}
@@ -167,7 +176,7 @@ export default function PublicFilamentsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <label className="text-sm font-medium mb-1 block">Manufacturer</label>
                   <Select value={selectedManufacturer} onValueChange={setSelectedManufacturer}>
@@ -175,7 +184,7 @@ export default function PublicFilamentsPage() {
                       <SelectValue placeholder="All manufacturers" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All manufacturers</SelectItem>
+                      <SelectItem value="all">All manufacturers</SelectItem>
                       {manufacturers.map((manufacturer) => (
                         <SelectItem key={manufacturer} value={manufacturer}>
                           {manufacturer}
@@ -184,7 +193,7 @@ export default function PublicFilamentsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <label className="text-sm font-medium mb-1 block">
                     Remaining: {remainingRange[0]}% - {remainingRange[1]}%
@@ -200,7 +209,12 @@ export default function PublicFilamentsPage() {
                 </div>
               </div>
             )}
-            
+
+            {/* Material and Color Chart */}
+            <div className="dark:bg-neutral-800 light:bg-white p-4 rounded-lg shadow-md mb-6">
+              <MaterialColorChart filaments={Array.isArray(filaments) ? filaments : []} />
+            </div>
+
             {filteredFilaments.length === 0 ? (
               <div className="flex justify-center items-center h-64">
                 <p className="text-lg text-muted-foreground">No filaments found matching your filters.</p>

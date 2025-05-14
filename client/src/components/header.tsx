@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Paintbrush, Plus, Settings, Users, LogOut, Share2, KeyRound } from "lucide-react";
 import { ThemeSelector } from "./theme-selector";
 import { ThemeToggle } from "./theme-toggle";
+import { LanguageSelector } from "./language-selector";
 import { SettingsDialog } from "./settings-dialog";
 import { UserManagementModal } from "./user-management-modal";
 import { SharingModal } from "./sharing-modal";
@@ -10,6 +11,7 @@ import { ChangePasswordModal } from "./change-password-modal";
 import { Link, useLocation } from "wouter";
 import { Logo } from "./logo";
 import { useAuth } from "@/lib/auth";
+import { useTranslation } from "@/i18n";
 
 interface HeaderProps {
   onAddFilament: () => void;
@@ -23,6 +25,7 @@ export function Header({ onAddFilament }: HeaderProps) {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const { isAdmin, logout } = useAuth();
   const [_, navigate] = useLocation();
+  const { t } = useTranslation();
 
   return (
     <header className="theme-primary-bg text-white shadow-md">
@@ -43,13 +46,14 @@ export function Header({ onAddFilament }: HeaderProps) {
         </div>
         <div className="flex items-center space-x-2">
           <ThemeToggle />
+          <LanguageSelector />
 
           <Button
             onClick={() => setThemeDialogOpen(true)}
             variant="outline"
             size="icon"
             className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            title="Theme Settings"
+            title={t('settings.theme')}
           >
             <Paintbrush className="h-4 w-4" />
           </Button>
@@ -59,7 +63,7 @@ export function Header({ onAddFilament }: HeaderProps) {
             variant="outline"
             size="icon"
             className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            title="Settings"
+            title={t('settings.title')}
           >
             <Settings className="h-4 w-4" />
           </Button>
@@ -70,7 +74,7 @@ export function Header({ onAddFilament }: HeaderProps) {
               variant="outline"
               size="icon"
               className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-              title="User Management"
+              title={t('users.management')}
             >
               <Users className="h-4 w-4" />
             </Button>
@@ -81,7 +85,7 @@ export function Header({ onAddFilament }: HeaderProps) {
             variant="outline"
             size="icon"
             className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            title="Share Filaments"
+            title={t('filaments.sharedCollection')}
           >
             <Share2 className="h-4 w-4" />
           </Button>
@@ -91,7 +95,7 @@ export function Header({ onAddFilament }: HeaderProps) {
             variant="outline"
             size="icon"
             className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            title="Change Password"
+            title={t('auth.changePassword')}
           >
             <KeyRound className="h-4 w-4" />
           </Button>
@@ -104,7 +108,7 @@ export function Header({ onAddFilament }: HeaderProps) {
             variant="outline"
             size="icon"
             className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            title="Logout"
+            title={t('auth.logout')}
           >
             <LogOut className="h-4 w-4" />
           </Button>
@@ -114,7 +118,7 @@ export function Header({ onAddFilament }: HeaderProps) {
             className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-md flex items-center transition-colors duration-200"
           >
             <Plus className="mr-1 h-5 w-5" />
-            Add Filament
+            {t('filaments.addFilament')}
           </Button>
         </div>
       </div>

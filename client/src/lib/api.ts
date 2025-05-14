@@ -6,6 +6,7 @@ type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   headers?: Record<string, string>;
   body?: any;
+  skipAuth?: boolean;
 };
 
 /**
@@ -18,7 +19,7 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { method = 'GET', headers = {}, body } = options;
+  const { method = 'GET', headers = {}, body, skipAuth = false } = options;
 
   const requestOptions: RequestInit = {
     method,
@@ -26,7 +27,8 @@ export async function apiRequest<T = any>(
       'Content-Type': 'application/json',
       ...headers,
     },
-    credentials: 'include',
+    // Only include credentials for authenticated requests
+    credentials: skipAuth ? 'omit' : 'include',
   };
 
   if (body) {

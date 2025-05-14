@@ -6,6 +6,21 @@
 
 Filadex is an open-source filament management system for 3D printing enthusiasts. Born from the need for a comprehensive solution to track and manage 3D printing filaments, Filadex offers a clean, intuitive interface for monitoring your filament inventory, usage statistics, and storage information. This project is fully AI-coded, showcasing the potential of AI-assisted development in creating practical, user-friendly applications.
 
+## 📸 Screenshots
+
+<div align="center">
+  <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+    <div style="flex: 1; min-width: 300px;">
+      <p><strong>Light Mode</strong></p>
+      <img src="screenshot-white.png" alt="Filadex Light Mode" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+    </div>
+    <div style="flex: 1; min-width: 300px;">
+      <p><strong>Dark Mode</strong></p>
+      <img src="screenshot-black.png" alt="Filadex Dark Mode" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+    </div>
+  </div>
+</div>
+
 ## 🌟 Features
 
 - **Filament Inventory Management**: Track all your filaments in one place
@@ -17,7 +32,8 @@ Filadex is an open-source filament management system for 3D printing enthusiasts
 - **Responsive Design**: Works on desktop and mobile devices
 - **Self-hosted**: Keep your data private and secure
 - **User Management**: Admin interface for managing users
-- **Filament Sharing**: Share your filament collection with others
+- **Filament Sharing**: Share your filament collection with others (globally or by material type)
+- **Public Filament View**: Shared filament collections include material/color charts and filtering capabilities
 
 ## 📋 Prerequisites
 
@@ -131,6 +147,9 @@ LOG_LEVEL=INFO                # Logging level (DEBUG, INFO, WARN, ERROR)
 # Authentication
 DEFAULT_ADMIN_PASSWORD=admin  # Default password for the admin user
 JWT_SECRET=your_secret_key    # Secret key for JWT token generation
+
+# Localization
+DEFAULT_LANGUAGE=en           # Default language for new users (en, de)
 ```
 
 ### Port Configuration
@@ -148,6 +167,10 @@ For Docker deployment, you can configure the port in the `docker-compose.yml` fi
 3. **User Management**: Admin users can access the user management interface by clicking the users icon in the header
 4. **Creating Users**: Admins can create new users, set permissions, and manage existing accounts
 5. **Sharing Filaments**: Users can share their filament collection by clicking the share icon in the header
+   - Share all filaments or select specific material types to share
+   - Copy the shareable link with one click
+   - Shared collections include material/color charts and filtering capabilities
+   - Public view doesn't require authentication
 
 ### Filament Management
 
@@ -190,26 +213,47 @@ Now, I'm excited to share Filadex with the community and welcome contributions t
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 🌐 Language Support
+
+Filadex supports multiple languages:
+
+1. **Available Languages**
+   - English (en)
+   - German (de)
+
+2. **Language Selection**
+   - Users can select their preferred language from the language selector in the header
+   - Language preference is stored in user settings and persists across sessions
+   - The application will automatically detect the browser language on first visit
+
+3. **Adding New Languages**
+   - Language files are located in `client/src/i18n/locales/`
+   - To add a new language, create a new file following the same structure as the existing ones
+   - See our [Translation Guide](docs/TRANSLATION_GUIDE.md) for detailed instructions
+   - Check the [Translation Glossary](docs/TRANSLATION_GLOSSARY.md) for terminology consistency
+   - For developers, see the [Technical Translation Guide](docs/TRANSLATION_TECHNICAL.md)
+   - Submit a pull request to contribute translations
+
+4. **Environment Variables**
+   - `DEFAULT_LANGUAGE`: Set the default language for new users (default: "en")
+
 ## 🗺️ Roadmap
 
 The following features are planned for future releases:
 
-1. **Language Settings per User**
-   - Allow each user to select their preferred language
-   - Persist language preference in user settings
+1. **Additional Languages**
+   - Add support for more languages (French, Spanish, Italian, etc.)
+   - Improve translation coverage across the application
 
-2. **Translatable Language Files**
-   - Create language files that can be easily translated by the community
-   - Enable contributions via GitHub for new language support
+2. **Advanced Filament Management**
+   - Batch operations for filaments (delete, update)
+   - Filament usage history tracking
+   - Print job association with filaments
 
-3. **Global Language Setting**
-   - Add environment variable for setting the default application language
-   - Allow admin override of language settings
-
-4. **Theme Switching Improvements**
-   - When changing colors, I get an error on the toast notification
-   - Fix issues when changing theme (dark/light mode)
-   - Ensure consistent UI experience across theme changes
+3. **Enhanced Sharing Features**
+   - QR code generation for shared collections
+   - Password protection for shared collections
+   - Temporary sharing links with expiration
 
 ## 🙏 Acknowledgements
 

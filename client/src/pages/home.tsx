@@ -11,10 +11,12 @@ import { FilamentModal } from "@/components/filament-modal";
 import { DeleteModal } from "@/components/delete-modal";
 import { MaterialColorChart } from "@/components/material-color-chart";
 import { StatisticsAccordion } from "@/components/statistics";
+import { useTranslation } from "@/i18n";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedFilament, setSelectedFilament] = useState<Filament | undefined>(undefined);
@@ -81,14 +83,14 @@ export default function Home() {
 
       setShowAddModal(false);
       toast({
-        title: "Erfolg",
-        description: "Filament wurde erfolgreich hinzugefügt.",
+        title: t('common.success'),
+        description: t('filaments.addSuccess'),
       });
     },
     onError: (error) => {
       toast({
-        title: "Fehler",
-        description: `Filament konnte nicht hinzugefügt werden: ${error.message}`,
+        title: t('common.error'),
+        description: `${t('filaments.addError')} ${error.message}`,
         variant: "destructive",
       });
     },
@@ -116,14 +118,14 @@ export default function Home() {
       setShowAddModal(false);
       setSelectedFilament(undefined);
       toast({
-        title: "Erfolg",
-        description: "Filament wurde erfolgreich aktualisiert.",
+        title: t('common.success'),
+        description: t('filaments.updateSuccess'),
       });
     },
     onError: (error) => {
       toast({
-        title: "Fehler",
-        description: `Filament konnte nicht aktualisiert werden: ${error.message}`,
+        title: t('common.error'),
+        description: `${t('filaments.updateError')} ${error.message}`,
         variant: "destructive",
       });
     },
@@ -150,14 +152,14 @@ export default function Home() {
       setShowDeleteModal(false);
       setSelectedFilament(undefined);
       toast({
-        title: "Erfolg",
-        description: "Filament wurde erfolgreich gelöscht.",
+        title: t('common.success'),
+        description: t('filaments.deleteSuccess'),
       });
     },
     onError: (error) => {
       toast({
-        title: "Fehler",
-        description: `Filament konnte nicht gelöscht werden: ${error.message}`,
+        title: t('common.error'),
+        description: `${t('filaments.deleteError')} ${error.message}`,
         variant: "destructive",
       });
     },
@@ -253,7 +255,7 @@ export default function Home() {
               <div className="flex items-center justify-center min-h-[300px]">
                 <div className="text-center">
                   <div className="animate-spin w-8 h-8 border-t-2 border-primary rounded-full mx-auto mb-4"></div>
-                  <p className="text-neutral-400">Filamente werden geladen...</p>
+                  <p className="text-neutral-400">{t('filaments.loadingFilaments')}</p>
                 </div>
               </div>
             ) : (

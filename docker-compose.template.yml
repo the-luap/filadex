@@ -32,6 +32,9 @@ services:
       - PGPASSWORD=${POSTGRES_PASSWORD:-filadex}
       - PGDATABASE=${POSTGRES_DB:-filadex}
       - DATABASE_URL=postgres://${POSTGRES_USER:-filadex}:${POSTGRES_PASSWORD:-filadex}@db:5432/${POSTGRES_DB:-filadex}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-en}
     depends_on:
       - db
     ports:

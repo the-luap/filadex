@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Filament } from "@shared/schema";
+import { useTranslation } from "@/i18n";
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -18,31 +19,33 @@ interface DeleteModalProps {
   filament?: Filament;
 }
 
-export function DeleteModal({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  filament 
+export function DeleteModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  filament
 }: DeleteModalProps) {
+  const { t } = useTranslation();
+
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Filament löschen</AlertDialogTitle>
+          <AlertDialogTitle>{t('filaments.deleteFilament')}</AlertDialogTitle>
           <AlertDialogDescription>
-            Möchten Sie das Filament <span className="font-medium">{filament?.name}</span> wirklich löschen?
+            {t('filaments.deleteConfirmation')} <span className="font-medium">{filament?.name}</span>?
             <p className="text-sm text-neutral-300 mt-2">
-              Diese Aktion kann nicht rückgängig gemacht werden.
+              {t('filaments.deleteWarning')}
             </p>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-          <AlertDialogAction 
+          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+          <AlertDialogAction
             onClick={onConfirm}
             className="bg-error hover:bg-red-700 text-white"
           >
-            Löschen
+            {t('common.delete')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

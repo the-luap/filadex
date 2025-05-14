@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { ScanFace, X, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useTranslation } from "@/i18n";
 
 interface NFCScannerProps {
   onScanSuccess: (data: any) => void;
@@ -10,6 +11,7 @@ interface NFCScannerProps {
 }
 
 export function NFCScanner({ onScanSuccess, onClose }: NFCScannerProps) {
+  const { t } = useTranslation();
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nfcSupported, setNfcSupported] = useState(true);
@@ -18,7 +20,7 @@ export function NFCScanner({ onScanSuccess, onClose }: NFCScannerProps) {
     // Check if NFC API is available in the browser
     if (!('NDEFReader' in window)) {
       setNfcSupported(false);
-      setError("Ihr Browser unterstützt kein NFC. Verwenden Sie Chrome auf Android oder Safari auf neueren iOS-Geräten.");
+      setError(t('common.scanner.nfcNotSupported'));
       return;
     }
 
@@ -26,17 +28,17 @@ export function NFCScanner({ onScanSuccess, onClose }: NFCScannerProps) {
     const startNfcScan = async () => {
       setIsScanning(true);
       setError(null);
-      
+
       try {
-        // @ts-ignore - TypeScript kennt den NDEFReader nicht
+        // @ts-ignore - TypeScript doesn't know NDEFReader
         const ndef = new window.NDEFReader();
-        
+
         await ndef.scan();
-        console.log("NFC-Scanner gestartet, warte auf Tags...");
-        
+        console.log("NFC scanner started, waiting for tags...");
+
         ndef.addEventListener("reading", (event: any) => {
-          console.log("NFC-Tag erkannt:", event);
-          
+          console.log("NFC tag detected:", event);
+
           // Extract NFC data
           const records = event.message.records;
           const nfcData = {
@@ -63,44 +65,44 @@ export function NFCScanner({ onScanSuccess, onClose }: NFCScannerProps) {
               }
             })
           };
-          
+
           // Pass the NFC data to the parent component
           onScanSuccess(nfcData);
         });
-        
+
         ndef.addEventListener("error", (error: any) => {
-          console.error("NFC-Fehler:", error);
-          setError(`NFC-Fehler: ${error.message}`);
+          console.error("NFC error:", error);
+          setError(`NFC error: ${error.message}`);
           setIsScanning(false);
         });
-        
+
       } catch (error: any) {
-        console.error("NFC-Scan Fehler:", error);
-        
+        console.error("NFC scan error:", error);
+
         if (error.name === 'NotAllowedError') {
-          setError("NFC-Zugriff wurde verweigert. Bitte erlauben Sie den Zugriff auf NFC in Ihren Browsereinstellungen.");
+          setError(t('common.scanner.nfcAccessDenied'));
         } else if (error.name === 'NotSupportedError') {
-          setError("NFC wird auf diesem Gerät nicht unterstützt oder ist deaktiviert.");
+          setError(t('common.scanner.nfcNotAvailable'));
           setNfcSupported(false);
         } else if (error.name === 'SecurityError') {
-          setError("NFC benötigt einen sicheren Kontext (HTTPS). Bitte verwenden Sie eine sichere Verbindung.");
+          setError(t('common.scanner.nfcSecurityError'));
         } else {
-          setError(`Fehler beim Scannen nach NFC-Tags: ${error.message}`);
+          setError(t('common.scanner.nfcScanError', { message: error.message }));
         }
         setIsScanning(false);
       }
     };
-    
-    // Kleine Verzögerung, um sicherzustellen, dass die Komponente vollständig gemountet ist
+
+    // Small delay to ensure the component is fully mounted
     const timer = setTimeout(() => {
       startNfcScan();
     }, 300);
-    
-    // Aufräumen beim Unmount
+
+    // Cleanup on unmount
     return () => {
       clearTimeout(timer);
     };
-  }, [onScanSuccess]);
+  }, [onScanSuccess, t]);
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
@@ -108,18 +110,18 @@ export function NFCScanner({ onScanSuccess, onClose }: NFCScannerProps) {
         <DialogHeader className="justify-between flex-row items-center">
           <DialogTitle className="flex items-center">
             <ScanFace className="mr-2 h-5 w-5" />
-            NFC-Tag scannen
+            {t('common.scanner.nfcTagTitle')}
           </DialogTitle>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </DialogHeader>
-        
+
         <div className="flex flex-col items-center space-y-6 py-4">
           {error ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Fehler</AlertTitle>
+              <AlertTitle>{t('common.scanner.error')}</AlertTitle>
               <AlertDescription>
                 {error}
               </AlertDescription>
@@ -133,22 +135,22 @@ export function NFCScanner({ onScanSuccess, onClose }: NFCScannerProps) {
                   <ScanFace className="h-10 w-10 text-primary animate-pulse" />
                 </div>
               </div>
-              
+
               <div className="text-center space-y-2">
-                <h3 className="text-lg font-medium">Bereit zum Scannen</h3>
+                <h3 className="text-lg font-medium">{t('common.scanner.ready')}</h3>
                 <p className="text-sm text-neutral-400">
-                  Halten Sie Ihr Gerät an den NFC-Tag, um ihn zu scannen.
+                  {t('common.scanner.holdDevice')}
                   <br />
-                  Der Scan erfolgt automatisch.
+                  {t('common.scanner.scanHappensAuto')}
                 </p>
               </div>
             </>
           )}
         </div>
-        
+
         <DialogFooter>
           <Button onClick={onClose} variant={!nfcSupported ? "default" : "outline"} className="w-full">
-            {!nfcSupported ? "Schließen" : "Abbrechen"}
+            {!nfcSupported ? t('common.scanner.close') : t('common.scanner.cancel')}
           </Button>
         </DialogFooter>
       </DialogContent>

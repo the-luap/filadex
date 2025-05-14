@@ -7,6 +7,7 @@ import pkg from 'pg';
 const { Pool } = pkg;
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "./shared/schema.js";
+import { registerRoutes } from "../server/routes.js";
 
 // Get database connection string from environment variables
 // Default to PostgreSQL connection using docker-compose variables if not set
@@ -38,7 +39,7 @@ const testConnection = async () => {
 
 export const db = drizzle(pool, { schema });
 const { users, filaments } = schema;
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -59,7 +60,7 @@ testConnection()
 
 // Middleware
 app.use(express.json({
-  verify: (req, res, buf, encoding) => {
+  verify: (req, _res, buf, _encoding) => {
     try {
       JSON.parse(buf);
     } catch (e) {
@@ -186,6 +187,46 @@ const initializeUsers = async () => {
 initializeUsers().catch(err => {
   logger.error("Error initializing users:", err);
 });
+
+// Authentication middleware
+const authenticate = async (req, res, next) => {
+  const authCookie = req.cookies.auth;
+
+  if (!authCookie) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  // Parse the auth cookie which includes the server session ID
+  const [userIdStr, sessionId] = authCookie.split(':');
+
+  // Verify that the session ID matches the current server instance
+  if (sessionId !== SERVER_SESSION_ID) {
+    // Session is from a previous server instance, invalidate it
+    res.clearCookie("auth");
+    return res.status(401).json({ message: "Session expired, please login again" });
+  }
+
+  const userId = parseInt(userIdStr);
+
+  // Get user from database
+  const userResults = await db.select().from(users).where(eq(users.id, userId));
+
+  if (userResults.length === 0) {
+    return res.status(401).json({ message: "Invalid authentication" });
+  }
+
+  const user = userResults[0];
+
+  // Set user info on request object
+  req.userId = userId;
+  req.user = {
+    id: user.id,
+    username: user.username,
+    isAdmin: user.isAdmin
+  };
+
+  next();
+};
 
 // Authentication API routes
 app.post("/api/auth/login", async (req, res) => {
@@ -477,6 +518,65 @@ app.get("/api/auth/me", async (req, res) => {
     return res.status(200).json(userData);
   } catch (error) {
     logger.error("Error in /api/auth/me endpoint:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Update user language preference
+app.post("/api/users/language", async (req, res) => {
+  try {
+    const authCookie = req.cookies.auth;
+
+    if (!authCookie) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    // Parse the auth cookie which now includes the server session ID
+    const [userIdStr, sessionId] = authCookie.split(':');
+
+    // Verify that the session ID matches the current server instance
+    if (sessionId !== SERVER_SESSION_ID) {
+      // Session is from a previous server instance, invalidate it
+      res.clearCookie("auth");
+      return res.status(401).json({ message: "Session expired, please login again" });
+    }
+
+    const userId = parseInt(userIdStr);
+
+    // Get user from database
+    const userResults = await db.select().from(users).where(eq(users.id, userId));
+
+    if (userResults.length === 0) {
+      return res.status(401).json({ message: "Invalid authentication" });
+    }
+
+    // Parse request body if needed
+    let data = req.body;
+    if (typeof data === 'string') {
+      try {
+        data = JSON.parse(data);
+      } catch (e) {
+        logger.error("Error parsing request body:", e);
+        return res.status(400).json({ message: "Invalid request format" });
+      }
+    }
+
+    const { language } = data;
+
+    // Validate language
+    if (language !== 'en' && language !== 'de') {
+      return res.status(400).json({ message: "Invalid language. Supported languages are 'en' and 'de'." });
+    }
+
+    // Update user language
+    await db.update(users)
+      .set({ language })
+      .where(eq(users.id, userId));
+
+    logger.info(`User ${userId} updated language to ${language}`);
+    return res.status(200).json({ message: "Language preference updated successfully" });
+  } catch (error) {
+    logger.error("Update language error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -813,255 +913,42 @@ app.delete("/api/users/:id", async (req, res) => {
   }
 });
 
-// API routes for filaments
-app.get("/api/filaments", async (_req, res) => {
+// Run database migrations
+try {
+  // Import and run the migration to add timestamp columns
+  // Try different paths to handle both development and production environments
+  let runMigration;
   try {
-    // Get filaments from database
-    const filamentsData = await db.select().from(filaments);
-    return res.status(200).json(filamentsData);
-  } catch (error) {
-    logger.error("Error fetching filaments:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    // Try importing from the migrations directory
+    const migrationModule = await import('./migrations/add_timestamp_columns.js');
+    runMigration = migrationModule.runMigration;
+  } catch (importError) {
+    logger.error("Error importing migration module:", importError);
+    // If that fails, try a different path
+    try {
+      const migrationModule = await import('../migrations/add_timestamp_columns.js');
+      runMigration = migrationModule.runMigration;
+    } catch (secondImportError) {
+      logger.error("Error importing migration module (second attempt):", secondImportError);
+      throw new Error("Could not import migration module");
+    }
   }
-});
 
-app.post("/api/filaments", async (req, res) => {
-  try {
-    // Parse request body
-    let data = req.body;
-    if (typeof data === 'string') {
-      try {
-        data = JSON.parse(data);
-      } catch (e) {
-        logger.error("Error parsing request body:", e);
-        return res.status(400).json({ message: "Invalid request format" });
-      }
-    }
+  // Run the migration
+  await runMigration();
+  logger.info("Database migrations completed successfully");
+} catch (error) {
+  logger.error("Error running database migrations:", error);
+}
 
-    logger.info("Creating new filament with data:", data);
-
-    // Validate required fields
-    const {
-      name,
-      manufacturer,
-      material,
-      colorName,
-      colorCode,
-      diameter,
-      totalWeight,
-      remainingPercentage,
-      purchaseDate,
-      purchasePrice,
-      printTemp,
-      status,
-      spoolType,
-      storageLocation
-    } = data;
-
-    if (!name) {
-      return res.status(400).json({ message: "Name is required" });
-    }
-
-    // Create new filament
-    const newFilament = await db.insert(filaments).values({
-      name,
-      manufacturer,
-      material,
-      colorName,
-      colorCode,
-      diameter: parseFloat(diameter),
-      totalWeight: parseFloat(totalWeight),
-      remainingPercentage: parseInt(remainingPercentage),
-      purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
-      purchasePrice: purchasePrice ? parseFloat(purchasePrice) : null,
-      printTemp,
-      status,
-      spoolType,
-      storageLocation,
-      dryerCount: data.dryerCount || 0,
-      lastDryingDate: data.lastDryingDate ? new Date(data.lastDryingDate) : null,
-      notes: data.notes || null,
-      userId: req.user?.id || 1, // Default to user 1 if not authenticated
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }).returning();
-
-    logger.info("New filament created:", name);
-    return res.status(201).json(newFilament[0]);
-  } catch (error) {
-    logger.error("Error creating filament:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-app.put("/api/filaments/:id", async (req, res) => {
-  try {
-    // Get filament ID from URL
-    const filamentId = parseInt(req.params.id);
-
-    // Parse request body
-    let data = req.body;
-    if (typeof data === 'string') {
-      try {
-        data = JSON.parse(data);
-      } catch (e) {
-        logger.error("Error parsing request body:", e);
-        return res.status(400).json({ message: "Invalid request format" });
-      }
-    }
-
-    logger.info(`Updating filament ${filamentId} with data:`, data);
-
-    // Check if filament exists
-    const filamentResults = await db.select().from(filaments).where(eq(filaments.id, filamentId));
-    if (filamentResults.length === 0) {
-      return res.status(404).json({ message: "Filament not found" });
-    }
-
-    // Check if user has access to this filament
-    if (req.user && filamentResults[0].userId !== req.user.id) {
-      // Check if filament is shared with user
-      const sharedResults = await db.select()
-        .from(userSharing)
-        .where(and(
-          eq(userSharing.filamentId, filamentId),
-          eq(userSharing.userId, req.user.id)
-        ));
-
-      if (sharedResults.length === 0) {
-        return res.status(403).json({ message: "You don't have permission to update this filament" });
-      }
-    }
-
-    // Update filament
-    const updateData = {
-      ...data,
-      updatedAt: new Date()
-    };
-
-    // Convert numeric fields
-    if (updateData.diameter) updateData.diameter = parseFloat(updateData.diameter);
-    if (updateData.totalWeight) updateData.totalWeight = parseFloat(updateData.totalWeight);
-    if (updateData.remainingPercentage) updateData.remainingPercentage = parseInt(updateData.remainingPercentage);
-    if (updateData.purchasePrice) updateData.purchasePrice = parseFloat(updateData.purchasePrice);
-    if (updateData.dryerCount) updateData.dryerCount = parseInt(updateData.dryerCount);
-
-    // Convert date fields
-    if (updateData.purchaseDate) updateData.purchaseDate = new Date(updateData.purchaseDate);
-    if (updateData.lastDryingDate) updateData.lastDryingDate = new Date(updateData.lastDryingDate);
-
-    const updatedFilament = await db.update(filaments)
-      .set(updateData)
-      .where(eq(filaments.id, filamentId))
-      .returning();
-
-    logger.info(`Filament ${filamentId} updated successfully`);
-    return res.status(200).json(updatedFilament[0]);
-  } catch (error) {
-    logger.error(`Error updating filament:`, error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-// Add PATCH endpoint for partial updates
-app.patch("/api/filaments/:id", async (req, res) => {
-  try {
-    // Get filament ID from URL
-    const filamentId = parseInt(req.params.id);
-
-    // Parse request body
-    let data = req.body;
-    if (typeof data === 'string') {
-      try {
-        data = JSON.parse(data);
-      } catch (e) {
-        logger.error("Error parsing request body:", e);
-        return res.status(400).json({ message: "Invalid request format" });
-      }
-    }
-
-    logger.info(`Partially updating filament ${filamentId} with data:`, data);
-
-    // Check if filament exists
-    const filamentResults = await db.select().from(filaments).where(eq(filaments.id, filamentId));
-    if (filamentResults.length === 0) {
-      return res.status(404).json({ message: "Filament not found" });
-    }
-
-    // Check if user has access to this filament
-    if (req.user && filamentResults[0].userId !== req.user.id) {
-      // Check if filament is shared with user
-      const sharedResults = await db.select()
-        .from(userSharing)
-        .where(and(
-          eq(userSharing.filamentId, filamentId),
-          eq(userSharing.userId, req.user.id)
-        ));
-
-      if (sharedResults.length === 0) {
-        return res.status(403).json({ message: "You don't have permission to update this filament" });
-      }
-    }
-
-    // Update filament
-    const updateData = {
-      ...data,
-      updatedAt: new Date()
-    };
-
-    // Convert numeric fields
-    if (updateData.diameter) updateData.diameter = parseFloat(updateData.diameter);
-    if (updateData.totalWeight) updateData.totalWeight = parseFloat(updateData.totalWeight);
-    if (updateData.remainingPercentage) updateData.remainingPercentage = parseInt(updateData.remainingPercentage);
-    if (updateData.purchasePrice) updateData.purchasePrice = parseFloat(updateData.purchasePrice);
-    if (updateData.dryerCount) updateData.dryerCount = parseInt(updateData.dryerCount);
-
-    // Convert date fields
-    if (updateData.purchaseDate) updateData.purchaseDate = new Date(updateData.purchaseDate);
-    if (updateData.lastDryingDate) updateData.lastDryingDate = new Date(updateData.lastDryingDate);
-
-    const updatedFilament = await db.update(filaments)
-      .set(updateData)
-      .where(eq(filaments.id, filamentId))
-      .returning();
-
-    logger.info(`Filament ${filamentId} partially updated successfully`);
-    return res.status(200).json(updatedFilament[0]);
-  } catch (error) {
-    logger.error(`Error partially updating filament:`, error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-app.delete("/api/filaments/:id", async (req, res) => {
-  try {
-    // Get filament ID from URL
-    const filamentId = parseInt(req.params.id);
-
-    // Check if filament exists
-    const filamentResults = await db.select().from(filaments).where(eq(filaments.id, filamentId));
-    if (filamentResults.length === 0) {
-      return res.status(404).json({ message: "Filament not found" });
-    }
-
-    // Check if user has access to this filament
-    if (req.user && filamentResults[0].userId !== req.user.id) {
-      // Check if user is admin
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: "You don't have permission to delete this filament" });
-      }
-    }
-
-    // Delete filament
-    await db.delete(filaments).where(eq(filaments.id, filamentId));
-
-    logger.info(`Filament ${filamentId} deleted successfully`);
-    return res.status(204).end();
-  } catch (error) {
-    logger.error(`Error deleting filament:`, error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
+// Register routes from server/routes.js - this must be awaited
+// We'll use a top-level await to ensure routes are registered before continuing
+try {
+  await registerRoutes(app, authenticate, db, schema, logger);
+  logger.info("Routes registered successfully");
+} catch (error) {
+  logger.error("Error registering routes:", error);
+}
 
 // API routes for manufacturers
 app.get("/api/manufacturers", async (_req, res) => {
@@ -1538,6 +1425,73 @@ app.get("/api/diameters", async (_req, res) => {
   }
 });
 
+// User sharing API routes
+app.get("/api/user-sharing", authenticate, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    const sharingSettings = await db.select().from(schema.userSharing)
+      .where(eq(schema.userSharing.userId, userId));
+
+    res.json(sharingSettings);
+  } catch (error) {
+    logger.error("Get user sharing settings error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/api/user-sharing", authenticate, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    const { materialId, isPublic } = req.body;
+    logger.debug("User sharing update request:", { userId, materialId, isPublic });
+
+    // Check if setting already exists
+    const existingSetting = await db.select()
+      .from(schema.userSharing)
+      .where(
+        materialId
+          ? and(eq(schema.userSharing.userId, userId), eq(schema.userSharing.materialId, materialId))
+          : and(eq(schema.userSharing.userId, userId), isNull(schema.userSharing.materialId))
+      );
+
+    if (existingSetting.length > 0) {
+      // Update existing setting
+      const [updated] = await db.update(schema.userSharing)
+        .set({ isPublic })
+        .where(eq(schema.userSharing.id, existingSetting[0].id))
+        .returning();
+
+      logger.info("Updated sharing setting:", updated);
+      return res.json(updated);
+    }
+
+    // Create new setting
+    const [newSetting] = await db.insert(schema.userSharing)
+      .values({
+        userId,
+        materialId: materialId || null,
+        isPublic
+      })
+      .returning();
+
+    logger.info("Created new sharing setting:", newSetting);
+    res.status(201).json(newSetting);
+  } catch (error) {
+    logger.error("Update user sharing settings error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 app.post("/api/diameters", async (req, res) => {
   try {
     // Parse request body
@@ -1973,7 +1927,57 @@ app.get("/api/statistics", async (_req, res) => {
   }
 });
 
-// Catch-all route for client-side routing
+// Public filament routes (for sharing)
+app.get("/api/public/filaments/:userId", async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    // Get user's sharing settings
+    const sharingSettings = await db.select()
+      .from(schema.userSharing)
+      .where(and(
+        eq(schema.userSharing.userId, userId),
+        eq(schema.userSharing.isPublic, true)
+      ));
+
+    if (sharingSettings.length === 0) {
+      return res.status(404).json({ message: "No shared filaments found" });
+    }
+
+    // Check if user has global sharing enabled
+    const hasGlobalSharing = sharingSettings.some(s => s.materialId === null);
+
+    // Get shared materials
+    const sharedMaterialIds = sharingSettings
+      .filter(s => s.materialId !== null)
+      .map(s => s.materialId);
+
+    // Get all filaments for this user
+    const userFilaments = await db.select()
+      .from(filaments)
+      .where(eq(filaments.userId, userId));
+
+    // Filter filaments based on sharing settings
+    const sharedFilaments = userFilaments.filter(filament => {
+      // Check for global sharing (null materialId)
+      if (hasGlobalSharing) return true;
+
+      // Check for material-specific sharing
+      return filament.material &&
+             sharedMaterialIds.includes(parseInt(filament.material));
+    });
+
+    res.json(sharedFilaments);
+  } catch (error) {
+    logger.error("Get public filaments error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Catch-all route for client-side routing - must be defined last
 app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
