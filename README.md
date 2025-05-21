@@ -107,6 +107,7 @@ PGPORT=5432
 PORT=8080
 DEFAULT_ADMIN_PASSWORD=admin  # Password for the default admin user
 LOG_LEVEL=INFO  # Options: DEBUG, INFO, WARN, ERROR
+INIT_SAMPLE_DATA=false  # Set to 'true' to initialize with sample data
 ```
 
 3. **Build and start the containers**
@@ -150,6 +151,9 @@ JWT_SECRET=your_secret_key    # Secret key for JWT token generation
 
 # Localization
 DEFAULT_LANGUAGE=en           # Default language for new users (en, de)
+
+# Data Initialization
+INIT_SAMPLE_DATA=false        # Set to 'true' to initialize with sample data
 ```
 
 ### Port Configuration
@@ -213,7 +217,20 @@ Now, I'm excited to share Filadex with the community and welcome contributions t
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🌐 Language Support
+## 📚 Documentation
+
+### API Documentation
+
+Filadex provides a comprehensive API that allows you to interact with all aspects of the application programmatically. The API documentation is available in the [API.md](docs/API.md) file, which includes:
+
+- Detailed information about all available endpoints
+- Request and response formats
+- Authentication requirements
+- Error handling
+- Import/export functionality
+- And more
+
+### Translation Documentation
 
 Filadex supports multiple languages:
 
@@ -254,6 +271,8 @@ The following features are planned for future releases:
    - QR code generation for shared collections
    - Password protection for shared collections
    - Temporary sharing links with expiration
+
+See the [TODO.md](TODO.md) file for a detailed list of pending tasks and improvements.
 
 ## 🙏 Acknowledgements
 

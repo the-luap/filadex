@@ -362,12 +362,45 @@ export async function registerRoutes(app: Express, authenticate: any, db: any, s
     }
   });
 
-  // Get public filaments for a specific user
+
+
+  // Keep the old endpoint for backward compatibility
   app.get("/api/public/filaments/:userId", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       if (isNaN(userId)) {
         return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      // Get user information
+      const [user] = await db.select().from(users).where(eq(users.id, userId));
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Redirect to the new endpoint
+      res.redirect(`/api/public/filaments/user/${user.username}`);
+    } catch (error) {
+      console.error("Get public filaments error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Get public filaments for a specific user by ID
+  app.get("/api/public/filaments/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      // Get user information
+      const [user] = await db.select().from(users).where(eq(users.id, userId));
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
 
       // Get user's sharing settings
@@ -391,7 +424,7 @@ export async function registerRoutes(app: Express, authenticate: any, db: any, s
         .map((s: any) => s.materialId);
 
       // Get all filaments for this user
-      const filaments = await storage.getFilaments(parseInt(req.params.userId));
+      const filaments = await storage.getFilaments(userId);
 
       // Filter filaments based on sharing settings
       const publicFilaments = filaments.filter((filament: any) => {
@@ -403,7 +436,14 @@ export async function registerRoutes(app: Express, authenticate: any, db: any, s
                sharedMaterialIds.includes(parseInt(filament.material));
       });
 
-      res.json(publicFilaments);
+      // Return filaments with user information
+      res.json({
+        filaments: publicFilaments,
+        user: {
+          id: user.id,
+          username: user.username
+        }
+      });
     } catch (error) {
       console.error("Get public filaments error:", error);
       res.status(500).json({ message: "Server error" });
@@ -414,6 +454,53 @@ export async function registerRoutes(app: Express, authenticate: any, db: any, s
   app.get("/api/filaments", authenticate, async (req, res) => {
     try {
       const filaments = await storage.getFilaments(req.userId);
+
+      // Check if export parameter is set
+      if (req.query.export === 'csv') {
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="filaments.csv"');
+
+        // Create CSV header and content
+        let csvContent = 'name,manufacturer,material,colorName,colorCode,diameter,printTemp,totalWeight,remainingPercentage,purchaseDate,purchasePrice,status,spoolType,dryerCount,lastDryingDate,storageLocation\n';
+
+        filaments.forEach(filament => {
+          // Format date fields
+          const purchaseDate = filament.purchaseDate ? new Date(filament.purchaseDate).toISOString().split('T')[0] : '';
+          const lastDryingDate = filament.lastDryingDate ? new Date(filament.lastDryingDate).toISOString().split('T')[0] : '';
+
+          // Escape fields that might contain commas
+          const escapeCsvField = (field: any): string => {
+            if (field === null || field === undefined) return '';
+            const str = String(field);
+            return str.includes(',') ? `"${str}"` : str;
+          };
+
+          csvContent += `${escapeCsvField(filament.name)},`;
+          csvContent += `${escapeCsvField(filament.manufacturer)},`;
+          csvContent += `${escapeCsvField(filament.material)},`;
+          csvContent += `${escapeCsvField(filament.colorName)},`;
+          csvContent += `${escapeCsvField(filament.colorCode)},`;
+          csvContent += `${escapeCsvField(filament.diameter)},`;
+          csvContent += `${escapeCsvField(filament.printTemp)},`;
+          csvContent += `${escapeCsvField(filament.totalWeight)},`;
+          csvContent += `${escapeCsvField(filament.remainingPercentage)},`;
+          csvContent += `${escapeCsvField(purchaseDate)},`;
+          csvContent += `${escapeCsvField(filament.purchasePrice)},`;
+          csvContent += `${escapeCsvField(filament.status)},`;
+          csvContent += `${escapeCsvField(filament.spoolType)},`;
+          csvContent += `${escapeCsvField(filament.dryerCount)},`;
+          csvContent += `${escapeCsvField(lastDryingDate)},`;
+          csvContent += `${escapeCsvField(filament.storageLocation)}\n`;
+        });
+
+        return res.send(csvContent);
+      } else if (req.query.export === 'json') {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', 'attachment; filename="filaments.json"');
+
+        return res.send(JSON.stringify(filaments, null, 2));
+      }
+
       res.json(filaments);
     } catch (error) {
       console.error("Error fetching filaments:", error);
@@ -444,6 +531,234 @@ export async function registerRoutes(app: Express, authenticate: any, db: any, s
   // POST create a new filament
   app.post("/api/filaments", authenticate, async (req, res) => {
     try {
+      // Check if this is a CSV import
+      if (req.query.import === 'csv' && req.body.csvData) {
+        const results = {
+          created: 0,
+          duplicates: 0,
+          errors: 0
+        };
+
+        // Parse CSV data
+        const csvLines = req.body.csvData.split('\n');
+
+        // Check if header exists
+        let startIndex = 0;
+        const headerRow = csvLines[0].toLowerCase();
+
+        // Expected columns in the CSV
+        const expectedColumns = [
+          'name', 'manufacturer', 'material', 'colorname', 'colorcode',
+          'diameter', 'printtemp', 'totalweight', 'remainingpercentage',
+          'purchasedate', 'purchaseprice', 'status', 'spooltype',
+          'dryercount', 'lastdryingdate', 'storagelocation'
+        ];
+
+        // If header exists, skip the first line
+        if (expectedColumns.some(col => headerRow.includes(col))) {
+          startIndex = 1;
+          console.log("CSV header detected, starting import from line 2");
+        }
+
+        // Map column indices if header exists
+        let columnMap: Record<string, number> = {};
+        if (startIndex === 1) {
+          const headers = headerRow.split(',').map((h: string) => h.trim().toLowerCase());
+          expectedColumns.forEach(col => {
+            const index = headers.findIndex((h: string) => h === col);
+            if (index !== -1) {
+              columnMap[col] = index;
+            }
+          });
+        }
+
+        // Get existing filaments to check for duplicates
+        const existingFilaments = await storage.getFilaments(req.userId);
+
+        // Process each line
+        for (let i = startIndex; i < csvLines.length; i++) {
+          const line = csvLines[i].trim();
+          if (!line) continue;
+
+          try {
+            // Parse CSV line, handling quoted fields correctly
+            const parseCSVLine = (line: string): string[] => {
+              const result: string[] = [];
+              let current = '';
+              let inQuotes = false;
+
+              for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+
+                if (char === '"') {
+                  inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                  result.push(current);
+                  current = '';
+                } else {
+                  current += char;
+                }
+              }
+
+              result.push(current);
+              return result;
+            };
+
+            const values = parseCSVLine(line);
+
+            // Extract values based on column mapping or default order
+            const getValue = (columnName: string, defaultIndex: number): string => {
+              if (startIndex === 1 && columnMap[columnName] !== undefined) {
+                return values[columnMap[columnName]] || '';
+              }
+              return values[defaultIndex] || '';
+            };
+
+            const name = getValue('name', 0);
+            const manufacturer = getValue('manufacturer', 1);
+            const material = getValue('material', 2);
+            const colorName = getValue('colorname', 3);
+            const colorCode = getValue('colorcode', 4);
+            const diameter = getValue('diameter', 5);
+            const printTemp = getValue('printtemp', 6);
+            const totalWeight = getValue('totalweight', 7);
+            const remainingPercentage = getValue('remainingpercentage', 8);
+            const purchaseDate = getValue('purchasedate', 9);
+            const purchasePrice = getValue('purchaseprice', 10);
+            const status = getValue('status', 11);
+            const spoolType = getValue('spooltype', 12);
+            const dryerCount = getValue('dryercount', 13);
+            const lastDryingDate = getValue('lastdryingdate', 14);
+            const storageLocation = getValue('storagelocation', 15);
+
+            // Validate required fields
+            if (!name || !material || !colorName) {
+              console.warn(`Missing required fields at line ${i + 1}, skipping...`);
+              results.errors++;
+              continue;
+            }
+
+            // Check for duplicates by name
+            const isDuplicate = existingFilaments.some(f =>
+              f.name.toLowerCase() === name.toLowerCase()
+            );
+
+            if (isDuplicate) {
+              console.log(`Duplicate filament: "${name}" at line ${i + 1}, skipping...`);
+              results.duplicates++;
+              continue;
+            }
+
+            // Prepare data for insertion
+            const insertData: InsertFilament = {
+              userId: req.userId,
+              name,
+              manufacturer,
+              material,
+              colorName,
+              colorCode,
+              printTemp,
+              diameter: diameter ? diameter.toString() : undefined,
+              totalWeight: totalWeight ? totalWeight.toString() : "1",
+              remainingPercentage: remainingPercentage ? remainingPercentage.toString() : "100",
+              purchaseDate: purchaseDate ? purchaseDate : undefined,
+              purchasePrice: purchasePrice ? purchasePrice.toString() : undefined,
+              status: status || undefined,
+              spoolType: spoolType || undefined,
+              dryerCount: dryerCount ? parseInt(dryerCount) : 0,
+              lastDryingDate: lastDryingDate ? lastDryingDate : undefined,
+              storageLocation
+            };
+
+            // Create the filament
+            await storage.createFilament(insertData);
+            results.created++;
+            console.log(`Created filament: "${name}" at line ${i + 1}`);
+          } catch (err) {
+            console.error(`Error importing filament at line ${i + 1}:`, err);
+            results.errors++;
+          }
+        }
+
+        return res.status(201).json(results);
+      } else if (req.query.import === 'json' && req.body.jsonData) {
+        const results = {
+          created: 0,
+          duplicates: 0,
+          errors: 0
+        };
+
+        try {
+          // Parse JSON data
+          const filaments = JSON.parse(req.body.jsonData);
+
+          if (!Array.isArray(filaments)) {
+            return res.status(400).json({ message: "Invalid JSON format. Expected an array of filaments." });
+          }
+
+          // Get existing filaments to check for duplicates
+          const existingFilaments = await storage.getFilaments(req.userId);
+
+          // Process each filament
+          for (const filament of filaments) {
+            try {
+              // Check required fields
+              if (!filament.name || !filament.material || !filament.colorName) {
+                console.warn(`Missing required fields in filament, skipping...`);
+                results.errors++;
+                continue;
+              }
+
+              // Check for duplicates by name
+              const isDuplicate = existingFilaments.some(f =>
+                f.name.toLowerCase() === filament.name.toLowerCase()
+              );
+
+              if (isDuplicate) {
+                console.log(`Duplicate filament: "${filament.name}", skipping...`);
+                results.duplicates++;
+                continue;
+              }
+
+              // Prepare data for insertion
+              const insertData: InsertFilament = {
+                userId: req.userId,
+                name: filament.name,
+                manufacturer: filament.manufacturer,
+                material: filament.material,
+                colorName: filament.colorName,
+                colorCode: filament.colorCode,
+                printTemp: filament.printTemp,
+                diameter: filament.diameter ? filament.diameter.toString() : undefined,
+                totalWeight: filament.totalWeight ? filament.totalWeight.toString() : "1",
+                remainingPercentage: filament.remainingPercentage ? filament.remainingPercentage.toString() : "100",
+                purchaseDate: filament.purchaseDate || undefined,
+                purchasePrice: filament.purchasePrice ? filament.purchasePrice.toString() : undefined,
+                status: filament.status || undefined,
+                spoolType: filament.spoolType || undefined,
+                dryerCount: filament.dryerCount || 0,
+                lastDryingDate: filament.lastDryingDate || undefined,
+                storageLocation: filament.storageLocation
+              };
+
+              // Create the filament
+              await storage.createFilament(insertData);
+              results.created++;
+              console.log(`Created filament: "${filament.name}"`);
+            } catch (err) {
+              console.error(`Error importing filament:`, err);
+              results.errors++;
+            }
+          }
+
+          return res.status(201).json(results);
+        } catch (err) {
+          console.error("Error parsing JSON data:", err);
+          return res.status(400).json({ message: "Invalid JSON format" });
+        }
+      }
+
+      // Regular single filament creation
       console.log("Received request to create filament:", req.body);
 
       // Manuell die Eingabedaten für die Datenbank vorbereiten
@@ -536,6 +851,373 @@ export async function registerRoutes(app: Express, authenticate: any, db: any, s
         return res.status(400).json({ message: validationError.message });
       }
       console.error("Error updating filament:", error);
+      res.status(500).json({ message: "Failed to update filament" });
+    }
+  });
+
+  // BATCH DELETE multiple filaments
+  app.delete("/api/filaments/batch", authenticate, async (req, res) => {
+    try {
+      console.log("Batch delete request body:", JSON.stringify(req.body));
+      const { ids } = req.body;
+
+      console.log("Received IDs for deletion:", ids);
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        console.log("Invalid request: ids must be a non-empty array");
+        return res.status(400).json({ message: "Invalid request: ids must be a non-empty array" });
+      }
+
+      // Convert all IDs to numbers and filter out invalid ones
+      const validIds = ids
+        .map(id => {
+          const numId = Number(id);
+          if (isNaN(numId)) {
+            console.log(`Invalid ID for deletion: ${id} converts to NaN`);
+            return null;
+          }
+          return numId;
+        })
+        .filter(id => id !== null) as number[];
+
+      console.log("Valid IDs for deletion after conversion:", validIds);
+
+      if (validIds.length === 0) {
+        console.log("No valid IDs found for deletion");
+        return res.status(400).json({ message: "No valid filament IDs provided" });
+      }
+
+      // Delete each filament individually to avoid SQL issues
+      let deletedCount = 0;
+      for (const id of validIds) {
+        try {
+          const success = await storage.deleteFilament(id, req.userId);
+          if (success) {
+            deletedCount++;
+            console.log(`Successfully deleted filament with ID ${id}`);
+          } else {
+            console.log(`Filament with ID ${id} not found or not owned by user ${req.userId}`);
+          }
+        } catch (err) {
+          console.error(`Error deleting filament with ID ${id}:`, err);
+        }
+      }
+
+      console.log(`Total deleted: ${deletedCount} out of ${validIds.length} requested`);
+
+      res.json({
+        message: `Successfully deleted ${deletedCount} filaments`,
+        deletedCount
+      });
+    } catch (error) {
+      console.error("Error batch deleting filaments:", error);
+      res.status(500).json({ message: "Failed to delete filaments" });
+    }
+  });
+
+  // BATCH UPDATE multiple filaments (original endpoint)
+  app.patch("/api/filaments/batch", authenticate, async (req, res) => {
+    try {
+      console.log("Batch update request body:", JSON.stringify(req.body));
+      const { ids, updates } = req.body;
+
+      console.log("Received IDs:", ids);
+      console.log("Received updates:", updates);
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        console.log("Invalid request: ids must be a non-empty array");
+        return res.status(400).json({ message: "Invalid request: ids must be a non-empty array" });
+      }
+
+      if (!updates || typeof updates !== 'object') {
+        console.log("Invalid request: updates must be an object");
+        return res.status(400).json({ message: "Invalid request: updates must be an object" });
+      }
+
+      // Convert all IDs to numbers and filter out invalid ones
+      const validIds = ids
+        .map(id => {
+          const numId = Number(id);
+          if (isNaN(numId)) {
+            console.log(`Invalid ID: ${id} converts to NaN`);
+            return null;
+          }
+          return numId;
+        })
+        .filter(id => id !== null) as number[];
+
+      console.log("Valid IDs after conversion:", validIds);
+
+      if (validIds.length === 0) {
+        console.log("No valid IDs found");
+        return res.status(400).json({ message: "No valid filament IDs provided" });
+      }
+
+      // Prepare update data
+      const updateData: Partial<InsertFilament> = {};
+
+      // Process each field, ensuring proper type conversion
+      if (updates.name !== undefined) updateData.name = String(updates.name);
+      if (updates.manufacturer !== undefined) updateData.manufacturer = String(updates.manufacturer);
+      if (updates.material !== undefined) updateData.material = String(updates.material);
+      if (updates.colorName !== undefined) updateData.colorName = String(updates.colorName);
+      if (updates.colorCode !== undefined) updateData.colorCode = String(updates.colorCode);
+      if (updates.printTemp !== undefined) updateData.printTemp = String(updates.printTemp);
+
+      // Numeric values stored as strings
+      if (updates.diameter !== undefined) updateData.diameter = String(updates.diameter);
+      if (updates.totalWeight !== undefined) updateData.totalWeight = String(updates.totalWeight);
+      if (updates.remainingPercentage !== undefined) updateData.remainingPercentage = String(updates.remainingPercentage);
+
+      // Additional fields
+      if (updates.purchaseDate !== undefined) updateData.purchaseDate = updates.purchaseDate;
+      if (updates.purchasePrice !== undefined) updateData.purchasePrice = String(updates.purchasePrice);
+      if (updates.status !== undefined) updateData.status = String(updates.status);
+      if (updates.spoolType !== undefined) updateData.spoolType = String(updates.spoolType);
+      if (updates.dryerCount !== undefined) updateData.dryerCount = Number(updates.dryerCount);
+      if (updates.lastDryingDate !== undefined) updateData.lastDryingDate = updates.lastDryingDate;
+      if (updates.storageLocation !== undefined) updateData.storageLocation = String(updates.storageLocation);
+
+      console.log("Update data prepared:", updateData);
+
+      // Update each filament individually to avoid SQL issues
+      let updatedCount = 0;
+      for (const id of validIds) {
+        try {
+          const filament = await storage.getFilament(id, req.userId);
+          if (filament) {
+            await storage.updateFilament(id, updateData, req.userId);
+            updatedCount++;
+            console.log(`Successfully updated filament with ID ${id}`);
+          } else {
+            console.log(`Filament with ID ${id} not found or not owned by user ${req.userId}`);
+          }
+        } catch (err) {
+          console.error(`Error updating filament with ID ${id}:`, err);
+        }
+      }
+
+      console.log(`Total updated: ${updatedCount} out of ${validIds.length} requested`);
+
+      res.json({
+        message: `Successfully updated ${updatedCount} filaments`,
+        updatedCount
+      });
+    } catch (error) {
+      console.error("Error batch updating filaments:", error);
+      res.status(500).json({ message: "Failed to update filaments" });
+    }
+  });
+
+  // NEW BATCH UPDATE endpoint with simplified implementation
+  app.patch("/api/filaments/batch-update", authenticate, async (req, res) => {
+    try {
+      console.log("DEBUG: NEW Batch update request body:", JSON.stringify(req.body));
+      console.log("DEBUG: User ID from request:", req.userId);
+      console.log("DEBUG: Request headers:", req.headers);
+
+      // Check if the request body is properly parsed
+      if (!req.body) {
+        console.log("DEBUG: Request body is empty or not parsed");
+        return res.status(400).json({ message: "Empty request body" });
+      }
+
+      // Handle case where body might be a string
+      let data = req.body;
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data);
+        } catch (e) {
+          console.error("Error parsing request body:", e);
+          return res.status(400).json({ message: "Invalid request format" });
+        }
+      }
+
+      // Handle case where the body might be nested in a 'body' property
+      if (data.body && typeof data.body === 'string') {
+        try {
+          data = JSON.parse(data.body);
+        } catch (e) {
+          console.error("Error parsing nested body:", e);
+          // Continue with the original data
+        }
+      }
+
+      // Extract ids and updates from the data
+      const { ids, updates } = data;
+
+      console.log("DEBUG: NEW Received IDs:", ids);
+      console.log("DEBUG: NEW Received updates:", updates);
+      console.log("DEBUG: Type of ids:", typeof ids);
+      console.log("DEBUG: Type of updates:", typeof updates);
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        console.log("DEBUG: NEW Invalid request: ids must be a non-empty array");
+        return res.status(400).json({ message: "Invalid request: ids must be a non-empty array" });
+      }
+
+      if (!updates || typeof updates !== 'object') {
+        console.log("DEBUG: NEW Invalid request: updates must be an object");
+        return res.status(400).json({ message: "Invalid request: updates must be an object" });
+      }
+
+      // Convert all IDs to numbers and filter out invalid ones
+      const validIds = ids
+        .map(id => {
+          console.log(`DEBUG: Processing ID: ${id}, type: ${typeof id}`);
+          // Ensure we're working with a string first, then parse as integer
+          const numId = parseInt(String(id), 10);
+          console.log(`DEBUG: Converted ID: ${numId}, isNaN: ${isNaN(numId)}`);
+          if (isNaN(numId)) {
+            console.log(`DEBUG: NEW Invalid ID: ${id} converts to NaN`);
+            return null;
+          }
+          return numId;
+        })
+        .filter(id => id !== null) as number[];
+
+      console.log("DEBUG: NEW Valid IDs after conversion:", validIds);
+
+      if (validIds.length === 0) {
+        console.log("DEBUG: NEW No valid IDs found");
+        return res.status(400).json({ message: "No valid filament IDs provided" });
+      }
+
+      // Update each filament individually to avoid SQL issues
+      let updatedCount = 0;
+      for (const id of validIds) {
+        try {
+          console.log(`DEBUG: Attempting to get filament with ID ${id} for user ${req.userId}`);
+
+          // Check if the user ID is valid
+          if (!req.userId || isNaN(Number(req.userId))) {
+            console.log(`DEBUG: Invalid user ID: ${req.userId}`);
+            return res.status(401).json({ message: "Invalid user ID" });
+          }
+
+          // Try to get the filament
+          const filament = await storage.getFilament(id, req.userId);
+          console.log(`DEBUG: Filament retrieval result:`, filament ? "Found" : "Not found");
+
+          if (filament) {
+            // Create a simple update object with just the fields we need
+            const updateData: Partial<InsertFilament> = {};
+
+            // Only copy the fields that are present in the updates object
+            if (updates.status !== undefined) {
+              updateData.status = String(updates.status);
+              console.log(`DEBUG: Adding status to update: ${updateData.status}`);
+            }
+            if (updates.storageLocation !== undefined) {
+              updateData.storageLocation = String(updates.storageLocation);
+              console.log(`DEBUG: Adding storageLocation to update: ${updateData.storageLocation}`);
+            }
+            if (updates.remainingPercentage !== undefined) {
+              updateData.remainingPercentage = String(updates.remainingPercentage);
+              console.log(`DEBUG: Adding remainingPercentage to update: ${updateData.remainingPercentage}`);
+            }
+
+            console.log(`DEBUG: Updating filament ${id} with:`, updateData);
+
+            try {
+              const updated = await storage.updateFilament(id, updateData, req.userId);
+              console.log(`DEBUG: Update result:`, updated);
+
+              if (updated) {
+                updatedCount++;
+                console.log(`DEBUG: Successfully updated filament with ID ${id}`);
+              } else {
+                console.log(`DEBUG: Failed to update filament with ID ${id}`);
+              }
+            } catch (updateErr) {
+              console.error(`DEBUG: Error during updateFilament call:`, updateErr);
+            }
+          } else {
+            console.log(`DEBUG: Filament with ID ${id} not found or not owned by user ${req.userId}`);
+          }
+        } catch (err) {
+          console.error(`DEBUG: Error updating filament with ID ${id}:`, err);
+        }
+      }
+
+      console.log(`NEW Total updated: ${updatedCount} out of ${validIds.length} requested`);
+
+      res.json({
+        message: `Successfully updated ${updatedCount} filaments`,
+        updatedCount
+      });
+    } catch (error) {
+      console.error("NEW Error batch updating filaments:", error);
+      res.status(500).json({ message: "Failed to update filaments" });
+    }
+  });
+
+  // SUPER SIMPLE BATCH UPDATE endpoint - last resort
+  app.post("/api/filaments/simple-batch-update", authenticate, async (req, res) => {
+    try {
+      console.log("SIMPLE BATCH UPDATE request body:", JSON.stringify(req.body));
+      console.log("SIMPLE BATCH UPDATE user ID:", req.userId);
+
+      const { id, field, value } = req.body;
+
+      if (!id || !field || value === undefined) {
+        console.log("SIMPLE BATCH UPDATE missing required fields");
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      console.log(`SIMPLE BATCH UPDATE params: id=${id}, field=${field}, value=${value}`);
+
+      // Convert ID to number
+      const numId = Number(id);
+      if (isNaN(numId)) {
+        console.log(`SIMPLE BATCH UPDATE invalid ID: ${id}`);
+        return res.status(400).json({ message: "Invalid ID" });
+      }
+
+      // Check if the user ID is valid
+      if (!req.userId || isNaN(Number(req.userId))) {
+        console.log(`SIMPLE BATCH UPDATE invalid user ID: ${req.userId}`);
+        return res.status(401).json({ message: "Invalid user ID" });
+      }
+
+      // Get the filament
+      const filament = await storage.getFilament(numId, req.userId);
+      console.log(`SIMPLE BATCH UPDATE filament found:`, filament ? "Yes" : "No");
+
+      if (!filament) {
+        return res.status(404).json({ message: "Filament not found" });
+      }
+
+      // Create update object with just the one field
+      const updateData: Partial<InsertFilament> = {};
+
+      // Only support a few specific fields
+      if (field === "status") {
+        updateData.status = String(value);
+      } else if (field === "storageLocation") {
+        updateData.storageLocation = String(value);
+      } else if (field === "remainingPercentage") {
+        updateData.remainingPercentage = String(value);
+      } else {
+        return res.status(400).json({ message: "Unsupported field" });
+      }
+
+      console.log(`SIMPLE BATCH UPDATE update data:`, updateData);
+
+      // Update the filament
+      const updated = await storage.updateFilament(numId, updateData, req.userId);
+      console.log(`SIMPLE BATCH UPDATE result:`, updated ? "Success" : "Failed");
+
+      if (!updated) {
+        return res.status(500).json({ message: "Failed to update filament" });
+      }
+
+      res.json({
+        message: "Successfully updated filament",
+        filament: updated
+      });
+    } catch (error) {
+      console.error("SIMPLE BATCH UPDATE error:", error);
       res.status(500).json({ message: "Failed to update filament" });
     }
   });

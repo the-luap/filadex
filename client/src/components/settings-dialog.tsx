@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, ChangeEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
+import { FilamentImportExport } from "./filament-import-export";
 import {
   Tabs,
   TabsContent,
@@ -594,10 +595,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-3xl max-h-[90vh] overflow-y-auto"
+        aria-describedby="settings-description"
+      >
         <DialogHeader>
           <DialogTitle>{t('settings.title')}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="settings-description">
             {t('settings.description')}
           </DialogDescription>
         </DialogHeader>
@@ -609,6 +613,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <TabsTrigger value="colors">{t('settings.colors.title')}</TabsTrigger>
             <TabsTrigger value="diameters">{t('settings.diameters.title')}</TabsTrigger>
             <TabsTrigger value="storage-locations">{t('settings.storageLocations.title')}</TabsTrigger>
+            <TabsTrigger value="filament-import-export">{t('settings.filamentImportExport.title')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="manufacturers">
@@ -629,6 +634,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
           <TabsContent value="storage-locations">
             <StorageLocationsList />
+          </TabsContent>
+
+          <TabsContent value="filament-import-export">
+            <FilamentImportExport title={t('settings.filamentImportExport.title')} />
           </TabsContent>
         </Tabs>
       </DialogContent>

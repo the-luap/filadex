@@ -27,12 +27,31 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// List of API endpoints that don't require authentication
+const PUBLIC_API_ENDPOINTS = [
+  '/api/auth/login',
+  '/api/auth/logout',
+  '/api/public'
+];
+
+// Check if an API endpoint is public
+function isPublicApiEndpoint(url: string): boolean {
+  return PUBLIC_API_ENDPOINTS.some(endpoint =>
+    url === endpoint || url.startsWith(endpoint + '/')
+  );
+}
+
 export async function apiRequest<T = any>(
   url: string,
   options?: RequestInit
 ): Promise<T> {
   try {
-    console.log(`Making API request to: ${url}`, options);
+    // Only log API requests for non-authentication endpoints to reduce console noise
+    const isAuthEndpoint = url.includes('/api/auth/');
+    if (!isAuthEndpoint) {
+      console.log(`Making API request to: ${url}`, options);
+    }
+
     const res = await fetch(url, {
       ...options,
       headers: {
@@ -42,12 +61,33 @@ export async function apiRequest<T = any>(
       credentials: "include",
     });
 
+    // For 401 errors on authentication endpoints, don't log the error
+    if (res.status === 401 && isAuthEndpoint) {
+      // Handle 401 silently for auth endpoints
+      if (url === '/api/auth/me') {
+        throw new Error('Not authenticated');
+      }
+    }
+
     await throwIfResNotOk(res);
     const data = await res.json();
-    console.log(`API response from ${url}:`, data);
+
+    // Only log responses for non-authentication endpoints
+    if (!isAuthEndpoint) {
+      console.log(`API response from ${url}:`, data);
+    }
+
     return data;
   } catch (error) {
-    console.error(`API request to ${url} failed:`, error);
+    // Only log errors for non-authentication endpoints or if it's not a 401 error
+    const isAuthEndpoint = url.includes('/api/auth/');
+    const is401Error = error instanceof Error &&
+      (error.message.includes('401') || error.message.includes('Not authenticated'));
+
+    if (!isAuthEndpoint || !is401Error) {
+      console.error(`API request to ${url} failed:`, error);
+    }
+
     throw error;
   }
 }
@@ -59,21 +99,50 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     try {
-      console.log(`Making query to: ${queryKey[0]}`);
-      const res = await fetch(queryKey[0] as string, {
+      const url = queryKey[0] as string;
+      const isAuthEndpoint = url.includes('/api/auth/');
+
+      // Only log queries for non-authentication endpoints
+      if (!isAuthEndpoint) {
+        console.log(`Making query to: ${url}`);
+      }
+
+      const res = await fetch(url, {
         credentials: "include",
       });
 
-      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-        return null;
+      // Handle 401 errors based on the behavior option
+      if (res.status === 401) {
+        if (unauthorizedBehavior === "returnNull") {
+          return null;
+        }
+
+        // For auth endpoints, don't log the error
+        if (isAuthEndpoint) {
+          throw new Error('Not authenticated');
+        }
       }
 
       await throwIfResNotOk(res);
       const data = await res.json();
-      console.log(`Query response from ${queryKey[0]}:`, data);
+
+      // Only log responses for non-authentication endpoints
+      if (!isAuthEndpoint) {
+        console.log(`Query response from ${url}:`, data);
+      }
+
       return data;
     } catch (error) {
-      console.error(`Query to ${queryKey[0]} failed:`, error);
+      const url = queryKey[0] as string;
+      const isAuthEndpoint = url.includes('/api/auth/');
+      const is401Error = error instanceof Error &&
+        (error.message.includes('401') || error.message.includes('Not authenticated'));
+
+      // Only log errors for non-authentication endpoints or if it's not a 401 error
+      if (!isAuthEndpoint || !is401Error) {
+        console.error(`Query to ${url} failed:`, error);
+      }
+
       throw error;
     }
   };

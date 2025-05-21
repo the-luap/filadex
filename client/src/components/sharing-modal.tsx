@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { useTranslation } from "@/i18n";
 import { useErrorTranslation } from "@/lib/error-handler";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -199,9 +199,15 @@ export function SharingModal({ open, onOpenChange }: SharingModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden">
+      <DialogContent
+        className="sm:max-w-[600px] max-h-[80vh] overflow-hidden"
+        aria-describedby="sharing-description"
+      >
         <DialogHeader>
           <DialogTitle>{t('sharing.title')}</DialogTitle>
+          <DialogDescription id="sharing-description">
+            {t('sharing.description')}
+          </DialogDescription>
         </DialogHeader>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
           <TabsList className="grid w-full grid-cols-2">

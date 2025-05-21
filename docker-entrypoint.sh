@@ -164,7 +164,7 @@ else
   echo "Language column already exists."
 fi
 
-# Insert sample data, but only if the table is empty and the file /app/.init_done does not exist
+# Insert sample data, but only if explicitly requested via INIT_SAMPLE_DATA environment variable
 echo "Checking for existing data..."
 
 # Create a lock file to prevent data from being initialized multiple times
@@ -176,29 +176,34 @@ else
   COUNT=$(PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -t -c "SELECT COUNT(*) FROM public.manufacturers" 2>/dev/null | tr -d ' ' || echo "0")
 
   if [ "$COUNT" = "0" ]; then
-    echo "Adding basic data..."
-    PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -v ON_ERROR_STOP=0 -c "
-      INSERT INTO public.manufacturers (name) VALUES ('Bambu Lab') ON CONFLICT DO NOTHING;
-      INSERT INTO public.materials (name) VALUES ('PLA') ON CONFLICT DO NOTHING;
-      INSERT INTO public.materials (name) VALUES ('PETG') ON CONFLICT DO NOTHING;
-      INSERT INTO public.materials (name) VALUES ('ABS') ON CONFLICT DO NOTHING;
-      INSERT INTO public.materials (name) VALUES ('TPU') ON CONFLICT DO NOTHING;
-      INSERT INTO public.diameters (value) VALUES ('1.75') ON CONFLICT DO NOTHING;
-      INSERT INTO public.storage_locations (name) VALUES ('Keller') ON CONFLICT DO NOTHING;
-    "
-    echo "Basic data inserted!"
+    # Only add sample data if INIT_SAMPLE_DATA is set to "true"
+    if [ "${INIT_SAMPLE_DATA}" = "true" ]; then
+      echo "INIT_SAMPLE_DATA is set to true. Adding sample data..."
+      PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -v ON_ERROR_STOP=0 -c "
+        INSERT INTO public.manufacturers (name) VALUES ('Bambu Lab') ON CONFLICT DO NOTHING;
+        INSERT INTO public.materials (name) VALUES ('PLA') ON CONFLICT DO NOTHING;
+        INSERT INTO public.materials (name) VALUES ('PETG') ON CONFLICT DO NOTHING;
+        INSERT INTO public.materials (name) VALUES ('ABS') ON CONFLICT DO NOTHING;
+        INSERT INTO public.materials (name) VALUES ('TPU') ON CONFLICT DO NOTHING;
+        INSERT INTO public.diameters (value) VALUES ('1.75') ON CONFLICT DO NOTHING;
+        INSERT INTO public.storage_locations (name) VALUES ('Keller') ON CONFLICT DO NOTHING;
+      "
+      echo "Basic data inserted!"
 
-    echo "Adding sample colors..."
-    PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -v ON_ERROR_STOP=0 -c "
-      INSERT INTO public.colors (name, code) VALUES ('Dark Gray (Bambu Lab)', '#545454') ON CONFLICT DO NOTHING;
-      INSERT INTO public.colors (name, code) VALUES ('Black (Bambu Lab)', '#000000') ON CONFLICT DO NOTHING;
-      INSERT INTO public.colors (name, code) VALUES ('White (Bambu Lab)', '#FFFFFF') ON CONFLICT DO NOTHING;
-      INSERT INTO public.colors (name, code) VALUES ('Red (Bambu Lab)', '#C12E1F') ON CONFLICT DO NOTHING;
-      INSERT INTO public.colors (name, code) VALUES ('Blue (Bambu Lab)', '#0A2989') ON CONFLICT DO NOTHING;
-    "
-    echo "Sample colors inserted!"
+      echo "Adding sample colors..."
+      PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d "$PGDATABASE" -v ON_ERROR_STOP=0 -c "
+        INSERT INTO public.colors (name, code) VALUES ('Dark Gray (Bambu Lab)', '#545454') ON CONFLICT DO NOTHING;
+        INSERT INTO public.colors (name, code) VALUES ('Black (Bambu Lab)', '#000000') ON CONFLICT DO NOTHING;
+        INSERT INTO public.colors (name, code) VALUES ('White (Bambu Lab)', '#FFFFFF') ON CONFLICT DO NOTHING;
+        INSERT INTO public.colors (name, code) VALUES ('Red (Bambu Lab)', '#C12E1F') ON CONFLICT DO NOTHING;
+        INSERT INTO public.colors (name, code) VALUES ('Blue (Bambu Lab)', '#0A2989') ON CONFLICT DO NOTHING;
+      "
+      echo "Sample colors inserted!"
+    else
+      echo "INIT_SAMPLE_DATA is not set to true. Skipping sample data insertion."
+    fi
 
-    # Create the lock file after successful initialization
+    # Create the lock file after initialization
     touch "$LOCK_FILE"
     echo "Initialization completed and lock file created."
   else

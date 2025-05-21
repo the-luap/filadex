@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { ArrowLeft, Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { MaterialColorChart } from "@/components/material-color-chart";
 
@@ -32,13 +32,52 @@ export default function PublicFilamentsPage() {
   const [remainingRange, setRemainingRange] = useState<[number, number]>([0, 100]);
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data: filaments = [], isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["public-filaments", userId],
-    queryFn: () => apiRequest(`/api/public/filaments/${userId}`, {
-      // Skip authentication for public endpoints
-      skipAuth: true
-    }),
+    queryFn: async () => {
+      try {
+        const response = await fetch(`/api/public/filaments/${userId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch public filaments: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Handle both response formats
+        if (Array.isArray(result)) {
+          // If the response is an array, it's just the filaments
+          return { filaments: result };
+        } else if (result && typeof result === 'object') {
+          // If the response is an object, it might have filaments and user properties
+          return result;
+        } else {
+          // Default to empty array if response is invalid
+          return { filaments: [] };
+        }
+      } catch (err) {
+        console.error(`Error fetching public filaments:`, err);
+        return { filaments: [] };
+      }
+    },
+    retry: 1
   });
+
+  // Extract filaments from the response
+  const filaments = data?.filaments || [];
+
+  // Extract username from the response
+  const sharingUsername = data?.user?.username || `User ${userId}`;
+
+  // Create a user object with the username
+  const sharingUser = {
+    username: sharingUsername
+  };
 
   const materials = Array.isArray(filaments)
     ? [...new Set(filaments.map((f: Filament) => f.material))].filter(Boolean).sort()
@@ -76,27 +115,20 @@ export default function PublicFilamentsPage() {
     setRemainingRange([0, 100]);
   };
 
-  const goBack = () => {
-    window.history.back();
-  };
+
 
   return (
     <div className="min-h-screen bg-background">
       <header className="theme-primary-bg text-white shadow-md">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center">
-            <Button
-              onClick={goBack}
-              variant="outline"
-              size="icon"
-              className="mr-4 bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
             <Logo />
           </div>
-          <div>
+          <div className="flex flex-col items-center">
             <h1 className="text-xl font-bold">Shared Filament Collection</h1>
+            <p className="text-sm text-white/80">
+              Shared by: <span className="font-bold text-white">{sharingUser.username}</span>
+            </p>
           </div>
           <div></div>
         </div>

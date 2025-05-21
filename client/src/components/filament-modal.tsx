@@ -161,6 +161,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -507,9 +508,15 @@ export function FilamentModal({
       )}
 
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto dark:bg-neutral-900 bg-white">
+        <DialogContent
+          className="sm:max-w-md max-h-[90vh] overflow-y-auto dark:bg-neutral-900 bg-white"
+          aria-describedby="filament-form-description"
+        >
           <DialogHeader>
             <DialogTitle>{isEditing ? t('filaments.editFilament') : t('filaments.addFilament')}</DialogTitle>
+            <DialogDescription id="filament-form-description">
+              {isEditing ? t('filaments.editFilamentDescription') : t('filaments.addFilamentDescription')}
+            </DialogDescription>
           </DialogHeader>
 
           <Form {...form}>
@@ -718,6 +725,7 @@ export function FilamentModal({
                               }}
                             />
                           </div>
+                          {/* Database colors */}
                           {colors.map((color) => (
                             <SelectItem key={color.id} value={color.name}>
                               <div className="flex items-center">
@@ -729,21 +737,28 @@ export function FilamentModal({
                               </div>
                             </SelectItem>
                           ))}
-                          {/* Add predefined colors */}
-                          {colorsList.map((color) => (
-                            <SelectItem key={color.code} value={color.name}>
-                              <div className="flex items-center">
-                                <div
-                                  className="h-4 w-4 rounded-full mr-2 border border-neutral-300"
-                                  style={{
-                                    backgroundColor: color.code,
-                                    opacity: color.opacity || 1
-                                  }}
-                                />
-                                {color.name}
-                              </div>
-                            </SelectItem>
-                          ))}
+
+                          {/* Add predefined colors that don't exist in the database */}
+                          {colorsList
+                            .filter(predefinedColor =>
+                              !colors.some(dbColor =>
+                                dbColor.name.toLowerCase() === predefinedColor.name.toLowerCase()
+                              )
+                            )
+                            .map((color) => (
+                              <SelectItem key={color.code} value={color.name}>
+                                <div className="flex items-center">
+                                  <div
+                                    className="h-4 w-4 rounded-full mr-2 border border-neutral-300"
+                                    style={{
+                                      backgroundColor: color.code,
+                                      opacity: color.opacity || 1
+                                    }}
+                                  />
+                                  {color.name}
+                                </div>
+                              </SelectItem>
+                            ))}
                           <SelectItem value="Custom">
                             <div className="flex items-center">
                               <div className="h-4 w-4 rounded-full mr-2 border border-neutral-300 bg-gradient-to-r from-red-500 via-green-500 to-blue-500" />

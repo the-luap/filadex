@@ -30,25 +30,35 @@ function ProtectedRoute({ component: Component, adminOnly = false, ...rest }: {
   adminOnly?: boolean,
   [key: string]: any
 }) {
-  const { isAuthenticated, isAdmin, user } = useAuth();
+  const { isAuthenticated, isAdmin, isPublicRoute } = useAuth();
   const [location, navigate] = useLocation();
 
-  console.log("ProtectedRoute - Auth state:", { isAuthenticated, isAdmin, user, location });
+  // Reduce console logging to avoid cluttering the console
+  const isCurrentRoutePublic = isPublicRoute(location);
 
   useEffect(() => {
-    console.log("ProtectedRoute useEffect - Auth state:", { isAuthenticated, isAdmin, user, location });
+    // Only log for non-public routes
+    if (!isCurrentRoutePublic) {
+      console.log("ProtectedRoute - Auth state:", { isAuthenticated, isAdmin, location });
+    }
 
     if (!isAuthenticated) {
-      console.log("Not authenticated, redirecting to login");
+      // Only log for non-public routes
+      if (!isCurrentRoutePublic) {
+        console.log("Not authenticated, redirecting to login");
+      }
       navigate("/login");
     } else if (adminOnly && !isAdmin) {
       console.log("Not admin, redirecting to home");
       navigate("/");
     }
-  }, [isAuthenticated, isAdmin, user, navigate, adminOnly, location]);
+  }, [isAuthenticated, isAdmin, navigate, adminOnly, location, isCurrentRoutePublic]);
 
   if (!isAuthenticated) {
-    console.log("Not authenticated, rendering null");
+    // Don't log for public routes
+    if (!isCurrentRoutePublic) {
+      console.log("Not authenticated, rendering null");
+    }
     return null;
   }
 
@@ -57,7 +67,10 @@ function ProtectedRoute({ component: Component, adminOnly = false, ...rest }: {
     return null;
   }
 
-  console.log("Rendering protected component");
+  // Only log for non-public routes
+  if (!isCurrentRoutePublic) {
+    console.log("Rendering protected component");
+  }
   return <Component {...rest} />;
 }
 

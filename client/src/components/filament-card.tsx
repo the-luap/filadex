@@ -1,7 +1,7 @@
 import { Filament } from "@shared/schema";
 import { FilamentSpool } from "@/components/ui/filament-spool";
 import { Card } from "@/components/ui/card";
-import { Copy } from "lucide-react";
+import { Copy, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "@/i18n";
 
 interface FilamentCardProps {
@@ -10,9 +10,21 @@ interface FilamentCardProps {
   onDelete: (filament: Filament) => void;
   onCopy?: (filament: Filament) => void;
   readOnly?: boolean;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (filament: Filament) => void;
 }
 
-export function FilamentCard({ filament, onEdit, onDelete, onCopy, readOnly = false }: FilamentCardProps) {
+export function FilamentCard({
+  filament,
+  onEdit,
+  onDelete,
+  onCopy,
+  readOnly = false,
+  selectable = false,
+  selected = false,
+  onSelect
+}: FilamentCardProps) {
   const { t } = useTranslation();
   // Calculate the remaining weight
   const totalWeight = Number(filament.totalWeight);
@@ -28,22 +40,41 @@ export function FilamentCard({ filament, onEdit, onDelete, onCopy, readOnly = fa
 
   // Format temperatures if needed in the future
 
+  const handleCardClick = () => {
+    if (selectable && onSelect) {
+      onSelect(filament);
+    }
+  };
+
   return (
-    <Card className="filament-card card-hover dark:bg-neutral-800 bg-white">
+    <Card
+      className={`filament-card card-hover dark:bg-neutral-800 bg-white ${selectable ? 'cursor-pointer' : ''} ${selected ? 'ring-2 ring-primary' : ''}`}
+      onClick={selectable ? handleCardClick : undefined}
+    >
       <div className="p-4 border-b dark:border-neutral-700 border-gray-200">
         <div className="flex justify-between items-start">
-          <h3
-            className="font-medium text-lg dark:text-white text-gray-800 truncate"
-            title={filament.name}
-          >
-            {filament.name.replace(/\s*\([^)]*\)/g, '')}
-          </h3>
+          <div className="flex items-center">
+            {selectable && (
+              <div className={`mr-2 ${selected ? 'text-primary' : 'text-muted-foreground'}`}>
+                <CheckCircle2 size={18} className={selected ? 'opacity-100' : 'opacity-30'} />
+              </div>
+            )}
+            <h3
+              className="font-medium text-lg dark:text-white text-gray-800 truncate"
+              title={filament.name}
+            >
+              {filament.name.replace(/\s*\([^)]*\)/g, '')}
+            </h3>
+          </div>
           {!readOnly && (
             <div className="flex space-x-2">
               {onCopy && (
                 <button
                   className="dark:text-neutral-400 text-gray-500 hover:text-secondary p-1 rounded-full hover:bg-secondary/10 transition-colors"
-                  onClick={() => onCopy(filament)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCopy(filament);
+                  }}
                   title={t('common.copy')}
                 >
                   <Copy size={16} />
@@ -51,7 +82,10 @@ export function FilamentCard({ filament, onEdit, onDelete, onCopy, readOnly = fa
               )}
               <button
                 className="dark:text-neutral-400 text-gray-500 hover:text-primary p-1 rounded-full hover:bg-primary/10 transition-colors"
-                onClick={() => onEdit(filament)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(filament);
+                }}
                 title={t('common.edit')}
               >
                 <svg
@@ -71,7 +105,10 @@ export function FilamentCard({ filament, onEdit, onDelete, onCopy, readOnly = fa
               </button>
               <button
                 className="dark:text-neutral-400 text-gray-500 hover:text-error p-1 rounded-full hover:bg-error/10 transition-colors"
-                onClick={() => onDelete(filament)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(filament);
+                }}
                 title={t('common.delete')}
               >
                 <svg

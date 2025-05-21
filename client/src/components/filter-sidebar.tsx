@@ -184,7 +184,7 @@ export function FilterSidebar({
   };
 
   return (
-    <aside className="lg:w-[28rem] dark:bg-neutral-900 bg-white p-4 rounded-lg shadow-md border border-gray-200 dark:border-neutral-700 h-fit lg:sticky lg:top-4 max-h-screen lg:overflow-y-auto">
+    <aside className="dark:bg-neutral-900 bg-white p-4 rounded-lg shadow-md border border-gray-200 dark:border-neutral-700 h-fit lg:sticky lg:top-4 max-h-screen lg:overflow-y-auto">
       <div className="mb-6">
         <h2 className="text-lg font-medium dark:text-neutral-400 text-gray-700 mb-3">{t('filters.searchFilaments')}</h2>
         <div className="relative">
@@ -210,80 +210,6 @@ export function FilterSidebar({
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.3-4.3" />
           </svg>
-        </div>
-      </div>
-
-      <div className="mb-6">
-        <h2 className="text-lg font-medium dark:text-neutral-400 text-gray-700 mb-3">{t('filters.materialFilter')}</h2>
-        <div className="space-y-4">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                className="w-full justify-between dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:hover:text-neutral-100 bg-white border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-gray-900"
-              >
-                {selectedMaterials.length === 0
-                  ? t('filters.addMaterial')
-                  : `${selectedMaterials.length} ${t('filters.selected')}`}
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-full p-0">
-              <Command>
-                <CommandInput placeholder={t('filters.searchMaterial')} />
-                <CommandEmpty>{t('filters.noMaterialFound')}</CommandEmpty>
-                <CommandGroup className="max-h-[300px] overflow-y-auto">
-                  {materials.map((material) => (
-                    <CommandItem
-                      key={material.id}
-                      value={material.name}
-                      onSelect={() => handleMaterialSelect(material.name)}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          selectedMaterials.includes(material.name) ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {material.name}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </Command>
-            </PopoverContent>
-          </Popover>
-
-          {selectedMaterials.length > 0 && (
-            <div className="mt-2">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm dark:text-neutral-400 text-gray-600">{t('filters.selectedMaterials')}</span>
-                <button
-                  className="text-xs dark:text-neutral-400 dark:hover:text-neutral-200 text-gray-500 hover:text-gray-700 transition-colors"
-                  onClick={clearMaterials}
-                >
-                  {t('filters.clearAll')}
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {selectedMaterials.map(material => (
-                  <Badge
-                    key={material}
-                    variant="outline"
-                    className="theme-badge flex items-center gap-1 dark:bg-primary/10 dark:text-neutral-200 bg-primary/10 text-gray-800"
-                  >
-                    {material}
-                    <button
-                      onClick={() => removeMaterial(material)}
-                      className="hover:text-white ml-1"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -349,6 +275,80 @@ export function FilterSidebar({
                     {manufacturer}
                     <button
                       onClick={() => removeManufacturer(manufacturer)}
+                      className="hover:text-white ml-1"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <h2 className="text-lg font-medium dark:text-neutral-400 text-gray-700 mb-3">{t('filters.materialFilter')}</h2>
+        <div className="space-y-4">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:hover:text-neutral-100 bg-white border-gray-300 text-gray-800 hover:bg-gray-100 hover:text-gray-900"
+              >
+                {selectedMaterials.length === 0
+                  ? t('filters.addMaterial')
+                  : `${selectedMaterials.length} ${t('filters.selected')}`}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <Command>
+                <CommandInput placeholder={t('filters.searchMaterial')} />
+                <CommandEmpty>{t('filters.noMaterialFound')}</CommandEmpty>
+                <CommandGroup className="max-h-[300px] overflow-y-auto">
+                  {materials.map((material) => (
+                    <CommandItem
+                      key={material.id}
+                      value={material.name}
+                      onSelect={() => handleMaterialSelect(material.name)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedMaterials.includes(material.name) ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {material.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {selectedMaterials.length > 0 && (
+            <div className="mt-2">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm dark:text-neutral-400 text-gray-600">{t('filters.selectedMaterials')}</span>
+                <button
+                  className="text-xs dark:text-neutral-400 dark:hover:text-neutral-200 text-gray-500 hover:text-gray-700 transition-colors"
+                  onClick={clearMaterials}
+                >
+                  {t('filters.clearAll')}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedMaterials.map(material => (
+                  <Badge
+                    key={material}
+                    variant="outline"
+                    className="theme-badge flex items-center gap-1 dark:bg-primary/10 dark:text-neutral-200 bg-primary/10 text-gray-800"
+                  >
+                    {material}
+                    <button
+                      onClick={() => removeMaterial(material)}
                       className="hover:text-white ml-1"
                     >
                       <X className="h-3 w-3" />

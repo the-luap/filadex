@@ -8,7 +8,7 @@ import {
 } from "@shared/schema";
 import { users, type User, type InsertUser } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, sql, and, inArray } from "drizzle-orm";
 
 // Modify the interface with any CRUD methods
 // you might need
@@ -19,10 +19,15 @@ export interface IStorage {
 
   // Filament operations
   getFilaments(userId: number): Promise<Filament[]>;
+  getPublicFilamentsWithUser(userId: number, filterFn?: (filament: Filament) => boolean): Promise<{filaments: Filament[], user: {id: number, username: string}}>;
   getFilament(id: number, userId: number): Promise<Filament | undefined>;
   createFilament(filament: InsertFilament): Promise<Filament>;
   updateFilament(id: number, filament: Partial<InsertFilament>, userId: number): Promise<Filament | undefined>;
   deleteFilament(id: number, userId: number): Promise<boolean>;
+
+  // Batch filament operations
+  batchDeleteFilaments(ids: number[], userId: number): Promise<number>;
+  batchUpdateFilaments(ids: number[], updates: Partial<InsertFilament>, userId: number): Promise<number>;
 
   // Manufacturer operations
   getManufacturers(): Promise<Manufacturer[]>;
@@ -78,11 +83,60 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(filaments).where(eq(filaments.userId, userId));
   }
 
+  async getPublicFilamentsWithUser(userId: number, filterFn?: (filament: Filament) => boolean): Promise<{filaments: Filament[], user: {id: number, username: string}}> {
+    // Get user information
+    const [user] = await db.select({
+      id: users.id,
+      username: users.username
+    }).from(users).where(eq(users.id, userId));
+
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+
+    console.log(`Getting public filaments for user: ${user.username} (ID: ${userId})`);
+
+    // Get filaments
+    const allFilaments = await this.getFilaments(userId);
+
+    // Apply filter if provided
+    const filteredFilaments = filterFn ? allFilaments.filter(filterFn) : allFilaments;
+
+    console.log(`Found ${filteredFilaments.length} public filaments for user ${user.username}`);
+
+    // Return filaments with user information
+    return {
+      filaments: filteredFilaments,
+      user: {
+        id: user.id,
+        username: user.username
+      }
+    };
+  }
+
   async getFilament(id: number, userId: number): Promise<Filament | undefined> {
-    const [filament] = await db.select().from(filaments)
-      .where(eq(filaments.id, id))
-      .where(eq(filaments.userId, userId));
-    return filament || undefined;
+    console.log(`DEBUG: getFilament called with id=${id}, userId=${userId}`);
+    console.log(`DEBUG: id type: ${typeof id}, userId type: ${typeof userId}`);
+
+    try {
+      const query = db.select().from(filaments)
+        .where(eq(filaments.id, id))
+        .where(eq(filaments.userId, userId));
+
+      console.log(`DEBUG: SQL query: ${query.toSQL().sql}`);
+
+      const [filament] = await query;
+
+      console.log(`DEBUG: getFilament result:`, filament ? "Found" : "Not found");
+      if (filament) {
+        console.log(`DEBUG: Filament details: id=${filament.id}, name=${filament.name}`);
+      }
+
+      return filament || undefined;
+    } catch (err) {
+      console.error(`DEBUG: Error in getFilament:`, err);
+      throw err;
+    }
   }
 
   async createFilament(insertFilament: InsertFilament): Promise<Filament> {
@@ -94,13 +148,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateFilament(id: number, updateFilament: Partial<InsertFilament>, userId: number): Promise<Filament | undefined> {
-    const [updated] = await db
-      .update(filaments)
-      .set(updateFilament)
-      .where(eq(filaments.id, id))
-      .where(eq(filaments.userId, userId))
-      .returning();
-    return updated || undefined;
+    console.log(`DEBUG: updateFilament called with id=${id}, userId=${userId}`);
+    console.log(`DEBUG: updateFilament data:`, updateFilament);
+
+    try {
+      const query = db
+        .update(filaments)
+        .set(updateFilament)
+        .where(eq(filaments.id, id))
+        .where(eq(filaments.userId, userId))
+        .returning();
+
+      console.log(`DEBUG: SQL update query: ${query.toSQL().sql}`);
+
+      const [updated] = await query;
+
+      console.log(`DEBUG: updateFilament result:`, updated ? "Updated" : "Not updated");
+      if (updated) {
+        console.log(`DEBUG: Updated filament details: id=${updated.id}, name=${updated.name}`);
+      }
+
+      return updated || undefined;
+    } catch (err) {
+      console.error(`DEBUG: Error in updateFilament:`, err);
+      throw err;
+    }
   }
 
   async deleteFilament(id: number, userId: number): Promise<boolean> {
@@ -110,6 +182,46 @@ export class DatabaseStorage implements IStorage {
       .where(eq(filaments.userId, userId))
       .returning();
     return !!deleted;
+  }
+
+  // Batch operations
+  async batchDeleteFilaments(ids: number[], userId: number): Promise<number> {
+    // Convert all IDs to numbers to ensure they're valid
+    const validIds = ids.map(id => Number(id));
+
+    // Use the in operator from drizzle instead of raw SQL
+    const { count } = await db
+      .delete(filaments)
+      .where(
+        and(
+          inArray(filaments.id, validIds),
+          eq(filaments.userId, userId)
+        )
+      )
+      .returning();
+
+    console.log(`Batch deleted ${count} filaments with IDs:`, validIds);
+    return count;
+  }
+
+  async batchUpdateFilaments(ids: number[], updates: Partial<InsertFilament>, userId: number): Promise<number> {
+    // Convert all IDs to numbers to ensure they're valid
+    const validIds = ids.map(id => Number(id));
+
+    // Use the in operator from drizzle instead of raw SQL
+    const { count } = await db
+      .update(filaments)
+      .set(updates)
+      .where(
+        and(
+          inArray(filaments.id, validIds),
+          eq(filaments.userId, userId)
+        )
+      )
+      .returning();
+
+    console.log(`Batch updated ${count} filaments with IDs:`, validIds);
+    return count;
   }
 
   // Manufacturer implementations
@@ -353,6 +465,29 @@ export class MemStorage implements IStorage {
       .filter(filament => filament.userId === userId);
   }
 
+  async getPublicFilamentsWithUser(userId: number, filterFn?: (filament: Filament) => boolean): Promise<{filaments: Filament[], user: {id: number, username: string}}> {
+    // Get user
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+
+    // Get filaments
+    const allFilaments = await this.getFilaments(userId);
+
+    // Apply filter if provided
+    const filteredFilaments = filterFn ? allFilaments.filter(filterFn) : allFilaments;
+
+    // Return filaments with user information
+    return {
+      filaments: filteredFilaments,
+      user: {
+        id: user.id,
+        username: user.username
+      }
+    };
+  }
+
   async getFilament(id: number, userId: number): Promise<Filament | undefined> {
     const filament = this.filamentStore.get(id);
     if (filament && filament.userId === userId) {
@@ -383,6 +518,32 @@ export class MemStorage implements IStorage {
       return this.filamentStore.delete(id);
     }
     return false;
+  }
+
+  // Batch operations
+  async batchDeleteFilaments(ids: number[], userId: number): Promise<number> {
+    let deletedCount = 0;
+    for (const id of ids) {
+      const filament = this.filamentStore.get(id);
+      if (filament && filament.userId === userId) {
+        this.filamentStore.delete(id);
+        deletedCount++;
+      }
+    }
+    return deletedCount;
+  }
+
+  async batchUpdateFilaments(ids: number[], updates: Partial<InsertFilament>, userId: number): Promise<number> {
+    let updatedCount = 0;
+    for (const id of ids) {
+      const filament = this.filamentStore.get(id);
+      if (filament && filament.userId === userId) {
+        const updated = { ...filament, ...updates };
+        this.filamentStore.set(id, updated);
+        updatedCount++;
+      }
+    }
+    return updatedCount;
   }
 
   // Manufacturer implementations

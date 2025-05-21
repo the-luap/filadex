@@ -35,6 +35,7 @@ services:
       - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-en}
+      - INIT_SAMPLE_DATA=${INIT_SAMPLE_DATA:-false}
     depends_on:
       - db
     ports:

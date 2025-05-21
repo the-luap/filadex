@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Filament } from "@shared/schema";
 import { FilamentCard } from "./filament-card";
+import { FilamentTable } from "./filament-table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { LayoutGrid, List, CheckSquare, Square } from "lucide-react";
 import { useTranslation } from "@/i18n";
 
 interface FilamentGridProps {
@@ -9,6 +12,12 @@ interface FilamentGridProps {
   onEditFilament: (filament: Filament) => void;
   onDeleteFilament: (filament: Filament) => void;
   onCopyFilament?: (filament: Filament) => void;
+  selectable?: boolean;
+  selectedFilaments?: Filament[];
+  onSelectFilament?: (filament: Filament) => void;
+  onSelectAll?: () => void;
+  allSelected?: boolean;
+  onToggleSelectionMode?: () => void;
 }
 
 type SortOption = "nameAsc" | "nameDesc" | "remainingAsc" | "remainingDesc";
@@ -17,11 +26,30 @@ export function FilamentGrid({
   filaments,
   onEditFilament,
   onDeleteFilament,
-  onCopyFilament
+  onCopyFilament,
+  selectable = false,
+  selectedFilaments = [],
+  onSelectFilament,
+  onSelectAll,
+  allSelected = false,
+  onToggleSelectionMode
 }: FilamentGridProps) {
   const { t } = useTranslation();
   const [sortOrder, setSortOrder] = useState<SortOption>("nameAsc");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+
+  // Load view preference from localStorage on component mount
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem("filadex-view-mode");
+    if (savedViewMode === "grid" || savedViewMode === "table") {
+      setViewMode(savedViewMode);
+    }
+  }, []);
+
+  // Save view preference to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem("filadex-view-mode", viewMode);
+  }, [viewMode]);
 
   // Sort filaments based on selected order
   const sortedFilaments = [...filaments].sort((a, b) => {
@@ -59,98 +87,99 @@ export function FilamentGrid({
             </SelectContent>
           </Select>
 
-          <div className="flex items-center space-x-1">
-            <button
-              className={`p-1.5 rounded-md hover:bg-neutral-200 ${viewMode === "grid" ? "bg-neutral-200" : ""}`}
-              onClick={() => setViewMode("grid")}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-neutral-400"
+          <div className="flex items-center space-x-2">
+            {/* Selection Mode Toggle */}
+            {onSelectFilament && onSelectAll && (
+              <Button
+                onClick={onToggleSelectionMode}
+                variant="outline"
+                size="sm"
+                className={`${selectable
+                  ? 'bg-primary text-white hover:bg-primary/90'
+                  : 'bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700'
+                } flex items-center gap-1 mr-1`}
               >
-                <rect width="7" height="7" x="3" y="3" rx="1" />
-                <rect width="7" height="7" x="14" y="3" rx="1" />
-                <rect width="7" height="7" x="14" y="14" rx="1" />
-                <rect width="7" height="7" x="3" y="14" rx="1" />
-              </svg>
-            </button>
-            <button
-              className={`p-1.5 rounded-md hover:bg-neutral-200 ${viewMode === "list" ? "bg-neutral-200" : ""}`}
-              onClick={() => setViewMode("list")}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-neutral-400"
+                {selectable ? (
+                  <CheckSquare className="h-4 w-4 mr-1" />
+                ) : (
+                  <Square className="h-4 w-4 mr-1" />
+                )}
+                {t('batch.selectionMode')}
+              </Button>
+            )}
+
+            <div className="flex items-center space-x-1">
+              <button
+                className={`p-1.5 rounded-md hover:bg-neutral-200 ${viewMode === "grid" ? "bg-neutral-200" : ""}`}
+                onClick={() => setViewMode("grid")}
+                title={t('filaments.gridView')}
               >
-                <line x1="8" x2="21" y1="6" y2="6" />
-                <line x1="8" x2="21" y1="12" y2="12" />
-                <line x1="8" x2="21" y1="18" y2="18" />
-                <line x1="3" x2="3.01" y1="6" y2="6" />
-                <line x1="3" x2="3.01" y1="12" y2="12" />
-                <line x1="3" x2="3.01" y1="18" y2="18" />
-              </svg>
-            </button>
+                <LayoutGrid className="text-neutral-400 h-5 w-5" />
+              </button>
+              <button
+                className={`p-1.5 rounded-md hover:bg-neutral-200 ${viewMode === "table" ? "bg-neutral-200" : ""}`}
+                onClick={() => setViewMode("table")}
+                title={t('filaments.tableView')}
+              >
+                <List className="text-neutral-400 h-5 w-5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div
-        className={
-          viewMode === "grid"
-            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3 gap-4"
-            : "grid grid-cols-1 gap-4"
-        }
-      >
-        {sortedFilaments.map((filament) => (
-          <FilamentCard
-            key={filament.id}
-            filament={filament}
-            onEdit={onEditFilament}
-            onDelete={onDeleteFilament}
-            onCopy={onCopyFilament}
-          />
-        ))}
+      {viewMode === "grid" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3 gap-4">
+          {sortedFilaments.map((filament) => (
+            <FilamentCard
+              key={filament.id}
+              filament={filament}
+              onEdit={onEditFilament}
+              onDelete={onDeleteFilament}
+              onCopy={onCopyFilament}
+              selectable={selectable}
+              selected={selectedFilaments.some(f => f.id === filament.id)}
+              onSelect={onSelectFilament}
+            />
+          ))}
 
-        {sortedFilaments.length === 0 && (
-          <div className="col-span-full p-8 text-center text-neutral-300">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="40"
-              height="40"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mx-auto mb-2"
-            >
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-              <circle cx="9" cy="7" r="4"></circle>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-            <p className="text-lg font-medium">{t('filaments.noFilaments')}</p>
-            <p className="mt-1">{t('filaments.addFirstFilament')}</p>
-          </div>
-        )}
-      </div>
+          {sortedFilaments.length === 0 && (
+            <div className="col-span-full p-8 text-center text-neutral-300">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="40"
+                height="40"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mx-auto mb-2"
+              >
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              <p className="text-lg font-medium">{t('filaments.noFilaments')}</p>
+              <p className="mt-1">{t('filaments.addFirstFilament')}</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <FilamentTable
+          filaments={sortedFilaments}
+          onEditFilament={onEditFilament}
+          onDeleteFilament={onDeleteFilament}
+          onCopyFilament={onCopyFilament}
+          selectable={selectable}
+          selectedFilaments={selectedFilaments}
+          onSelectFilament={onSelectFilament}
+          onSelectAll={onSelectAll}
+          allSelected={allSelected}
+        />
+      )}
     </section>
   );
 }

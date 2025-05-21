@@ -102,86 +102,95 @@ async function insertInitialData() {
       return;
     }
 
-    console.log("Adding initial data...");
+    console.log("Checking if sample data should be initialized...");
 
-    // Add basic selection options
-    console.log("Adding basic materials, manufacturers, etc...");
-    try {
-      await db.insert(manufacturers).values({ name: "Bambu Lab" }).onConflictDoNothing();
-      await db.insert(manufacturers).values({ name: "Prusament" }).onConflictDoNothing();
-      await db.insert(manufacturers).values({ name: "Filamentworld" }).onConflictDoNothing();
-      await db.insert(manufacturers).values({ name: "Ninjatek" }).onConflictDoNothing();
+    // Only add sample data if INIT_SAMPLE_DATA environment variable is set to "true"
+    if (process.env.INIT_SAMPLE_DATA === "true") {
+      console.log("INIT_SAMPLE_DATA is set to true. Adding sample data...");
 
-      await db.insert(materials).values({ name: "PLA" }).onConflictDoNothing();
-      await db.insert(materials).values({ name: "PETG" }).onConflictDoNothing();
-      await db.insert(materials).values({ name: "ABS" }).onConflictDoNothing();
-      await db.insert(materials).values({ name: "TPU" }).onConflictDoNothing();
+      // Add basic selection options
+      console.log("Adding basic materials, manufacturers, etc...");
+      try {
+        await db.insert(manufacturers).values({ name: "Bambu Lab" }).onConflictDoNothing();
+        await db.insert(manufacturers).values({ name: "Prusament" }).onConflictDoNothing();
+        await db.insert(manufacturers).values({ name: "Filamentworld" }).onConflictDoNothing();
+        await db.insert(manufacturers).values({ name: "Ninjatek" }).onConflictDoNothing();
 
-      await db.insert(diameters).values({ value: 1.75 }).onConflictDoNothing();
+        await db.insert(materials).values({ name: "PLA" }).onConflictDoNothing();
+        await db.insert(materials).values({ name: "PETG" }).onConflictDoNothing();
+        await db.insert(materials).values({ name: "ABS" }).onConflictDoNothing();
+        await db.insert(materials).values({ name: "TPU" }).onConflictDoNothing();
 
-      await db.insert(colors).values({ name: "Schwarz (Bambu Lab)", code: "#000000" }).onConflictDoNothing();
-      await db.insert(colors).values({ name: "Weiß (Bambu Lab)", code: "#FFFFFF" }).onConflictDoNothing();
-      await db.insert(colors).values({ name: "Transparent", code: "#FFFFFF" }).onConflictDoNothing();
-      await db.insert(colors).values({ name: "Rot", code: "#F44336" }).onConflictDoNothing();
-      await db.insert(colors).values({ name: "Grau", code: "#9E9E9E" }).onConflictDoNothing();
+        await db.insert(diameters).values({ value: 1.75 }).onConflictDoNothing();
 
-      await db.insert(storageLocations).values({ name: "Keller" }).onConflictDoNothing();
+        await db.insert(colors).values({ name: "Schwarz (Bambu Lab)", code: "#000000" }).onConflictDoNothing();
+        await db.insert(colors).values({ name: "Weiß (Bambu Lab)", code: "#FFFFFF" }).onConflictDoNothing();
+        await db.insert(colors).values({ name: "Transparent", code: "#FFFFFF" }).onConflictDoNothing();
+        await db.insert(colors).values({ name: "Rot", code: "#F44336" }).onConflictDoNothing();
+        await db.insert(colors).values({ name: "Grau", code: "#9E9E9E" }).onConflictDoNothing();
 
-      console.log("Basic selection options inserted.");
-    } catch (insertError) {
-      console.error("Error inserting basic selection options:", insertError);
-    }
+        await db.insert(storageLocations).values({ name: "Keller" }).onConflictDoNothing();
 
-    const initialFilaments = [
-      {
-        name: "PLA Schwarz Bambu Lab",
-        manufacturer: "Bambu Lab",
-        material: "PLA",
-        colorName: "Schwarz",
-        colorCode: "#000000",
-        diameter: "1.75",
-        printTemp: "200-220°C",
-        totalWeight: "1",
-        remainingPercentage: "65"
-      },
-      {
-        name: "PETG Transparent",
-        manufacturer: "Prusament",
-        material: "PETG",
-        colorName: "Transparent",
-        colorCode: "#FFFFFF",
-        diameter: "1.75",
-        printTemp: "230-250°C",
-        totalWeight: "1",
-        remainingPercentage: "15"
-      },
-      {
-        name: "ABS Rot",
-        manufacturer: "Filamentworld",
-        material: "ABS",
-        colorName: "Rot",
-        colorCode: "#F44336",
-        diameter: "1.75",
-        printTemp: "240-260°C",
-        totalWeight: "1",
-        remainingPercentage: "0"
-      },
-      {
-        name: "TPU Flexibel Grau",
-        manufacturer: "Ninjatek",
-        material: "TPU",
-        colorName: "Grau",
-        colorCode: "#9E9E9E",
-        diameter: "1.75",
-        printTemp: "210-230°C",
-        totalWeight: "0.5",
-        remainingPercentage: "75"
+        console.log("Basic selection options inserted.");
+      } catch (insertError) {
+        console.error("Error inserting basic selection options:", insertError);
       }
-    ];
 
-    for (const filamentData of initialFilaments) {
-      const parsedData = insertFilamentSchema.parse(filamentData);
-      await db.insert(filaments).values(parsedData);
+      const initialFilaments = [
+        {
+          name: "PLA Schwarz Bambu Lab",
+          manufacturer: "Bambu Lab",
+          material: "PLA",
+          colorName: "Schwarz",
+          colorCode: "#000000",
+          diameter: "1.75",
+          printTemp: "200-220°C",
+          totalWeight: "1",
+          remainingPercentage: "65"
+        },
+        {
+          name: "PETG Transparent",
+          manufacturer: "Prusament",
+          material: "PETG",
+          colorName: "Transparent",
+          colorCode: "#FFFFFF",
+          diameter: "1.75",
+          printTemp: "230-250°C",
+          totalWeight: "1",
+          remainingPercentage: "15"
+        },
+        {
+          name: "ABS Rot",
+          manufacturer: "Filamentworld",
+          material: "ABS",
+          colorName: "Rot",
+          colorCode: "#F44336",
+          diameter: "1.75",
+          printTemp: "240-260°C",
+          totalWeight: "1",
+          remainingPercentage: "0"
+        },
+        {
+          name: "TPU Flexibel Grau",
+          manufacturer: "Ninjatek",
+          material: "TPU",
+          colorName: "Grau",
+          colorCode: "#9E9E9E",
+          diameter: "1.75",
+          printTemp: "210-230°C",
+          totalWeight: "0.5",
+          remainingPercentage: "75"
+        }
+      ];
+
+      for (const filamentData of initialFilaments) {
+        const parsedData = insertFilamentSchema.parse(filamentData);
+        await db.insert(filaments).values(parsedData);
+      }
+
+      console.log("Sample filaments inserted.");
+    } else {
+      console.log("INIT_SAMPLE_DATA is not set to true. Skipping sample data insertion.");
     }
 
     // Create lock file to prevent future initializations

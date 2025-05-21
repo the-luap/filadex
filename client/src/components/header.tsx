@@ -1,6 +1,28 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Paintbrush, Plus, Settings, Users, LogOut, Share2, KeyRound } from "lucide-react";
+import {
+  Paintbrush,
+  Plus,
+  Settings,
+  Users,
+  LogOut,
+  Share2,
+  KeyRound,
+  User,
+  Wrench,
+  ChevronDown,
+  List,
+  CheckSquare,
+  Square
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ThemeSelector } from "./theme-selector";
 import { ThemeToggle } from "./theme-toggle";
 import { LanguageSelector } from "./language-selector";
@@ -15,9 +37,23 @@ import { useTranslation } from "@/i18n";
 
 interface HeaderProps {
   onAddFilament: () => void;
+  onSearch?: (searchTerm: string) => void;
+  searchTerm?: string;
+  onViewModeChange?: (viewMode: 'grid' | 'table') => void;
+  viewMode?: 'grid' | 'table';
+  onToggleSelectionMode?: () => void;
+  selectionMode?: boolean;
 }
 
-export function Header({ onAddFilament }: HeaderProps) {
+export function Header({
+  onAddFilament,
+  onSearch,
+  searchTerm,
+  onViewModeChange,
+  viewMode,
+  onToggleSelectionMode,
+  selectionMode
+}: HeaderProps) {
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
@@ -45,74 +81,108 @@ export function Header({ onAddFilament }: HeaderProps) {
           </Link>
         </div>
         <div className="flex items-center space-x-2">
-          <ThemeToggle />
-          <LanguageSelector />
+          {/* Settings Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-primary/20 hover:bg-primary/30 text-white border-white/20 flex items-center gap-1"
+              >
+                <Settings className="h-4 w-4" />
+                {t('settings.title')}
+                <ChevronDown className="h-3 w-3 opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>{t('settings.title')}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setThemeDialogOpen(true)}>
+                <Paintbrush className="mr-2 h-4 w-4" />
+                {t('settings.theme')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSettingsDialogOpen(true)}>
+                <List className="mr-2 h-4 w-4" />
+                {t('settings.listManagement')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{t('settings.language')}</span>
+                  <LanguageSelector />
+                </div>
+              </div>
+              <div className="px-2 py-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{t('settings.darkMode')}</span>
+                  <ThemeToggle />
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          <Button
-            onClick={() => setThemeDialogOpen(true)}
-            variant="outline"
-            size="icon"
-            className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            title={t('settings.theme')}
-          >
-            <Paintbrush className="h-4 w-4" />
-          </Button>
+          {/* Tools Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-primary/20 hover:bg-primary/30 text-white border-white/20 flex items-center gap-1"
+              >
+                <Wrench className="h-4 w-4" />
+                {t('common.tools')}
+                <ChevronDown className="h-3 w-3 opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>{t('common.tools')}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setSharingModalOpen(true)}>
+                <Share2 className="mr-2 h-4 w-4" />
+                {t('filaments.sharedCollection')}
+              </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem onClick={() => setUserManagementOpen(true)}>
+                  <Users className="mr-2 h-4 w-4" />
+                  {t('users.management')}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          <Button
-            onClick={() => setSettingsDialogOpen(true)}
-            variant="outline"
-            size="icon"
-            className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            title={t('settings.title')}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
+          {/* User Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-primary/20 hover:bg-primary/30 text-white border-white/20 flex items-center gap-1"
+              >
+                <User className="h-4 w-4" />
+                {t('common.account')}
+                <ChevronDown className="h-3 w-3 opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>{t('common.account')}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setChangePasswordOpen(true)}>
+                <KeyRound className="mr-2 h-4 w-4" />
+                {t('auth.changePassword')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                logout();
+                navigate("/login");
+              }}>
+                <LogOut className="mr-2 h-4 w-4" />
+                {t('auth.logout')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          {isAdmin && (
-            <Button
-              onClick={() => setUserManagementOpen(true)}
-              variant="outline"
-              size="icon"
-              className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-              title={t('users.management')}
-            >
-              <Users className="h-4 w-4" />
-            </Button>
-          )}
 
-          <Button
-            onClick={() => setSharingModalOpen(true)}
-            variant="outline"
-            size="icon"
-            className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            title={t('filaments.sharedCollection')}
-          >
-            <Share2 className="h-4 w-4" />
-          </Button>
 
-          <Button
-            onClick={() => setChangePasswordOpen(true)}
-            variant="outline"
-            size="icon"
-            className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            title={t('auth.changePassword')}
-          >
-            <KeyRound className="h-4 w-4" />
-          </Button>
-
-          <Button
-            onClick={() => {
-              logout();
-              navigate("/login");
-            }}
-            variant="outline"
-            size="icon"
-            className="bg-primary/20 hover:bg-primary/30 text-white border-white/20"
-            title={t('auth.logout')}
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-
+          {/* Add Filament Button - Keep as standalone */}
           <Button
             onClick={onAddFilament}
             className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-md flex items-center transition-colors duration-200"
