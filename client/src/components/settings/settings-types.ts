@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+export type CatalogRequestEntityType = "manufacturer" | "material" | "color" | "diameter" | "storageLocation";
+
+export interface CatalogRequest {
+  id: number;
+  entityType: CatalogRequestEntityType;
+  payload: Record<string, any>;
+  status: "pending" | "approved" | "rejected";
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  requestedBy?: string; // present on the admin review queue response only
+}
+
 // Type definitions for the lists
 export interface Manufacturer {
   id: number;

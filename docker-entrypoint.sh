@@ -238,6 +238,10 @@ fi
 echo "Running migration to add user_id column to filaments table..."
 npx tsx run-migration.ts || echo "Migration failed, but continuing..."
 
+# Run the migration adding email/RBAC/catalog-request support
+echo "Running migration to add email, roles, and catalog request tables..."
+npx tsx migrations/add_email_rbac_and_settings.ts || echo "Migration failed, but continuing..."
+
 # Start the application
 echo "Starting application..."
 exec "$@"

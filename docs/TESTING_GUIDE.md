@@ -76,8 +76,6 @@ Test each endpoint group:
 #### Batch Operations
 - [ ] `DELETE /api/filaments/batch` - Batch delete
 - [ ] `PATCH /api/filaments/batch` - Batch update
-- [ ] `PATCH /api/filaments/batch-update` - Batch update (alternative)
-- [ ] `POST /api/filaments/simple-batch-update` - Simple batch update
 
 #### Settings Endpoints
 - [ ] `GET /api/manufacturers` - List manufacturers

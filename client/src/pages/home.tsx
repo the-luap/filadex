@@ -35,7 +35,7 @@ export default function Home() {
   const [minRemainingPercentage, setMinRemainingPercentage] = useState(0);
 
   // Fetch filaments with auto-refresh
-  const { data: filaments = [], isLoading, refetch: refetchFilaments } = useQuery<Filament[]>({
+  const { data: filaments = [], isLoading } = useQuery<Filament[]>({
     queryKey: ['/api/filaments'],
     staleTime: 0, // Daten immer als veraltet betrachten, um Auto-Refresh zu unterstützen
     refetchOnMount: true, // Bei Mounten immer neu laden
@@ -76,15 +76,8 @@ export default function Home() {
       });
     },
     onSuccess: () => {
-      // Direkt aktualisieren, um die Verzögerung zu vermeiden
       queryClient.invalidateQueries({ queryKey: ['/api/filaments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/statistics'] });
-
-      // Sofortiges Update mit direktem Browser-Refresh
-      setTimeout(() => {
-        refetchFilaments();
-        window.location.reload(); // Füge einen vollen Seitenrefresh hinzu, falls der Refetch nicht ausreicht
-      }, 300);
 
       setShowAddModal(false);
       toast({
@@ -110,15 +103,8 @@ export default function Home() {
       });
     },
     onSuccess: () => {
-      // Direkt aktualisieren, um die Verzögerung zu vermeiden
       queryClient.invalidateQueries({ queryKey: ['/api/filaments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/statistics'] });
-
-      // Sofortiges Update mit direktem Browser-Refresh
-      setTimeout(() => {
-        refetchFilaments();
-        window.location.reload(); // Füge einen vollen Seitenrefresh hinzu, falls der Refetch nicht ausreicht
-      }, 300);
 
       setShowAddModal(false);
       setSelectedFilament(undefined);
@@ -144,15 +130,8 @@ export default function Home() {
       });
     },
     onSuccess: () => {
-      // Direkt aktualisieren, um die Verzögerung zu vermeiden
       queryClient.invalidateQueries({ queryKey: ['/api/filaments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/statistics'] });
-
-      // Sofortiges Update mit direktem Browser-Refresh
-      setTimeout(() => {
-        refetchFilaments();
-        window.location.reload(); // Füge einen vollen Seitenrefresh hinzu, falls der Refetch nicht ausreicht
-      }, 300);
 
       setShowDeleteModal(false);
       setSelectedFilament(undefined);
@@ -172,17 +151,12 @@ export default function Home() {
 
   // Handler for adding/editing filament
   const handleSaveFilament = (formData: any) => {
-    console.log("Saving filament:", formData);
     if (selectedFilament) {
-      // Update existing filament
-      console.log("Updating existing filament ID:", selectedFilament.id);
       updateFilamentMutation.mutate({
         id: selectedFilament.id,
         filament: formData
       });
     } else {
-      // Create new filament
-      console.log("Creating new filament with data:", formData);
       createFilamentMutation.mutate(formData);
     }
   };
@@ -198,11 +172,6 @@ export default function Home() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/filaments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/statistics'] });
-
-      // Immediate update with direct browser refresh
-      setTimeout(() => {
-        refetchFilaments();
-      }, 300);
 
       setSelectedFilaments([]);
       setSelectionMode(false);
@@ -220,90 +189,17 @@ export default function Home() {
     },
   });
 
-  // Utility function to update a single filament
-  const updateSingleFilament = async (id: number, updates: Record<string, string>): Promise<boolean> => {
-    try {
-      console.log(`Updating filament ${id} with:`, updates);
-
-      // Create a direct fetch request instead of using apiRequest
-      const response = await fetch(`/api/filaments/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(updates)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Error updating filament ${id}:`, errorText);
-        return false;
-      }
-
-      console.log(`Successfully updated filament ${id}`);
-      return true;
-    } catch (error) {
-      console.error(`Error updating filament ${id}:`, error);
-      return false;
-    }
-  };
-
   // Batch update filaments
   const batchUpdateFilamentsMutation = useMutation({
     mutationFn: async ({ ids, updates }: { ids: number[], updates: Partial<InsertFilament> }) => {
-      console.log("Batch update with IDs:", ids, "and updates:", updates);
-
-      try {
-        // Ensure ids is properly formatted as an array of numbers
-        const formattedIds = ids.map(id => parseInt(String(id), 10));
-
-        // Clean up updates for API
-        const cleanedUpdates: Record<string, string> = {};
-        Object.entries(updates).forEach(([key, value]) => {
-          if (value !== undefined) {
-            cleanedUpdates[key] = String(value);
-          }
-        });
-
-        console.log("Cleaned updates for API:", cleanedUpdates);
-
-        // Use individual updates for each filament
-        let successCount = 0;
-        let errorCount = 0;
-
-        // Process each filament update one at a time to avoid race conditions
-        for (const id of formattedIds) {
-          const success = await updateSingleFilament(id, cleanedUpdates);
-          if (success) {
-            successCount++;
-          } else {
-            errorCount++;
-          }
-        }
-
-        console.log(`Batch update completed: ${successCount} successful, ${errorCount} failed`);
-
-        const response = {
-          message: `Successfully updated ${successCount} filaments`,
-          updatedCount: successCount,
-          errorCount
-        };
-
-        return response;
-      } catch (error) {
-        console.error("Batch update error:", error);
-        throw error;
-      }
+      return apiRequest(`/api/filaments/batch`, {
+        method: 'PATCH',
+        body: JSON.stringify({ ids, updates })
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/filaments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/statistics'] });
-
-      // Immediate update with direct browser refresh
-      setTimeout(() => {
-        refetchFilaments();
-      }, 300);
 
       toast({
         title: t('common.success'),
@@ -311,7 +207,6 @@ export default function Home() {
       });
     },
     onError: (error: any) => {
-      console.error("Batch update mutation error:", error);
       toast({
         title: t('common.error'),
         description: `${t('batch.updateError')} ${error.message || 'Unknown error'}`,
@@ -373,44 +268,14 @@ export default function Home() {
   };
 
   const handleBatchDelete = (ids: number[]) => {
-    // Ensure all IDs are valid numbers
     const validIds = ids.map(id => Number(id));
-    console.log("Batch delete with IDs:", validIds);
     batchDeleteFilamentsMutation.mutate(validIds);
   };
 
-  const handleBatchUpdate = (ids: number[], updates: Partial<Filament> & { _refresh?: boolean, _showToast?: boolean }) => {
-    // Check if this is a refresh-only call
-    if (updates._refresh) {
-      // Refreshing data after batch update
-      // Force refetch of data
-      refetchFilaments();
-      queryClient.invalidateQueries({ queryKey: ['/api/filaments'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/statistics'] });
-
-      // Show success toast notification
-      if (updates._showToast) {
-        toast({
-          title: t('common.success'),
-          description: t('batch.updateSuccess'),
-        });
-      }
-
-      return;
-    }
-
-    // Ensure all IDs are valid numbers and not NaN
-    const validIds = ids.map(id => {
-      const numId = Number(id);
-      if (isNaN(numId)) {
-        console.error(`Invalid ID detected: ${id} converts to NaN`);
-        return 0; // Use a default value that will be filtered out
-      }
-      return numId;
-    }).filter(id => id > 0); // Filter out any invalid IDs
+  const handleBatchUpdate = (ids: number[], updates: Partial<Filament>) => {
+    const validIds = ids.map(id => Number(id)).filter(id => !isNaN(id) && id > 0);
 
     if (validIds.length === 0) {
-      console.error("No valid IDs to update");
       toast({
         title: t('common.error'),
         description: t('batch.noValidFilamentsSelected'),
@@ -418,8 +283,6 @@ export default function Home() {
       });
       return;
     }
-
-    console.log("Batch update with IDs:", validIds, "and updates:", updates);
 
     // Create a clean updates object with only the fields we need
     const apiUpdates: Partial<Filament> = {};
@@ -433,16 +296,12 @@ export default function Home() {
       if (!isNaN(percentage) && percentage >= 0 && percentage <= 100) {
         // Convert back to string for the API
         apiUpdates.remainingPercentage = String(percentage);
-      } else {
-        console.error(`Invalid remainingPercentage: ${updates.remainingPercentage}`);
       }
     }
     // Include other fields that might be in the updates object
     if (updates.manufacturer !== undefined) apiUpdates.manufacturer = updates.manufacturer;
     if (updates.material !== undefined) apiUpdates.material = updates.material;
     if (updates.spoolType !== undefined) apiUpdates.spoolType = updates.spoolType;
-
-    console.log("Cleaned updates for API:", apiUpdates);
 
     batchUpdateFilamentsMutation.mutate({ ids: validIds, updates: apiUpdates });
   };

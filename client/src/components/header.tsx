@@ -14,7 +14,8 @@ import {
   List,
   CheckSquare,
   Square,
-  Gauge
+  Gauge,
+  ClipboardList
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,6 +32,7 @@ import { SettingsDialog } from "./settings-dialog";
 import { UserManagementModal } from "./user-management-modal";
 import { SharingModal } from "./sharing-modal";
 import { ChangePasswordModal } from "./change-password-modal";
+import { MyRequestsModal } from "./my-requests-modal";
 import { Link, useLocation } from "wouter";
 import { Logo } from "./logo";
 import { useAuth } from "@/lib/auth";
@@ -61,6 +63,7 @@ export function Header({
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [sharingModalOpen, setSharingModalOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [myRequestsOpen, setMyRequestsOpen] = useState(false);
   const { isAdmin, logout } = useAuth();
   const [_, navigate] = useLocation();
   const { t } = useTranslation();
@@ -182,6 +185,10 @@ export function Header({
                 <KeyRound className="mr-2 h-4 w-4" />
                 {t('auth.changePassword')}
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setMyRequestsOpen(true)}>
+                <ClipboardList className="mr-2 h-4 w-4" />
+                {t('settings.catalogRequests.myRequests')}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
                 logout();
                 navigate("/login");
@@ -234,6 +241,11 @@ export function Header({
       <ChangePasswordModal
         open={changePasswordOpen}
         onOpenChange={setChangePasswordOpen}
+      />
+
+      <MyRequestsModal
+        open={myRequestsOpen}
+        onOpenChange={setMyRequestsOpen}
       />
     </header>
   );

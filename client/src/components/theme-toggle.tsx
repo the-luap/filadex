@@ -99,6 +99,7 @@ export function ThemeToggle() {
       onClick={toggleTheme}
       className={`${theme === 'dark' ? 'bg-primary/20 hover:bg-primary/30 text-white border-white/20' : 'bg-white hover:bg-gray-100 text-gray-800 border-gray-200'}`}
       title={theme === "dark" ? t('settings.switchToLightModeTitle') : t('settings.switchToDarkModeTitle')}
+      aria-label={theme === "dark" ? t('settings.switchToLightModeTitle') : t('settings.switchToDarkModeTitle')}
     >
       {theme === "dark" ? (
         <Sun className="h-4 w-4" />

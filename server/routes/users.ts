@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { eq, count } from "drizzle-orm";
+import { eq, count, sql } from "drizzle-orm";
 import { db } from "../db";
 import { users, userSharing } from "../../shared/schema";
 import { authenticate, isAdmin, hashPassword } from "../auth";
@@ -74,6 +74,9 @@ export function registerUserRoutes(app: Express): void {
         id: users.id,
         username: users.username,
         isAdmin: users.isAdmin,
+        role: users.role,
+        email: users.email,
+        emailVerified: users.emailVerified,
         forceChangePassword: users.forceChangePassword,
         language: users.language,
         currency: users.currency,
@@ -92,10 +95,10 @@ export function registerUserRoutes(app: Express): void {
   // Create a new user (admin only)
   app.post("/api/users", authenticate, isAdmin, async (req, res) => {
     try {
-      const { username, password, isAdmin, forceChangePassword } = req.body;
+      const { username, password, isAdmin: makeAdmin, forceChangePassword } = req.body;
 
-      // Check if username already exists
-      const existingUser = await db.select().from(users).where(eq(users.username, username));
+      // Check if username already exists (case-insensitive)
+      const existingUser = await db.select().from(users).where(sql`LOWER(${users.username}) = LOWER(${username})`);
 
       if (existingUser.length > 0) {
         return res.status(400).json({ message: "Username already exists" });
@@ -103,19 +106,24 @@ export function registerUserRoutes(app: Express): void {
 
       // Hash password
       const hashedPassword = await hashPassword(password);
+      const role = makeAdmin ? "admin" : "user";
 
-      // Create user
+      // Create user. isAdmin/role are kept in sync - role is the source of truth
+      // for authorization, isAdmin is a mirror kept for backward compatibility.
       const [newUser] = await db.insert(users)
         .values({
           username,
           password: hashedPassword,
-          isAdmin: isAdmin || false,
+          isAdmin: makeAdmin || false,
+          role,
+          emailVerified: true, // admin-created accounts skip self-registration's email verification
           forceChangePassword: forceChangePassword !== false
         })
         .returning({
           id: users.id,
           username: users.username,
           isAdmin: users.isAdmin,
+          role: users.role,
           forceChangePassword: users.forceChangePassword,
           createdAt: users.createdAt
         });
@@ -135,7 +143,7 @@ export function registerUserRoutes(app: Express): void {
         return res.status(400).json({ message: "Invalid user ID" });
       }
 
-      const { username, password, isAdmin, forceChangePassword } = req.body;
+      const { username, password, isAdmin: makeAdmin, forceChangePassword } = req.body;
 
       // Check if user exists
       const existingUser = await db.select().from(users).where(eq(users.id, id));
@@ -148,9 +156,9 @@ export function registerUserRoutes(app: Express): void {
       const updateData: any = {};
 
       if (username) {
-        // Check if new username already exists (if changed)
-        if (username !== existingUser[0].username) {
-          const usernameExists = await db.select().from(users).where(eq(users.username, username));
+        // Check if new username already exists (if changed, case-insensitive)
+        if (username.toLowerCase() !== existingUser[0].username.toLowerCase()) {
+          const usernameExists = await db.select().from(users).where(sql`LOWER(${users.username}) = LOWER(${username})`);
 
           if (usernameExists.length > 0) {
             return res.status(400).json({ message: "Username already exists" });
@@ -164,8 +172,16 @@ export function registerUserRoutes(app: Express): void {
         updateData.password = await hashPassword(password);
       }
 
-      if (isAdmin !== undefined) {
-        updateData.isAdmin = isAdmin;
+      if (makeAdmin !== undefined) {
+        // Prevent demoting the last remaining admin - would lock everyone out of admin functions
+        if (existingUser[0].role === "admin" && !makeAdmin) {
+          const adminCount = await db.select({ count: count() }).from(users).where(eq(users.role, "admin"));
+          if (adminCount[0].count <= 1) {
+            return res.status(400).json({ message: "Cannot remove admin privileges from the last admin user" });
+          }
+        }
+        updateData.isAdmin = makeAdmin;
+        updateData.role = makeAdmin ? "admin" : "user";
       }
 
       if (forceChangePassword !== undefined) {
@@ -180,6 +196,7 @@ export function registerUserRoutes(app: Express): void {
           id: users.id,
           username: users.username,
           isAdmin: users.isAdmin,
+          role: users.role,
           forceChangePassword: users.forceChangePassword,
           createdAt: users.createdAt,
           lastLogin: users.lastLogin
@@ -208,8 +225,8 @@ export function registerUserRoutes(app: Express): void {
       }
 
       // Prevent deleting the last admin user
-      if (existingUser[0].isAdmin) {
-        const adminCount = await db.select({ count: count() }).from(users).where(eq(users.isAdmin, true));
+      if (existingUser[0].role === "admin") {
+        const adminCount = await db.select({ count: count() }).from(users).where(eq(users.role, "admin"));
 
         if (adminCount[0].count <= 1) {
           return res.status(400).json({ message: "Cannot delete the last admin user" });

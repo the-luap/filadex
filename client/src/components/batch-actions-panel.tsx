@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Filament } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
 import {
   Trash2,
   Edit,
@@ -14,7 +13,6 @@ import {
 import { useTranslation } from "@/i18n";
 import { BatchUpdateModal } from "./batch-update-modal";
 import { BatchDeleteModal } from "./batch-delete-modal";
-import { apiRequest } from "@/lib/api";
 
 interface BatchActionsPanelProps {
   selectedFilaments: Filament[];
@@ -22,7 +20,7 @@ interface BatchActionsPanelProps {
   onSelectAll: () => void;
   allSelected: boolean;
   onBatchDelete: (ids: number[]) => void;
-  onBatchUpdate: (ids: number[], updates: Partial<Filament> & { _refresh?: boolean, _showToast?: boolean }) => void;
+  onBatchUpdate: (ids: number[], updates: Partial<Filament>) => void;
   onBatchExport: (format: 'csv' | 'json') => void;
   totalFilaments: number;
 }
@@ -38,7 +36,6 @@ export function BatchActionsPanel({
   totalFilaments
 }: BatchActionsPanelProps) {
   const { t } = useTranslation();
-  const { toast } = useToast();
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -55,92 +52,11 @@ export function BatchActionsPanel({
     })
     .filter(id => id > 0);
 
-  // Utility function to update a single filament
-  const updateSingleFilament = async (id: number, updates: Record<string, string>): Promise<boolean> => {
-    try {
-      console.log(`Updating filament ${id} with:`, updates);
-
-      // Create a direct fetch request
-      const response = await fetch(`/api/filaments/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(updates)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Error updating filament ${id}:`, errorText);
-        return false;
-      }
-
-      console.log(`Successfully updated filament ${id}`);
-      return true;
-    } catch (error) {
-      console.error(`Error updating filament ${id}:`, error);
-      return false;
-    }
-  };
-
   // Handle batch update
-  const handleBatchUpdate = async (updates: Partial<Filament>) => {
-    console.log("Batch update with updates:", updates);
-
-    // Check if we have any valid IDs
-    if (selectedIds.length === 0) {
-      console.error("No valid IDs to update");
-      setShowUpdateModal(false);
-      return;
+  const handleBatchUpdate = (updates: Partial<Filament>) => {
+    if (selectedIds.length > 0) {
+      onBatchUpdate(selectedIds, updates);
     }
-
-    // Clean up updates for API
-    const cleanedUpdates: Record<string, string> = {};
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value !== undefined) {
-        cleanedUpdates[key] = String(value);
-      }
-    });
-
-    console.log("Cleaned updates for API:", cleanedUpdates);
-
-    // Use individual updates for each filament
-    let successCount = 0;
-    let errorCount = 0;
-
-    // Process each filament update one at a time to avoid race conditions
-    for (const id of selectedIds) {
-      const success = await updateSingleFilament(id, cleanedUpdates);
-      if (success) {
-        successCount++;
-      } else {
-        errorCount++;
-      }
-    }
-
-    console.log(`Batch update completed: ${successCount} successful, ${errorCount} failed`);
-
-    // Show success or error toast notification
-    if (successCount > 0) {
-      // Don't show toast here, we'll show it after the refresh
-
-      // Refresh the data by triggering a refetch
-      // We don't need to pass the IDs and updates again since the updates have already been applied
-      // Just call the parent's onBatchUpdate with a special flag to indicate a refresh
-      // Use a timeout to ensure the UI updates properly
-      setTimeout(() => {
-        // Trigger a refetch by calling the parent's onBatchUpdate with special flags
-        onBatchUpdate([], { _refresh: true, _showToast: true });
-      }, 100);
-    } else if (errorCount > 0) {
-      toast({
-        title: t('common.error'),
-        description: t('batch.updateError', { count: errorCount }),
-        variant: "destructive",
-      });
-    }
-
     setShowUpdateModal(false);
   };
 

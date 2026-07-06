@@ -8,8 +8,11 @@ import {
   ColorsList,
   DiametersList,
   StorageLocationsList,
-  UnitsSettings
+  UnitsSettings,
+  EmailSettingsCard,
+  CatalogRequestsReview
 } from "./settings";
+import { useAuth } from "@/lib/auth";
 import {
   Tabs,
   TabsContent,
@@ -35,6 +38,7 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ open, onOpenChange, initialTab }: SettingsDialogProps) {
   const queryClient = useQueryClient();
+  const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState(initialTab || "manufacturers");
   
   // Update active tab when initialTab prop changes
@@ -84,6 +88,12 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: SettingsDialo
                 <TabsTrigger value="storage-locations" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.storageLocations.title')}</TabsTrigger>
                 <TabsTrigger value="units" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.units.title')}</TabsTrigger>
                 <TabsTrigger value="filament-import-export" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.filamentImportExport.title')}</TabsTrigger>
+                {isAdmin && (
+                  <TabsTrigger value="catalog-requests" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.catalogRequests.title')}</TabsTrigger>
+                )}
+                {isAdmin && (
+                  <TabsTrigger value="email" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.email.title')}</TabsTrigger>
+                )}
               </TabsList>
             </div>
           </div>
@@ -117,6 +127,18 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: SettingsDialo
           <TabsContent value="filament-import-export">
             <FilamentImportExport title={t('settings.filamentImportExport.title')} />
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="catalog-requests">
+              <CatalogRequestsReview />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="email">
+              <EmailSettingsCard />
+            </TabsContent>
+          )}
           </div>
         </Tabs>
       </DialogContent>

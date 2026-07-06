@@ -3,6 +3,10 @@ import { useEffect } from "react";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import LoginPage from "@/pages/login";
+import RegisterPage from "@/pages/register";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import ResetPasswordPage from "@/pages/reset-password";
+import VerifyEmailPage from "@/pages/verify-email";
 import ChangePasswordPage from "@/pages/change-password";
 import PublicFilamentsPage from "@/pages/public-filaments";
 import { AuthProvider, useAuth } from "@/lib/auth";
@@ -78,6 +82,10 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
+      <Route path="/register" component={RegisterPage} />
+      <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
+      <Route path="/verify-email" component={VerifyEmailPage} />
       <Route path="/change-password">
         <ProtectedRoute component={ChangePasswordPage} />
       </Route>

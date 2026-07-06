@@ -35,51 +35,6 @@ const createMaterialTypes = (t: (key: string) => string) => [
   { value: "OTHER", label: t('settings.materials.other') || 'Other' }
 ];
 
-// List of known filament manufacturers
-const MANUFACTURERS = [
-  "Bambu Lab",
-  "Prusament",
-  "Polymaker",
-  "Overture",
-  "Sunlu",
-  "eSun",
-  "Eryone",
-  "3DJake",
-  "3DJAKE",
-  "Filamentum",
-  "Filament PM",
-  "Fiberlogy",
-  "FormFutura",
-  "Verbatim",
-  "ColorFabb",
-  "BASF",
-  "Fillamentum",
-  "Das Filament",
-  "Extrudr",
-  "3D Warhorse",
-  "3D-Fuel",
-  "3DXTECH",
-  "AddNorth",
-  "Spectrum",
-  "Ultimaker",
-  "Creality",
-  "Inland",
-  "Hatchbox",
-  "MatterHackers",
-  "GEEETECH",
-  "Amolen",
-  "Raise3D",
-  "Sovol",
-  "Dremel",
-  "Elegoo",
-  "TECHNOLOGYOUTLET",
-  "FlashForge",
-  "1.75mm Shop",
-  "3DPrima",
-  "3DLAC",
-  "ZYYX"
-];
-
 // Colors will be created with translations in the component
 const createColorsList = (t: (key: string) => string) => [
   // Standard colors
@@ -155,6 +110,10 @@ const PRINT_TEMPERATURES: Record<string, string> = {
   "PEI": "350-380°C",
   "OTHER": ""
 };
+
+// Preset weight options shown in the "total weight" dropdown; any other value counts as custom
+const STANDARD_WEIGHTS = [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 5];
+
 import {
   Dialog,
   DialogContent,
@@ -350,7 +309,7 @@ export function FilamentModal({
       setTotalWeight(Number(filament.totalWeight));
 
       // Check if we need to show custom weight field
-      if (![0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 5].includes(Number(filament.totalWeight))) {
+      if (!STANDARD_WEIGHTS.includes(Number(filament.totalWeight))) {
         setCustomWeightVisible(true);
       }
     } else {
@@ -417,80 +376,45 @@ export function FilamentModal({
     }
   };
 
+  // Applies scanned filament data (from QR code or NFC tag) to the form; shared by both scan sources
+  const applyScannedFilamentData = (data: any) => {
+    if (!data.name || !data.material) return;
+
+    form.setValue('name', data.name);
+    if (data.manufacturer) form.setValue('manufacturer', data.manufacturer);
+    if (data.material) form.setValue('material', data.material);
+    if (data.colorName) form.setValue('colorName', data.colorName);
+    if (data.colorCode) form.setValue('colorCode', data.colorCode);
+    if (data.diameter) form.setValue('diameter', Number(data.diameter));
+    if (data.printTemp) form.setValue('printTemp', data.printTemp);
+    if (data.totalWeight) {
+      const weight = Number(data.totalWeight);
+      setTotalWeight(weight);
+      form.setValue('totalWeight', weight);
+      setCustomWeightVisible(!STANDARD_WEIGHTS.includes(weight));
+    }
+  };
+
   // Handler for QR code scan
   const handleQRCodeScanned = (decodedText: string) => {
     setShowQRScanner(false);
     try {
-      // Try to parse the scanned text as JSON
-      const data = JSON.parse(decodedText);
-
-      // Check if these are filament data
-      if (data.name && data.material) {
-        // Set form values based on scanned data
-        form.setValue('name', data.name);
-        if (data.manufacturer) form.setValue('manufacturer', data.manufacturer);
-        if (data.material) form.setValue('material', data.material);
-        if (data.colorName) form.setValue('colorName', data.colorName);
-        if (data.colorCode) form.setValue('colorCode', data.colorCode);
-        if (data.diameter) form.setValue('diameter', Number(data.diameter));
-        if (data.printTemp) form.setValue('printTemp', data.printTemp);
-        if (data.totalWeight) {
-          const weight = Number(data.totalWeight);
-          setTotalWeight(weight);
-          form.setValue('totalWeight', weight);
-
-          // Check if we need to show custom weight field
-          if (![0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 5].includes(weight)) {
-            setCustomWeightVisible(true);
-          } else {
-            setCustomWeightVisible(false);
-          }
-        }
-      }
+      applyScannedFilamentData(JSON.parse(decodedText));
     } catch (error) {
       console.error('Fehler beim Verarbeiten des QR-Codes:', error);
-      // Hier könnte man eine Fehlermeldung anzeigen
     }
   };
 
   // Handler für NFC Scan
   const handleNFCScanned = (data: any) => {
     setShowNFCScanner(false);
-
     try {
-      // Extrahiere Textdaten aus NFC-Records
       const textRecords = data.records.filter((record: any) => record.type === 'text');
-
       if (textRecords.length > 0) {
-        // Versuche, den Text als JSON zu parsen
-        const jsonData = JSON.parse(textRecords[0].text);
-
-        if (jsonData.name && jsonData.material) {
-          // Setze die Formularwerte basierend auf den gescannten Daten
-          form.setValue('name', jsonData.name);
-          if (jsonData.manufacturer) form.setValue('manufacturer', jsonData.manufacturer);
-          if (jsonData.material) form.setValue('material', jsonData.material);
-          if (jsonData.colorName) form.setValue('colorName', jsonData.colorName);
-          if (jsonData.colorCode) form.setValue('colorCode', jsonData.colorCode);
-          if (jsonData.diameter) form.setValue('diameter', Number(jsonData.diameter));
-          if (jsonData.printTemp) form.setValue('printTemp', jsonData.printTemp);
-          if (jsonData.totalWeight) {
-            const weight = Number(jsonData.totalWeight);
-            setTotalWeight(weight);
-            form.setValue('totalWeight', weight);
-
-            // Check if we need to show custom weight field
-            if (![0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 5].includes(weight)) {
-              setCustomWeightVisible(true);
-            } else {
-              setCustomWeightVisible(false);
-            }
-          }
-        }
+        applyScannedFilamentData(JSON.parse(textRecords[0].text));
       }
     } catch (error) {
       console.error('Fehler beim Verarbeiten des NFC-Tags:', error);
-      // Hier könnte man eine Fehlermeldung anzeigen
     }
   };
 
@@ -1194,6 +1118,7 @@ export function FilamentModal({
                   size="icon"
                   onClick={() => setShowQRScanner(true)}
                   title={t('common.scanQRCode')}
+                  aria-label={t('common.scanQRCode')}
                 >
                   <Scan className="h-4 w-4" />
                 </Button>
@@ -1203,6 +1128,7 @@ export function FilamentModal({
                   size="icon"
                   onClick={() => setShowNFCScanner(true)}
                   title={t('common.scanNFC')}
+                  aria-label={t('common.scanNFC')}
                 >
                   <ScanFace className="h-4 w-4" />
                 </Button>

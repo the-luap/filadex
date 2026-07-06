@@ -27,6 +27,7 @@
   --card-foreground: 222.2 84% 4.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 84% 4.9%;
+  --primary: 347 77% 50%; /* HSL of the default --theme-primary (#E11D48); kept in sync by theme-selector.tsx */
   --primary-foreground: 210 40% 98%;
   --secondary: 210 40% 96.1%;
   --secondary-foreground: 222.2 47.4% 11.2%;
@@ -71,6 +72,10 @@
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
+    /* --primary intentionally not redefined here: both <html> and <body> get the .dark
+       class, and theme-selector.tsx sets --primary via inline style only on <html>. Redefining
+       it here would shadow that inline override for any descendant of <body>. The :root default
+       above already covers the pre-JS fallback for both light and dark mode. */
     --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;

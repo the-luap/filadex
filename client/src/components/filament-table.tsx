@@ -253,6 +253,7 @@ export function FilamentTable({
                         size="icon"
                         onClick={() => onCopyFilament(filament)}
                         title={t('common.copy')}
+                        aria-label={t('common.copy')}
                         className="h-8 w-8"
                       >
                         <Copy className="h-4 w-4" />
@@ -263,6 +264,7 @@ export function FilamentTable({
                       size="icon"
                       onClick={() => onEditFilament(filament)}
                       title={t('common.edit')}
+                      aria-label={t('common.edit')}
                       className="h-8 w-8"
                     >
                       <Pencil className="h-4 w-4" />
@@ -272,6 +274,7 @@ export function FilamentTable({
                       size="icon"
                       onClick={() => onDeleteFilament(filament)}
                       title={t('common.delete')}
+                      aria-label={t('common.delete')}
                       className="h-8 w-8 text-red-500 hover:text-red-700"
                     >
                       <Trash2 className="h-4 w-4" />

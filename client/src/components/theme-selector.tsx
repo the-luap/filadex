@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Paintbrush } from "lucide-react";
@@ -8,6 +8,20 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import { hexToHslString } from "@/lib/utils";
+
+// Applies the chosen accent color to both the legacy --theme-primary hex
+// variable (used by the .theme-primary* utility classes) and --primary
+// (the HSL variable backing Tailwind's bg-primary/text-primary/etc. tokens),
+// so both styling mechanisms stay in sync.
+function applyThemePrimaryColor(color: string) {
+  document.documentElement.style.setProperty("--theme-primary", color);
+  document.documentElement.style.setProperty("--theme-loaded-primary", color);
+  const hsl = hexToHslString(color);
+  if (hsl) {
+    document.documentElement.style.setProperty("--primary", hsl);
+  }
+}
 
 // Preset color options
 const getPresetColors = (t: (key: string) => string) => [
@@ -70,8 +84,7 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
       setSelectedColor(themeData.primary);
       setCustomColor(themeData.primary);
       // Set the color as CSS variable
-      document.documentElement.style.setProperty("--theme-primary", themeData.primary);
-      document.documentElement.style.setProperty("--theme-loaded-primary", themeData.primary);
+      applyThemePrimaryColor(themeData.primary);
       return;
     }
 
@@ -81,8 +94,7 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
       setSelectedColor(savedColor);
       setCustomColor(savedColor);
       // Set the saved color as CSS variable
-      document.documentElement.style.setProperty("--theme-primary", savedColor);
-      document.documentElement.style.setProperty("--theme-loaded-primary", savedColor);
+      applyThemePrimaryColor(savedColor);
     }
   }, [themeData]);
 
@@ -92,8 +104,7 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
     localStorage.setItem("themeColor", color);
 
     // Update CSS variable
-    document.documentElement.style.setProperty("--theme-primary", color);
-    document.documentElement.style.setProperty("--theme-loaded-primary", color);
+    applyThemePrimaryColor(color);
 
     // Get current theme mode from localStorage or use dark as default
     const currentTheme = localStorage.getItem("theme") || "dark";
@@ -130,6 +141,7 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
             <Paintbrush className="mr-2 h-5 w-5" />
             {t('settings.customizeAccentColor')}
           </DialogTitle>
+          <DialogDescription>{t('settings.customizeAccentColorDescription')}</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="presets" className="w-full">

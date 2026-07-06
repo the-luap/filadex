@@ -70,6 +70,12 @@ export async function apiRequest<T = any>(
     }
 
     await throwIfResNotOk(res);
+
+    // No response body to parse (e.g. DELETE endpoints returning 204 No Content)
+    if (res.status === 204) {
+      return undefined as T;
+    }
+
     const data = await res.json();
 
     // Only log responses for non-authentication endpoints

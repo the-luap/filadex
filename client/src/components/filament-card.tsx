@@ -97,6 +97,7 @@ export function FilamentCard({
                     onCopy(filament);
                   }}
                   title={t('common.copy')}
+                  aria-label={t('common.copy')}
                 >
                   <Copy size={16} />
                 </button>
@@ -108,6 +109,7 @@ export function FilamentCard({
                   onEdit(filament);
                 }}
                 title={t('common.edit')}
+                aria-label={t('common.edit')}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -125,12 +127,13 @@ export function FilamentCard({
                 </svg>
               </button>
               <button
-                className="dark:text-neutral-400 text-gray-500 hover:text-error p-1 rounded-full hover:bg-error/10 transition-colors"
+                className="dark:text-neutral-400 text-gray-500 hover:text-destructive p-1 rounded-full hover:bg-destructive/10 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(filament);
                 }}
                 title={t('common.delete')}
+                aria-label={t('common.delete')}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
