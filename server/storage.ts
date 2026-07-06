@@ -118,8 +118,7 @@ export class DatabaseStorage implements IStorage {
   async getFilament(id: number, userId: number): Promise<Filament | undefined> {
     try {
       const query = db.select().from(filaments)
-        .where(eq(filaments.id, id))
-        .where(eq(filaments.userId, userId));
+        .where(and(eq(filaments.id, id), eq(filaments.userId, userId)));
 
       const [filament] = await query;
 
@@ -143,8 +142,7 @@ export class DatabaseStorage implements IStorage {
       const query = db
         .update(filaments)
         .set(updateFilament)
-        .where(eq(filaments.id, id))
-        .where(eq(filaments.userId, userId))
+        .where(and(eq(filaments.id, id), eq(filaments.userId, userId)))
         .returning();
 
       const [updated] = await query;
@@ -159,8 +157,7 @@ export class DatabaseStorage implements IStorage {
   async deleteFilament(id: number, userId: number): Promise<boolean> {
     const [deleted] = await db
       .delete(filaments)
-      .where(eq(filaments.id, id))
-      .where(eq(filaments.userId, userId))
+      .where(and(eq(filaments.id, id), eq(filaments.userId, userId)))
       .returning();
     return !!deleted;
   }
@@ -171,7 +168,7 @@ export class DatabaseStorage implements IStorage {
     const validIds = ids.map(id => Number(id));
 
     // Use the in operator from drizzle instead of raw SQL
-    const { count } = await db
+    const deleted = await db
       .delete(filaments)
       .where(
         and(
@@ -181,8 +178,8 @@ export class DatabaseStorage implements IStorage {
       )
       .returning();
 
-    logger.info(`Batch deleted ${count} filaments with IDs:`, validIds);
-    return count;
+    logger.info(`Batch deleted ${deleted.length} filaments with IDs:`, validIds);
+    return deleted.length;
   }
 
   async batchUpdateFilaments(ids: number[], updates: Partial<InsertFilament>, userId: number): Promise<number> {
@@ -190,7 +187,7 @@ export class DatabaseStorage implements IStorage {
     const validIds = ids.map(id => Number(id));
 
     // Use the in operator from drizzle instead of raw SQL
-    const { count } = await db
+    const updated = await db
       .update(filaments)
       .set(updates)
       .where(
@@ -201,8 +198,8 @@ export class DatabaseStorage implements IStorage {
       )
       .returning();
 
-    logger.info(`Batch updated ${count} filaments with IDs:`, validIds);
-    return count;
+    logger.info(`Batch updated ${updated.length} filaments with IDs:`, validIds);
+    return updated.length;
   }
 
   // Manufacturer implementations

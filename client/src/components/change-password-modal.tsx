@@ -6,7 +6,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { useTranslation } from "@/i18n";
 import { useErrorTranslation } from "@/lib/error-handler";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -84,6 +84,7 @@ export function ChangePasswordModal({ open, onOpenChange }: { open: boolean; onO
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle>{t('auth.changePassword')}</DialogTitle>
+          <DialogDescription>{t('auth.changePasswordDescription')}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

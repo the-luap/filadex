@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Scan, X } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
@@ -473,10 +473,11 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
             <Scan className="mr-2 h-5 w-5" />
             {t('common.scanQRCode')}
           </DialogTitle>
-          <Button variant="ghost" size="icon" onClick={handleClose}>
+          <Button variant="ghost" size="icon" onClick={handleClose} aria-label={t('common.close')}>
             <X className="h-4 w-4" />
           </Button>
         </DialogHeader>
+        <DialogDescription>{t('common.scanner.positionCode')}</DialogDescription>
 
         <div className="flex flex-col items-center space-y-4">
           <div id={qrScannerElementId} className="w-full h-64 overflow-hidden rounded-lg border border-neutral-700"></div>

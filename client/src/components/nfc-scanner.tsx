@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScanFace, X, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -112,10 +112,11 @@ export function NFCScanner({ onScanSuccess, onClose }: NFCScannerProps) {
             <ScanFace className="mr-2 h-5 w-5" />
             {t('common.scanner.nfcTagTitle')}
           </DialogTitle>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('common.close')}>
             <X className="h-4 w-4" />
           </Button>
         </DialogHeader>
+        <DialogDescription>{t('common.scanner.holdDevice')}</DialogDescription>
 
         <div className="flex flex-col items-center space-y-6 py-4">
           {error ? (

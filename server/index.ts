@@ -1,9 +1,24 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 import { registerRoutes } from "./routes/index";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Only trust X-Forwarded-For when explicitly told to (i.e. the deployer knows
+// there's a trusted reverse proxy in front, e.g. running behind Traefik/Nginx
+// for a SaaS deployment). Enabling this unconditionally would let a direct
+// client spoof its IP via that header and bypass the rate limiters below.
+if (process.env.TRUST_PROXY === "true") {
+  app.set("trust proxy", 1);
+}
+
+// contentSecurityPolicy is disabled: a correct CSP for the Vite dev server's
+// inline/HMR scripts needs careful nonce/hash setup this pass doesn't cover;
+// shipping a broken CSP would break the app, so we keep helmet's other
+// baseline headers (X-Frame-Options, X-Content-Type-Options, etc.) instead.
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -64,7 +79,7 @@ app.use((req, res, next) => {
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true,
+    reusePort: process.platform === "linux",
   }, () => {
     log(`serving on port ${port}`);
   });

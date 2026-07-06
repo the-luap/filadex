@@ -129,6 +129,10 @@ export default function LoginPage() {
               </Button>
             </form>
           </Form>
+          <div className="flex justify-between text-sm mt-4">
+            <a href="/forgot-password" className="text-muted-foreground hover:underline">{t('auth.forgotPassword')}</a>
+            <a href="/register" className="text-muted-foreground hover:underline">{t('auth.createAccount')}</a>
+          </div>
         </CardContent>
       </Card>
     </div>

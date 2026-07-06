@@ -239,10 +239,10 @@ export function UserManagementModal({ open, onOpenChange }: { open: boolean; onO
                         <TableCell>{user.isAdmin ? t('common.yes') : t('common.no')}</TableCell>
                         <TableCell>{user.lastLogin ? new Date(user.lastLogin).toLocaleString() : t('users.never')}</TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditUser(user)} title={t('users.edit')}>
+                          <Button variant="ghost" size="icon" onClick={() => handleEditUser(user)} title={t('users.edit')} aria-label={t('users.edit')}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.id)} title={t('users.delete')}>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.id)} title={t('users.delete')} aria-label={t('users.delete')}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>

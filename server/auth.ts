@@ -1,13 +1,27 @@
 import { Request, Response, NextFunction } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { db } from "./db";
 import { users } from "../shared/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "./utils/logger";
 
-// Secret key for JWT
-const JWT_SECRET = process.env.JWT_SECRET || "filadex-secret-key";
+// Secret key for JWT. Falling back to a fixed, publicly-known string would let anyone forge
+// tokens for any unconfigured deployment, so an unset JWT_SECRET instead gets a random
+// per-process secret (sessions won't survive a restart until JWT_SECRET is set explicitly).
+function resolveJwtSecret(): string {
+  if (process.env.JWT_SECRET) {
+    return process.env.JWT_SECRET;
+  }
+  logger.warn(
+    "JWT_SECRET is not set - using a randomly generated secret for this process. " +
+    "All active sessions will be invalidated on the next restart. Set JWT_SECRET in your environment to avoid this."
+  );
+  return crypto.randomBytes(32).toString("hex");
+}
+
+const JWT_SECRET = resolveJwtSecret();
 
 // Generate JWT token
 export function generateToken(userId: number): string {
@@ -46,14 +60,16 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     const [user] = await db.select({
       id: users.id,
       username: users.username,
-      isAdmin: users.isAdmin
+      isAdmin: users.isAdmin,
+      role: users.role
     }).from(users).where(eq(users.id, decoded.userId));
 
     if (user) {
       req.user = {
         id: user.id,
         username: user.username,
-        isAdmin: user.isAdmin === true
+        isAdmin: user.isAdmin === true,
+        role: user.role
       };
     } else {
       return res.status(401).json({ message: "User not found" });
@@ -65,24 +81,25 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   }
 }
 
-// Admin middleware
-export async function isAdmin(req: Request, res: Response, next: NextFunction) {
-  if (!req.userId) {
-    return res.status(401).json({ message: "Authentication required" });
-  }
+// RBAC middleware factory. Must run after `authenticate` (relies on req.user).
+// Role is read fresh from the DB on every request via `authenticate`, so a
+// demoted user's still-valid JWT can't retain stale elevated access.
+export function requireRole(...roles: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
 
-  try {
-    const [user] = await db.select().from(users).where(eq(users.id, req.userId));
-
-    if (!user || !user.isAdmin) {
-      return res.status(403).json({ message: "Admin privileges required" });
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ message: "Insufficient privileges" });
     }
 
     next();
-  } catch (error) {
-    return res.status(500).json({ message: "Server error" });
-  }
+  };
 }
+
+// Kept as the admin-only gate used throughout the existing routes.
+export const isAdmin = requireRole("admin");
 
 // Initialize admin user
 export async function initializeAdminUser() {
@@ -97,6 +114,8 @@ export async function initializeAdminUser() {
         username: "admin",
         password: hashedPassword,
         isAdmin: true,
+        role: "admin",
+        emailVerified: true,
         forceChangePassword: true
       });
       logger.info("Default admin user created");

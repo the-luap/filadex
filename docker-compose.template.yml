@@ -36,6 +36,11 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-en}
       - INIT_SAMPLE_DATA=${INIT_SAMPLE_DATA:-false}
+      # Set to a long random string (e.g. `openssl rand -hex 32`) so login sessions
+      # survive restarts. If unset, a random secret is generated on each startup.
+      - JWT_SECRET=${JWT_SECRET:-}
+      # Only set to "true" if this runs behind a trusted reverse proxy (see .env.example)
+      - TRUST_PROXY=${TRUST_PROXY:-false}
     depends_on:
       - db
     ports:
