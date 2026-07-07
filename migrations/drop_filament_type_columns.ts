@@ -39,17 +39,29 @@ export async function runMigration() {
     return;
   }
 
-  await db.execute(sql`ALTER TABLE filaments ALTER COLUMN filament_type_id SET NOT NULL;`);
-  await db.execute(sql`
-    ALTER TABLE filaments
-      DROP COLUMN IF EXISTS manufacturer,
-      DROP COLUMN IF EXISTS material,
-      DROP COLUMN IF EXISTS color_name,
-      DROP COLUMN IF EXISTS color_code,
-      DROP COLUMN IF EXISTS diameter,
-      DROP COLUMN IF EXISTS print_temp;
-  `);
-  console.log("✓ Dropped redundant product-identity columns from filaments");
+  try {
+    await db.execute(sql`ALTER TABLE filaments ALTER COLUMN filament_type_id SET NOT NULL;`);
+    await db.execute(sql`
+      ALTER TABLE filaments
+        DROP COLUMN IF EXISTS manufacturer,
+        DROP COLUMN IF EXISTS material,
+        DROP COLUMN IF EXISTS color_name,
+        DROP COLUMN IF EXISTS color_code,
+        DROP COLUMN IF EXISTS diameter,
+        DROP COLUMN IF EXISTS print_temp;
+    `);
+    console.log("✓ Dropped redundant product-identity columns from filaments");
+  } catch (error) {
+    if ((error as { code?: string }).code === "42501") {
+      console.warn(
+        "⚠ Skipping optional filament column cleanup: database user is not the owner of filaments. " +
+        "The additive filament_type_id migration has already completed, so startup can continue."
+      );
+      return;
+    }
+
+    throw error;
+  }
 
   console.log("Migration completed successfully!");
 }

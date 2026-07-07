@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "../server/db";
+import { addColumnIfMissing } from "./helpers";
 
 /**
  * Migration: adds custom_field_definitions (per-user, user-defined tracked
@@ -22,9 +23,11 @@ export async function runMigration() {
   `);
   console.log("✓ Created custom_field_definitions table");
 
-  await db.execute(sql`
-    ALTER TABLE filaments ADD COLUMN IF NOT EXISTS custom_field_values JSONB DEFAULT '{}';
-  `);
+  await addColumnIfMissing(
+    "filaments",
+    "custom_field_values",
+    sql`ALTER TABLE filaments ADD COLUMN custom_field_values JSONB DEFAULT '{}';`,
+  );
   console.log("✓ Added custom_field_values column to filaments");
 
   console.log("Migration completed successfully!");

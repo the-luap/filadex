@@ -234,58 +234,60 @@ else
   fi
 fi
 
-# Migrations below are NOT allowed to fail silently: `set -e` (top of this
-# script) means any of these exiting non-zero aborts startup instead of
-# leaving the app running against a partially-migrated DB (see GH issue #5 -
-# a missing tsconfig.json in this image used to make every one of these
-# fail with ERR_MODULE_NOT_FOUND, silently, because of the old
-# `|| echo ... continuing` fallback that was here).
+# Migrations below are NOT allowed to fail silently: any of these exiting
+# non-zero aborts startup instead of leaving the app running against a
+# partially-migrated DB (see GH issue #5 - a missing tsconfig.json in this
+# image used to make every one of these fail with ERR_MODULE_NOT_FOUND,
+# silently, because of an old `|| echo ... continuing` fallback that was
+# here previously).
+run_migration() {
+  echo "Running migration: $1"
+  shift
+
+  if ! npx tsx "$@"; then
+    echo "Migration failed: $*" >&2
+    exit 1
+  fi
+}
 
 # Run the migration to add user_id column
-echo "Running migration to add user_id column to filaments table..."
-npx tsx run-migration.ts
+run_migration "add user_id column to filaments table" run-migration.ts
 
 # Run the migration adding email/RBAC/catalog-request support
-echo "Running migration to add email, roles, and catalog request tables..."
-npx tsx migrations/add_email_rbac_and_settings.ts
+run_migration "add email, roles, and catalog request tables" migrations/add_email_rbac_and_settings.ts
 
 # Run the migration adding the filament usage log table
-echo "Running migration to add filament usage log table..."
-npx tsx migrations/add_filament_usage_log.ts
+run_migration "add filament usage log table" migrations/add_filament_usage_log.ts
 
 # Run the migration adding density to materials
-echo "Running migration to add material density column..."
-npx tsx migrations/add_material_density.ts
+run_migration "add material density column" migrations/add_material_density.ts
 
 # Run the migration adding notification preferences
-echo "Running migration to add notification preference columns..."
-npx tsx migrations/add_notification_preferences.ts
+run_migration "add notification preference columns" migrations/add_notification_preferences.ts
 
 # Run the migration adding custom fields
-echo "Running migration to add custom field definitions..."
-npx tsx migrations/add_custom_fields.ts
+run_migration "add custom field definitions" migrations/add_custom_fields.ts
 
 # Run the migration adding the community filament cache table
-echo "Running migration to add community filament cache table..."
-npx tsx migrations/add_community_filament_cache.ts
+run_migration "add community filament cache table" migrations/add_community_filament_cache.ts
+
+# Run the migration adding API tokens for printer integrations
+run_migration "add API tokens table" migrations/add_api_tokens.ts
 
 # Run the migration adding filament_types (splits filament product identity
 # out of the flat filaments row into its own table - see IMPLEMENTATION_PLAN.md #9)
-echo "Running migration to add filament types table..."
-npx tsx migrations/add_filament_types.ts
+run_migration "add filament types table" migrations/add_filament_types.ts
 
 # Run the migration dropping the now-redundant manufacturer/material/
 # color_name/color_code/diameter/print_temp columns from `filaments` (they
 # live on filament_types now). Safety-gated: it aborts without dropping
 # anything if any filament row still lacks a filament_type_id, so it's safe
 # to run unconditionally right after the backfill above.
-echo "Running migration to drop redundant filament type columns..."
-npx tsx migrations/drop_filament_type_columns.ts
+run_migration "drop redundant filament type columns" migrations/drop_filament_type_columns.ts
 
 # Run the migration moving the UI theme from a single global theme.json file
 # to per-user columns (backfills every user from theme.json if present)
-echo "Running migration to add per-user theme preferences..."
-npx tsx migrations/add_user_theme_preferences.ts
+run_migration "add per-user theme preferences" migrations/add_user_theme_preferences.ts
 
 # Start the application
 echo "Starting application..."

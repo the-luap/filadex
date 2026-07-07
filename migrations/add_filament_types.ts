@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "../server/db";
+import { addColumnIfMissing } from "./helpers";
 
 /**
  * Migration: splits "filament type" (manufacturer, material, color,
@@ -52,9 +53,11 @@ export async function runMigration() {
   if (legacyMaterialColumn.length === 0) {
     // A fresh install created via `drizzle-kit push` already has the new
     // shape and no rows to backfill.
-    await db.execute(sql`
-      ALTER TABLE filaments ADD COLUMN IF NOT EXISTS filament_type_id INTEGER REFERENCES filament_types(id);
-    `);
+    await addColumnIfMissing(
+      "filaments",
+      "filament_type_id",
+      sql`ALTER TABLE filaments ADD COLUMN filament_type_id INTEGER REFERENCES filament_types(id);`,
+    );
     console.log("✓ Fresh install - added empty filament_type_id column");
     console.log("Migration completed successfully!");
     return;
@@ -69,9 +72,11 @@ export async function runMigration() {
   `);
   console.log("✓ Backfilled filament_types from distinct filament combinations");
 
-  await db.execute(sql`
-    ALTER TABLE filaments ADD COLUMN IF NOT EXISTS filament_type_id INTEGER REFERENCES filament_types(id);
-  `);
+  await addColumnIfMissing(
+    "filaments",
+    "filament_type_id",
+    sql`ALTER TABLE filaments ADD COLUMN filament_type_id INTEGER REFERENCES filament_types(id);`,
+  );
 
   await db.execute(sql`
     UPDATE filaments f
