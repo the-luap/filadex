@@ -48,6 +48,12 @@ RUN npm install pg drizzle-orm zod
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
 COPY --from=build /app/shared ./shared
+# Required so tsx (used to run migrations/*.ts, init-data.ts, run-migration.ts
+# as raw TypeScript) can resolve the @shared/* path alias. Without this,
+# `@shared/schema` fails with ERR_MODULE_NOT_FOUND and every migration
+# silently no-ops (see docker-entrypoint.sh) - the app then starts against
+# an unmigrated DB. dist/index.js itself doesn't need this: esbuild already
+# resolved the alias at build time when bundling it.
 COPY --from=build /app/tsconfig.json ./tsconfig.json
 RUN mkdir -p ./migrations && if [ -d /app/dist/migrations ] && [ "$(ls -A /app/dist/migrations 2>/dev/null)" ]; then cp -r /app/dist/migrations/* ./migrations/; fi || true
 COPY --from=build /app/init-data.ts ./init-data.ts

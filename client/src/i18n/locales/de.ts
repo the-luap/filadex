@@ -189,7 +189,7 @@ const translations = {
     editFilament: 'Filament bearbeiten',
     editFilamentDescription: 'Aktualisieren Sie die Details Ihrer Filamentspule.',
     deleteFilament: 'Filament löschen',
-    deleteConfirmation: 'Möchten Sie dieses Filament wirklich löschen?',
+    deleteConfirmation: 'Möchten Sie dieses Filament wirklich löschen:',
     deleteWarning: 'Diese Aktion kann nicht rückgängig gemacht werden.',
     name: 'Name',
     namePlaceholder: 'z.B. PLA Schwarz Bambu Lab',

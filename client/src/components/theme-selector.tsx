@@ -4,24 +4,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Paintbrush } from "lucide-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
-import { hexToHslString } from "@/lib/utils";
-
-// Applies the chosen accent color to both the legacy --theme-primary hex
-// variable (used by the .theme-primary* utility classes) and --primary
-// (the HSL variable backing Tailwind's bg-primary/text-primary/etc. tokens),
-// so both styling mechanisms stay in sync.
-function applyThemePrimaryColor(color: string) {
-  document.documentElement.style.setProperty("--theme-primary", color);
-  document.documentElement.style.setProperty("--theme-loaded-primary", color);
-  const hsl = hexToHslString(color);
-  if (hsl) {
-    document.documentElement.style.setProperty("--primary", hsl);
-  }
-}
+import { useTheme } from "@/lib/use-theme";
 
 // Preset color options
 const getPresetColors = (t: (key: string) => string) => [
@@ -43,82 +28,23 @@ interface ThemeSelectorProps {
 export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
   const { t } = useTranslation();
   const presetColors = getPresetColors(t);
-  const [selectedColor, setSelectedColor] = useState(presetColors[0].value);
-  const [customColor, setCustomColor] = useState("");
+  const { theme, setPrimaryColor, isSaving } = useTheme();
+  const [selectedColor, setSelectedColor] = useState(theme.primary);
+  const [customColor, setCustomColor] = useState(theme.primary);
 
-  // Load current theme from server
-  const { data: themeData } = useQuery({
-    queryKey: ['/api/theme'],
-    queryFn: () => apiRequest<{ variant: string; primary: string; appearance: string; radius: number }>('/api/theme')
-  });
-
-  // Theme mutation to update the theme file
-  const updateThemeMutation = useMutation({
-    mutationFn: (newTheme: { variant: string; primary: string; appearance: string; radius: number }) => {
-      return apiRequest('/api/theme', {
-        method: 'POST',
-        body: JSON.stringify(newTheme)
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: t('settings.themeUpdated'),
-        description: t('settings.themeUpdatedDescription') || "Settings saved successfully."
-      });
-      onOpenChange(false);
-    },
-    onError: (error) => {
-      console.error("Error updating theme:", error);
-      toast({
-        title: t('common.error'),
-        description: t('settings.themeUpdateError') || "The theme could not be updated.",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Load current color from theme or localStorage on first load
+  // Keep the picker in sync if the theme loads/changes after this opens
   useEffect(() => {
-    // If theme data is loaded from server, use it
-    if (themeData?.primary) {
-      setSelectedColor(themeData.primary);
-      setCustomColor(themeData.primary);
-      // Set the color as CSS variable
-      applyThemePrimaryColor(themeData.primary);
-      return;
-    }
+    setSelectedColor(theme.primary);
+    setCustomColor(theme.primary);
+  }, [theme.primary]);
 
-    // Otherwise use from localStorage (fallback)
-    const savedColor = localStorage.getItem("themeColor");
-    if (savedColor) {
-      setSelectedColor(savedColor);
-      setCustomColor(savedColor);
-      // Set the saved color as CSS variable
-      applyThemePrimaryColor(savedColor);
-    }
-  }, [themeData]);
-
-  // Function to apply the color scheme
   const applyTheme = (color: string) => {
-    // Save color in localStorage (as fallback)
-    localStorage.setItem("themeColor", color);
-
-    // Update CSS variable
-    applyThemePrimaryColor(color);
-
-    // Get current theme mode from localStorage or use dark as default
-    const currentTheme = localStorage.getItem("theme") || "dark";
-
-    // Create new theme object and send to server
-    const updatedTheme = {
-      variant: themeData?.variant || "professional",
-      primary: color,
-      appearance: currentTheme as "light" | "dark",
-      radius: themeData?.radius || 0.8
-    };
-
-    // API call to update the theme
-    updateThemeMutation.mutate(updatedTheme);
+    setPrimaryColor(color);
+    toast({
+      title: t('settings.themeUpdated'),
+      description: t('settings.themeUpdatedDescription') || "Settings saved successfully."
+    });
+    onOpenChange(false);
   };
 
   // Select color
@@ -209,9 +135,9 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
           <Button
             onClick={() => applyTheme(selectedColor)}
             className="mt-2 sm:mt-0 w-full sm:w-auto"
-            disabled={updateThemeMutation.isPending}
+            disabled={isSaving}
           >
-            {updateThemeMutation.isPending ? (
+            {isSaving ? (
               <>{t('settings.savingSettings')}</>
             ) : (
               <>{t('settings.applyColor')}</>

@@ -12,6 +12,7 @@ import PublicFilamentsPage from "@/pages/public-filaments";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Toaster } from "@/components/ui/toaster";
 import { LanguageProvider } from "@/i18n/LanguageProvider";
+import { ThemeSync } from "@/lib/use-theme";
 
 // Initialize theme from localStorage on page load
 const initializeTheme = () => {
@@ -101,6 +102,7 @@ function Router() {
 function App() {
   return (
     <AuthProvider>
+      <ThemeSync />
       <LanguageProvider>
         <Router />
         <Toaster />

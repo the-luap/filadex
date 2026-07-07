@@ -27,6 +27,12 @@ export const users = pgTable("users", {
   notifyLowStock: boolean("notify_low_stock").default(true),
   notifyDryingReminder: boolean("notify_drying_reminder").default(true),
   dryingReminderDays: integer("drying_reminder_days").default(30),
+  // Per-user UI theme (previously a single global theme.json file shared by
+  // every user - see migrations/add_user_theme_preferences.ts)
+  themeVariant: text("theme_variant").default("professional"),
+  themePrimary: text("theme_primary").default("#EA580C"),
+  themeAppearance: text("theme_appearance").default("dark"), // 'light' | 'dark'
+  themeRadius: numeric("theme_radius").default("0.8"),
 });
 
 // A filament product (vendor, material, color, diameter, print temp) defined
@@ -89,6 +95,15 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
   newPassword: z.string().min(6, "Password must be at least 6 characters"),
 });
+
+export const updateThemeSchema = z.object({
+  variant: z.string().min(1).optional(),
+  primary: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Must be a hex color like #EA580C").optional(),
+  appearance: z.enum(["light", "dark"]).optional(),
+  radius: z.number().min(0).max(2).optional(),
+});
+
+export type UpdateTheme = z.infer<typeof updateThemeSchema>;
 
 // 3-30 chars, letters/numbers/underscore/hyphen only - shared between the
 // registration schema and the /api/auth/check-username validation.

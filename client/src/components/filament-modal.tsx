@@ -782,7 +782,7 @@ export function FilamentModal({
                               )
                             )
                             .map((color) => (
-                              <SelectItem key={color.code} value={color.name}>
+                              <SelectItem key={color.name} value={color.name}>
                                 <div className="flex items-center">
                                   <div
                                     className="h-4 w-4 rounded-full mr-2 border border-neutral-300"

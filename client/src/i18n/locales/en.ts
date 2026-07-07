@@ -189,7 +189,7 @@ const translations = {
     editFilament: 'Edit Filament',
     editFilamentDescription: 'Update the details of your filament spool.',
     deleteFilament: 'Delete Filament',
-    deleteConfirmation: 'Are you sure you want to delete this filament?',
+    deleteConfirmation: 'Are you sure you want to delete this filament:',
     deleteWarning: 'This action cannot be undone.',
     name: 'Name',
     namePlaceholder: 'e.g. PLA Black Bambu Lab',
@@ -778,7 +778,7 @@ const translations = {
     spooled: 'Spooled',
     spoolless: 'Spoolless',
     dryCount: 'Dry Count',
-    purchaseDate: 'Purchase Date',
+    purchaseDate: 'Purchased',
   },
   charts: {
     materialsAndColors: 'Materials and Colors',

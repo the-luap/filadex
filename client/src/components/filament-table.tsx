@@ -144,7 +144,7 @@ export function FilamentTable({
               className="cursor-pointer"
               onClick={() => handleSort("manufacturer")}
             >
-              {t('filters.manufacturerFilter')} {renderSortIndicator("manufacturer")}
+              {t('filaments.manufacturer')} {renderSortIndicator("manufacturer")}
             </TableHead>
             <TableHead
               className="cursor-pointer"

@@ -234,6 +234,12 @@ else
   fi
 fi
 
+# Migrations below are NOT allowed to fail silently: any of these exiting
+# non-zero aborts startup instead of leaving the app running against a
+# partially-migrated DB (see GH issue #5 - a missing tsconfig.json in this
+# image used to make every one of these fail with ERR_MODULE_NOT_FOUND,
+# silently, because of an old `|| echo ... continuing` fallback that was
+# here previously).
 run_migration() {
   echo "Running migration: $1"
   shift
@@ -278,6 +284,10 @@ run_migration "add filament types table" migrations/add_filament_types.ts
 # anything if any filament row still lacks a filament_type_id, so it's safe
 # to run unconditionally right after the backfill above.
 run_migration "drop redundant filament type columns" migrations/drop_filament_type_columns.ts
+
+# Run the migration moving the UI theme from a single global theme.json file
+# to per-user columns (backfills every user from theme.json if present)
+run_migration "add per-user theme preferences" migrations/add_user_theme_preferences.ts
 
 # Start the application
 echo "Starting application..."

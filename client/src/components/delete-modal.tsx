@@ -34,9 +34,10 @@ export function DeleteModal({
           <AlertDialogTitle>{t('filaments.deleteFilament')}</AlertDialogTitle>
           <AlertDialogDescription>
             {t('filaments.deleteConfirmation')} <span className="font-medium">{filament?.name}</span>?
-            <p className="text-sm text-neutral-300 mt-2">
+            {/* span, not p: AlertDialogDescription already renders a <p>, and <p> can't nest a <p> */}
+            <span className="block text-sm text-neutral-300 mt-2">
               {t('filaments.deleteWarning')}
-            </p>
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

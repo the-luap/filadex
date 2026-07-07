@@ -70,7 +70,7 @@ export function Header({
 
   return (
     <header className="theme-primary-bg text-white shadow-md">
-      <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div className="container mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-y-2">
         <div className="flex items-center space-x-2">
           <Link href="/">
             <div className="flex items-center space-x-2">
@@ -85,17 +85,18 @@ export function Header({
             </div>
           </Link>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Settings Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
+                aria-label={t('settings.title')}
                 className="bg-primary/20 hover:bg-primary/30 text-white border-white/20 flex items-center gap-1"
               >
                 <Settings className="h-4 w-4" />
-                {t('settings.title')}
+                <span className="hidden sm:inline">{t('settings.title')}</span>
                 <ChevronDown className="h-3 w-3 opacity-70" />
               </Button>
             </DropdownMenuTrigger>
@@ -142,10 +143,11 @@ export function Header({
               <Button
                 variant="outline"
                 size="sm"
+                aria-label={t('common.tools')}
                 className="bg-primary/20 hover:bg-primary/30 text-white border-white/20 flex items-center gap-1"
               >
                 <Wrench className="h-4 w-4" />
-                {t('common.tools')}
+                <span className="hidden sm:inline">{t('common.tools')}</span>
                 <ChevronDown className="h-3 w-3 opacity-70" />
               </Button>
             </DropdownMenuTrigger>
@@ -171,10 +173,11 @@ export function Header({
               <Button
                 variant="outline"
                 size="sm"
+                aria-label={t('common.account')}
                 className="bg-primary/20 hover:bg-primary/30 text-white border-white/20 flex items-center gap-1"
               >
                 <User className="h-4 w-4" />
-                {t('common.account')}
+                <span className="hidden sm:inline">{t('common.account')}</span>
                 <ChevronDown className="h-3 w-3 opacity-70" />
               </Button>
             </DropdownMenuTrigger>

@@ -659,6 +659,10 @@ export class MemStorage implements IStorage {
       notifyLowStock: true,
       notifyDryingReminder: true,
       dryingReminderDays: 30,
+      themeVariant: "professional",
+      themePrimary: "#EA580C",
+      themeAppearance: "dark",
+      themeRadius: "0.8",
     };
     this.users.set(id, user);
     return user;
