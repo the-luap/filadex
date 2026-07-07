@@ -48,6 +48,7 @@ RUN npm install pg drizzle-orm zod
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
 COPY --from=build /app/shared ./shared
+COPY --from=build /app/tsconfig.json ./tsconfig.json
 RUN mkdir -p ./migrations && if [ -d /app/dist/migrations ] && [ "$(ls -A /app/dist/migrations 2>/dev/null)" ]; then cp -r /app/dist/migrations/* ./migrations/; fi || true
 COPY --from=build /app/init-data.ts ./init-data.ts
 COPY --from=build /app/run-migration.ts ./run-migration.ts
