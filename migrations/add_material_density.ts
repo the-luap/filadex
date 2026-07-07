@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "../server/db";
+import { addColumnIfMissing } from "./helpers";
 
 /**
  * Migration: adds a `density` column (g/cm^3) to materials, seeded with
@@ -12,9 +13,7 @@ import { db } from "../server/db";
 export async function runMigration() {
   console.log("Starting migration: material density...");
 
-  await db.execute(sql`
-    ALTER TABLE materials ADD COLUMN IF NOT EXISTS density NUMERIC;
-  `);
+  await addColumnIfMissing("materials", "density", sql`ALTER TABLE materials ADD COLUMN density NUMERIC;`);
   console.log("✓ Added density column to materials");
 
   const seeds: Array<{ density: number; pattern: string }> = [
