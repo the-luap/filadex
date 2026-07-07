@@ -8,7 +8,7 @@ const Switch = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>
 >(({ className, ...props }, ref) => {
   // Create a click handler that stops propagation
-  const handleClick = React.useCallback((e: React.MouseEvent) => {
+  const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     // Stop event propagation to prevent parent elements from capturing the click
     e.stopPropagation();
 

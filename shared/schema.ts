@@ -22,18 +22,40 @@ export const users = pgTable("users", {
   temperatureUnit: text("temperature_unit").default("C"),
   lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").defaultNow(),
+  // Low-stock / drying-reminder email alert preferences (per-user, not global)
+  lowStockThresholdPercent: integer("low_stock_threshold_percent").default(15),
+  notifyLowStock: boolean("notify_low_stock").default(true),
+  notifyDryingReminder: boolean("notify_drying_reminder").default(true),
+  dryingReminderDays: integer("drying_reminder_days").default(30),
 });
 
-export const filaments = pgTable("filaments", {
+// A filament product (vendor, material, color, diameter, print temp) defined
+// once; filaments (below) become spool instances referencing one of these,
+// so buying 5 identical spools no longer means re-entering the same
+// manufacturer/material/color/diameter 5 times. See IMPLEMENTATION_PLAN.md #9.
+export const filamentTypes = pgTable("filament_types", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
   manufacturer: text("manufacturer"),
   material: text("material").notNull(),
   colorName: text("color_name").notNull(),
   colorCode: text("color_code"),
   diameter: numeric("diameter"),
   printTemp: text("print_temp"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type FilamentType = typeof filamentTypes.$inferSelect;
+
+// The spool instance table. Product-identity fields (manufacturer, material,
+// colorName, colorCode, diameter, printTemp) live on filamentTypes instead -
+// server/storage.ts joins them back in so every route/component keeps
+// working against the same flattened shape (see the `Filament` type below).
+export const filaments = pgTable("filaments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  filamentTypeId: integer("filament_type_id").notNull().references(() => filamentTypes.id),
+  name: text("name").notNull(),
   totalWeight: numeric("total_weight").notNull(),
   remainingPercentage: numeric("remaining_percentage").notNull(),
   purchaseDate: date("purchase_date"),
@@ -43,6 +65,14 @@ export const filaments = pgTable("filaments", {
   dryerCount: integer("dryer_count").default(0), // Anzahl der Trocknungen
   lastDryingDate: date("last_drying_date"), // Datum der letzten Trocknung
   storageLocation: text("storage_location"), // Lagerort
+  // Set when a low-stock email is sent, cleared once remaining % rises back
+  // above the threshold - prevents re-notifying every scheduled check.
+  lowStockNotifiedAt: timestamp("low_stock_notified_at"),
+  // Set when a drying-reminder email is sent; throttles reminders to at most
+  // once/day rather than every scheduled check, until lastDryingDate changes.
+  dryingReminderNotifiedAt: timestamp("drying_reminder_notified_at"),
+  // Values for this user's customFieldDefinitions, keyed by definition id (as a string)
+  customFieldValues: jsonb("custom_field_values").$type<Record<string, any>>().default({}),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -87,10 +117,49 @@ export const resendVerificationSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
 });
 
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+
+// The flattened API-facing shape: a spool instance (filaments row) joined
+// with its filament type. This is what every route/component reads and
+// writes; storage.ts's find-or-create logic handles translating to/from the
+// normalized filamentTypeId model underneath.
+type FilamentTypeSelectFields = {
+  manufacturer: string | null;
+  material: string;
+  colorName: string;
+  colorCode: string | null;
+  diameter: string | null;
+  printTemp: string | null;
+};
+
+type FilamentTypeInsertFields = {
+  manufacturer?: string | null;
+  material: string;
+  colorName: string;
+  colorCode?: string | null;
+  diameter?: string | null;
+  printTemp?: string | null;
+};
+
+export type Filament = Omit<typeof filaments.$inferSelect, "filamentTypeId"> & FilamentTypeSelectFields & {
+  filamentTypeId: number;
+};
+
+export type InsertFilament = Omit<typeof filaments.$inferInsert, "id" | "filamentTypeId"> & FilamentTypeInsertFields;
+
 // Bearbeiten Sie das Schema, um sicherzustellen, dass numerische Felder korrekt konvertiert werden
 // Schema für das Einfügen von Filaments ohne Transformation
 const baseInsertFilamentSchema = createInsertSchema(filaments).omit({
   id: true,
+  filamentTypeId: true,
+}).extend({
+  manufacturer: z.string().nullable().optional(),
+  material: z.string(),
+  colorName: z.string(),
+  colorCode: z.string().nullable().optional(),
+  diameter: z.union([z.string(), z.number()]).nullable().optional(),
+  printTemp: z.string().nullable().optional(),
 });
 
 // Schema mit Transformation für die Formvalidierung
@@ -98,20 +167,13 @@ export const insertFilamentSchema = baseInsertFilamentSchema.transform((data) =>
   // Konvertiert numerische Werte zu Strings für die Datenbank
   return {
     ...data,
-    diameter: data.diameter?.toString(),
+    diameter: data.diameter !== undefined && data.diameter !== null ? data.diameter.toString() : data.diameter,
     totalWeight: data.totalWeight.toString(),
     remainingPercentage: data.remainingPercentage.toString(),
     purchasePrice: data.purchasePrice?.toString(),
     dryerCount: data.dryerCount !== undefined ? data.dryerCount : 0
   };
 });
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
-// Wichtiger Typ ohne Transformation für die Datenbankoperationen
-export type InsertFilament = z.infer<typeof baseInsertFilamentSchema>;
-export type Filament = typeof filaments.$inferSelect;
 
 // Neue Listen für die Einstellungen
 export const manufacturers = pgTable("manufacturers", {
@@ -125,6 +187,8 @@ export const materials = pgTable("materials", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
   sortOrder: integer("sort_order").default(999),
+  density: numeric("density"), // g/cm^3; lets weight<->length conversions work without an external lookup
+  isHygroscopic: boolean("is_hygroscopic").default(false), // drives the drying-reminder email check
   createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -268,3 +332,93 @@ export const insertCatalogRequestSchema = z.object({
 
 export type InsertCatalogRequest = z.infer<typeof insertCatalogRequestSchema>;
 export type CatalogRequest = typeof catalogRequests.$inferSelect;
+
+// Records every change to a filament's remainingPercentage, so "how much did
+// I use and when" is answerable without the user having tracked it manually.
+export const filamentUsageLog = pgTable("filament_usage_log", {
+  id: serial("id").primaryKey(),
+  filamentId: integer("filament_id").notNull().references(() => filaments.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  deltaWeight: numeric("delta_weight").notNull(), // grams; negative = consumed, positive = corrected/refilled
+  remainingPercentageAfter: numeric("remaining_percentage_after").notNull(),
+  note: text("note"),
+  source: text("source").notNull().default("manual"), // 'manual' | 'printer'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type FilamentUsageLog = typeof filamentUsageLog.$inferSelect;
+
+// Lets a user define their own tracked attributes on filaments (e.g. "shelf",
+// "batch number") without a schema change; values live in
+// filaments.customFieldValues, keyed by this definition's id.
+export const customFieldFieldTypes = ["text", "number", "boolean", "date"] as const;
+
+export const customFieldDefinitions = pgTable("custom_field_definitions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  entityType: text("entity_type").notNull().default("filament"), // only 'filament' for now
+  name: text("name").notNull(),
+  fieldType: text("field_type").notNull(), // one of customFieldFieldTypes
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCustomFieldDefinitionSchema = createInsertSchema(customFieldDefinitions).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+}).extend({
+  fieldType: z.enum(customFieldFieldTypes),
+});
+
+export type InsertCustomFieldDefinition = z.infer<typeof insertCustomFieldDefinitionSchema>;
+export type CustomFieldDefinition = typeof customFieldDefinitions.$inferSelect;
+
+// A locally-cached copy of community filament profiles from SpoolmanDB
+// (https://github.com/Donkie/SpoolmanDB, MIT licensed), refreshed by an
+// admin action rather than a live external API call per search. One row per
+// manufacturer/product/color combination.
+export const communityFilamentCache = pgTable("community_filament_cache", {
+  id: serial("id").primaryKey(),
+  manufacturer: text("manufacturer").notNull(),
+  material: text("material").notNull(),
+  name: text("name").notNull(),
+  colorName: text("color_name").notNull(),
+  colorCode: text("color_code"),
+  density: numeric("density"),
+  diameter: numeric("diameter"),
+  extruderTemp: integer("extruder_temp"),
+  bedTemp: integer("bed_temp"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type CommunityFilamentCacheEntry = typeof communityFilamentCache.$inferSelect;
+
+// Per-user API tokens for printer/print-server integrations (a print server
+// can't hold a user's login cookie). tokenHash is a SHA-256 digest of the
+// plaintext token - looked up directly, not bcrypt-compared, since the
+// token itself is high-entropy random data rather than a user-chosen password.
+export const apiTokens = pgTable("api_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  label: text("label"),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastUsedAt: timestamp("last_used_at"),
+});
+
+export type ApiToken = typeof apiTokens.$inferSelect;
+
+export const insertApiTokenSchema = z.object({
+  label: z.string().optional(),
+});
+
+export type InsertApiToken = z.infer<typeof insertApiTokenSchema>;
+
+// Body for POST /api/integrations/usage (Phase A generic printer ingestion)
+export const printerUsageEventSchema = z.object({
+  filamentId: z.number().int().positive(),
+  deltaWeight: z.number(), // grams; negative = consumed
+  externalJobId: z.string().optional(),
+});
+
+export type PrinterUsageEvent = z.infer<typeof printerUsageEventSchema>;

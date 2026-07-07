@@ -23,6 +23,8 @@ export interface Manufacturer {
 export interface Material {
   id: number;
   name: string;
+  density: string | null;
+  isHygroscopic: boolean | null;
   createdAt: string;
 }
 
@@ -51,7 +53,9 @@ export const createManufacturerSchema = (t: (key: string) => string) => z.object
 });
 
 export const createMaterialSchema = (t: (key: string) => string) => z.object({
-  name: z.string().min(1, t('settings.materials.nameRequired'))
+  name: z.string().min(1, t('settings.materials.nameRequired')),
+  density: z.string().optional().transform((v) => (v ? v : undefined)),
+  isHygroscopic: z.boolean().optional()
 });
 
 export const createColorSchema = (t: (key: string) => string) => z.object({

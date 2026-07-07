@@ -11,6 +11,10 @@ import { registerStatisticsRoutes } from "./statistics";
 import { registerThemeRoutes } from "./theme";
 import { registerEmailSettingsRoutes } from "./email-settings";
 import { registerCatalogRequestRoutes } from "./catalog-requests";
+import { registerCustomFieldRoutes } from "./custom-fields";
+import { registerCommunityFilamentRoutes } from "./community-filaments";
+import { registerIntegrationRoutes } from "./integrations";
+import { registerSpoolmanCompatRoutes } from "./spoolman-compat";
 // All routes have been extracted - routes.ts is now empty or contains only legacy code
 // Keeping registerRemainingRoutes import for backward compatibility
 import { registerRemainingRoutes } from "../routes";
@@ -38,6 +42,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerThemeRoutes(app);
   registerEmailSettingsRoutes(app);
   registerCatalogRequestRoutes(app);
+  registerCustomFieldRoutes(app);
+  registerCommunityFilamentRoutes(app);
+  registerIntegrationRoutes(app);
+  registerSpoolmanCompatRoutes(app);
 
   // Register any remaining routes from routes.ts (should be empty now)
   registerRemainingRoutes(app);

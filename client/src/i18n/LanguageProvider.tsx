@@ -39,14 +39,13 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   };
 
   // Fetch user settings from API if available and not on a public route
+  // If this errors (not logged in, etc.), userData stays undefined and the
+  // effect below falls through to localStorage/browser language.
   const { data: userData } = useQuery({
     queryKey: ['/api/auth/me'],
     queryFn: () => apiRequest('/api/auth/me'),
     retry: false,
     enabled: !isPublicRoute(), // Skip this query for public routes
-    onError: () => {
-      // If not logged in or error, just use browser language or localStorage
-    }
   });
 
   // Update language preference mutation

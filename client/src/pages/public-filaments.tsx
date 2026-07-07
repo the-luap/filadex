@@ -11,19 +11,7 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { MaterialColorChart } from "@/components/material-color-chart";
 import { useTranslation } from "@/i18n";
-
-type Filament = {
-  id: number;
-  name: string;
-  manufacturer: string;
-  material: string;
-  colorName: string;
-  colorCode: string;
-  diameter: string;
-  totalWeight: string;
-  remainingPercentage: string;
-  status: string;
-};
+import type { Filament } from "@shared/schema";
 
 export default function PublicFilamentsPage() {
   const { t } = useTranslation();
@@ -82,10 +70,10 @@ export default function PublicFilamentsPage() {
   };
 
   const materials = Array.isArray(filaments)
-    ? [...new Set(filaments.map((f: Filament) => f.material))].filter(Boolean).sort()
+    ? Array.from(new Set(filaments.map((f: Filament) => f.material))).filter(Boolean).sort()
     : [];
   const manufacturers = Array.isArray(filaments)
-    ? [...new Set(filaments.map((f: Filament) => f.manufacturer))].filter(Boolean).sort()
+    ? Array.from(new Set(filaments.map((f: Filament) => f.manufacturer))).filter((m): m is string => Boolean(m)).sort()
     : [];
 
   // Ensure filaments is an array before filtering

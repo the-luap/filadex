@@ -1,6 +1,8 @@
 import { insertFilamentSchema } from './shared/schema';
 import { db } from './server/db';
-import { filaments, manufacturers, materials, diameters, colors, storageLocations } from './shared/schema';
+import { filaments, manufacturers, materials, diameters, colors, storageLocations, users } from './shared/schema';
+import { storage } from './server/storage';
+import { eq } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
 
@@ -64,15 +66,22 @@ async function insertInitialData(): Promise<void> {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
           );
 
-          CREATE TABLE IF NOT EXISTS filaments (
+          CREATE TABLE IF NOT EXISTS filament_types (
             id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
+            user_id INTEGER,
             manufacturer TEXT,
             material TEXT NOT NULL,
-            color_name TEXT,
+            color_name TEXT NOT NULL,
             color_code TEXT,
             diameter NUMERIC,
             print_temp TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+
+          CREATE TABLE IF NOT EXISTS filaments (
+            id SERIAL PRIMARY KEY,
+            filament_type_id INTEGER NOT NULL REFERENCES filament_types(id),
+            name TEXT NOT NULL,
             total_weight NUMERIC NOT NULL,
             remaining_percentage NUMERIC NOT NULL,
             purchase_date DATE,
@@ -183,9 +192,13 @@ async function insertInitialData(): Promise<void> {
         }
       ];
 
+      // Sample filaments are owned by the default admin account (the only
+      // user that exists at this point in a fresh install).
+      const [adminUser] = await db.select().from(users).where(eq(users.username, "admin"));
+
       for (const filamentData of initialFilaments) {
-        const parsedData = insertFilamentSchema.parse(filamentData);
-        await db.insert(filaments).values(parsedData);
+        const parsedData = insertFilamentSchema.parse({ ...filamentData, userId: adminUser?.id });
+        await storage.createFilament(parsedData);
       }
 
       console.log("Sample filaments inserted.");

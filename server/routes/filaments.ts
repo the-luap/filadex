@@ -290,7 +290,8 @@ export function registerFilamentRoutes(app: Express): void {
         spoolType: data.spoolType,
         dryerCount: data.dryerCount,
         lastDryingDate: data.lastDryingDate,
-        storageLocation: data.storageLocation
+        storageLocation: data.storageLocation,
+        customFieldValues: data.customFieldValues
       };
 
       const newFilament = await storage.createFilament(insertData);
@@ -306,6 +307,27 @@ export function registerFilamentRoutes(app: Express): void {
     }
   });
 
+  // GET the usage/adjustment history log for a filament
+  app.get("/api/filaments/:id/usage-log", authenticate, async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ message: "Invalid filament ID" });
+      }
+
+      const filament = await storage.getFilament(id, req.userId);
+      if (!filament) {
+        return res.status(404).json({ message: "Filament not found" });
+      }
+
+      const log = await storage.getFilamentUsageLog(id, req.userId);
+      res.json(log);
+    } catch (error) {
+      appLogger.error("Error fetching filament usage log:", error);
+      res.status(500).json({ message: "Failed to fetch filament usage log" });
+    }
+  });
+
   // PATCH update an existing filament
   app.patch("/api/filaments/:id", authenticate, async (req, res) => {
     try {
@@ -315,6 +337,11 @@ export function registerFilamentRoutes(app: Express): void {
       }
 
       appLogger.debug("Updating filament", { id, userId: req.userId });
+
+      const existingFilament = await storage.getFilament(id, req.userId);
+      if (!existingFilament) {
+        return res.status(404).json({ message: "Filament not found" });
+      }
 
       const data = req.body;
       const updateData: Partial<InsertFilament> = {};
@@ -337,12 +364,45 @@ export function registerFilamentRoutes(app: Express): void {
       if (data.status !== undefined) updateData.status = data.status;
       if (data.spoolType !== undefined) updateData.spoolType = data.spoolType;
       if (data.dryerCount !== undefined) updateData.dryerCount = data.dryerCount;
-      if (data.lastDryingDate !== undefined) updateData.lastDryingDate = data.lastDryingDate;
+      if (data.lastDryingDate !== undefined) {
+        updateData.lastDryingDate = data.lastDryingDate;
+        updateData.dryingReminderNotifiedAt = null; // drying resets the reminder clock
+      }
       if (data.storageLocation !== undefined) updateData.storageLocation = data.storageLocation;
+      if (data.customFieldValues !== undefined) updateData.customFieldValues = data.customFieldValues;
+
+      // A top-up clears the low-stock notification latch, so a future drop
+      // back below the threshold triggers a fresh email instead of staying silent.
+      if (data.remainingPercentage !== undefined) {
+        const newPercentage = Number(data.remainingPercentage);
+        if (newPercentage > Number(existingFilament.remainingPercentage)) {
+          updateData.lowStockNotifiedAt = null;
+        }
+      }
 
       const updatedFilament = await storage.updateFilament(id, updateData, req.userId);
       if (!updatedFilament) {
         return res.status(404).json({ message: "Filament not found" });
+      }
+
+      // Record the change whenever remainingPercentage actually moved, so the
+      // per-spool history view has a "why did this change" trail.
+      if (data.remainingPercentage !== undefined) {
+        const oldPercentage = Number(existingFilament.remainingPercentage);
+        const newPercentage = Number(updatedFilament.remainingPercentage);
+        if (oldPercentage !== newPercentage) {
+          // totalWeight is stored in kg; the usage log records grams.
+          const totalWeightGrams = Number(updatedFilament.totalWeight) * 1000;
+          const deltaWeight = ((newPercentage - oldPercentage) / 100) * totalWeightGrams;
+          await storage.createFilamentUsageLog({
+            filamentId: id,
+            userId: req.userId,
+            deltaWeight: deltaWeight.toFixed(3),
+            remainingPercentageAfter: updatedFilament.remainingPercentage,
+            note: typeof data.note === "string" && data.note.trim() ? data.note.trim() : undefined,
+            source: "manual",
+          });
+        }
       }
 
       res.json(updatedFilament);
