@@ -3,6 +3,8 @@ import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { registerRoutes } from "./routes/index";
 import { setupVite, serveStatic, log } from "./vite";
+import { runScheduledChecks } from "./utils/notification-checks";
+import { logger } from "./utils/logger";
 
 const app = express();
 
@@ -83,4 +85,11 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
   });
+
+  // Low-stock / drying-reminder email checks, every 6h. This app has no job
+  // queue; a plain interval is enough at this scale (see IMPLEMENTATION_PLAN.md #2).
+  const SCHEDULED_CHECKS_INTERVAL_MS = 6 * 60 * 60 * 1000;
+  setInterval(() => {
+    runScheduledChecks().catch((error) => logger.error("Scheduled notification check failed:", error));
+  }, SCHEDULED_CHECKS_INTERVAL_MS);
 })();

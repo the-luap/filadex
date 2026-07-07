@@ -37,7 +37,7 @@ export function registerSettingsRoutes(app: Express): void {
     isInUse: (filament: Filament, item) => filament.manufacturer === item.name,
   });
 
-  registerCrudSettingsRoutes<Material, { name: string }>(app, {
+  registerCrudSettingsRoutes<Material, { name: string; density?: string | null; isHygroscopic?: boolean | null }>(app, {
     entityName: "material",
     basePath: "/api/materials",
     csvFilename: "materials.csv",
@@ -49,10 +49,23 @@ export function registerSettingsRoutes(app: Express): void {
       updateOrder: (id, newOrder) => storage.updateMaterialOrder(id, newOrder),
     },
     csv: {
-      exportHeader: "name",
-      exportRow: (item) => `${escapeCsvField(item.name)}\n`,
+      exportHeader: "name,density,isHygroscopic",
+      exportRow: (item) =>
+        `${escapeCsvField(item.name)},${escapeCsvField(item.density)},${escapeCsvField(item.isHygroscopic)}\n`,
       isHeaderRow: (line) => /name|material|type/i.test(line),
-      parseLine: simpleNameParseLine,
+      parseLine: (line, existing) => {
+        const [rawName, rawDensity, rawIsHygroscopic] = parseCSVLine(line);
+        const name = rawName?.trim();
+        if (!name) return { kind: "skip" };
+        if (existing.some((m) => m.name.toLowerCase() === name.toLowerCase())) {
+          return { kind: "duplicate" };
+        }
+
+        const density = rawDensity?.trim() ? rawDensity.trim() : undefined;
+        const isHygroscopic = /^(true|yes|1)$/i.test(rawIsHygroscopic?.trim() ?? "");
+
+        return { kind: "create", data: { name, density, isHygroscopic } };
+      },
     },
     isInUse: (filament: Filament, item) => filament.material === item.name,
   });

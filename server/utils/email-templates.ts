@@ -59,6 +59,50 @@ export function passwordResetEmail(language: Language, resetUrl: string): EmailT
   };
 }
 
+export function lowStockEmail(language: Language, filamentNames: string[]): EmailTemplate {
+  const items = filamentNames.map((name) => `<li>${name}</li>`).join("");
+  if (language === "de") {
+    return {
+      subject: "Filadex: Niedriger Restbestand",
+      html: wrapper(`
+        <p>Folgende Spulen sind fast leer:</p>
+        <ul>${items}</ul>
+        <p>Du kannst die Benachrichtigungsschwelle in den Kontoeinstellungen anpassen.</p>
+      `),
+    };
+  }
+  return {
+    subject: "Filadex: Low filament stock",
+    html: wrapper(`
+      <p>The following spools are running low:</p>
+      <ul>${items}</ul>
+      <p>You can adjust the notification threshold in your account settings.</p>
+    `),
+  };
+}
+
+export function dryingReminderEmail(language: Language, filamentNames: string[]): EmailTemplate {
+  const items = filamentNames.map((name) => `<li>${name}</li>`).join("");
+  if (language === "de") {
+    return {
+      subject: "Filadex: Trocknungserinnerung",
+      html: wrapper(`
+        <p>Folgende feuchtigkeitsempfindlichen Spulen wurden längere Zeit nicht getrocknet:</p>
+        <ul>${items}</ul>
+        <p>Du kannst die Erinnerungsfrist in den Kontoeinstellungen anpassen.</p>
+      `),
+    };
+  }
+  return {
+    subject: "Filadex: Drying reminder",
+    html: wrapper(`
+      <p>The following moisture-sensitive spools haven't been dried in a while:</p>
+      <ul>${items}</ul>
+      <p>You can adjust the reminder period in your account settings.</p>
+    `),
+  };
+}
+
 export function catalogRequestReviewedEmail(
   language: Language,
   approved: boolean,

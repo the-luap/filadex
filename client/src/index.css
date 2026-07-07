@@ -218,3 +218,22 @@
     @apply bg-gray-800 border-gray-700;
   }
 }
+
+/* Spool label printing (see label-print-modal.tsx): only the label itself
+   should reach paper, sized for common 40x30mm label printer stock. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-label,
+  .print-label * {
+    visibility: visible;
+  }
+  .print-label {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 40mm;
+    height: 30mm;
+  }
+}

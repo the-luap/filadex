@@ -1,7 +1,7 @@
 import { Filament } from "@shared/schema";
 import { FilamentSpool } from "@/components/ui/filament-spool";
 import { Card } from "@/components/ui/card";
-import { Copy, CheckCircle2 } from "lucide-react";
+import { Copy, CheckCircle2, Printer } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import {
   Tooltip,
@@ -15,6 +15,7 @@ interface FilamentCardProps {
   onEdit: (filament: Filament) => void;
   onDelete: (filament: Filament) => void;
   onCopy?: (filament: Filament) => void;
+  onPrintLabel?: (filament: Filament) => void;
   readOnly?: boolean;
   selectable?: boolean;
   selected?: boolean;
@@ -26,6 +27,7 @@ export function FilamentCard({
   onEdit,
   onDelete,
   onCopy,
+  onPrintLabel,
   readOnly = false,
   selectable = false,
   selected = false,
@@ -100,6 +102,19 @@ export function FilamentCard({
                   aria-label={t('common.copy')}
                 >
                   <Copy size={16} />
+                </button>
+              )}
+              {onPrintLabel && (
+                <button
+                  className="dark:text-neutral-400 text-gray-500 hover:text-secondary p-1 rounded-full hover:bg-secondary/10 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPrintLabel(filament);
+                  }}
+                  title={t('filaments.printLabel')}
+                  aria-label={t('filaments.printLabel')}
+                >
+                  <Printer size={16} />
                 </button>
               )}
               <button

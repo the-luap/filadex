@@ -67,6 +67,53 @@ export function registerUserRoutes(app: Express): void {
     }
   });
 
+  // Update user notification preferences (low-stock / drying-reminder emails)
+  app.post("/api/users/notification-preferences", authenticate, async (req, res) => {
+    try {
+      const { lowStockThresholdPercent, notifyLowStock, notifyDryingReminder, dryingReminderDays } = req.body;
+      const updateData: any = {};
+
+      if (lowStockThresholdPercent !== undefined) {
+        const value = Number(lowStockThresholdPercent);
+        if (!Number.isFinite(value) || value < 0 || value > 100) {
+          return res.status(400).json({ message: "lowStockThresholdPercent must be a number between 0 and 100" });
+        }
+        updateData.lowStockThresholdPercent = value;
+      }
+
+      if (notifyLowStock !== undefined) {
+        if (typeof notifyLowStock !== "boolean") {
+          return res.status(400).json({ message: "notifyLowStock must be a boolean" });
+        }
+        updateData.notifyLowStock = notifyLowStock;
+      }
+
+      if (notifyDryingReminder !== undefined) {
+        if (typeof notifyDryingReminder !== "boolean") {
+          return res.status(400).json({ message: "notifyDryingReminder must be a boolean" });
+        }
+        updateData.notifyDryingReminder = notifyDryingReminder;
+      }
+
+      if (dryingReminderDays !== undefined) {
+        const value = Number(dryingReminderDays);
+        if (!Number.isFinite(value) || value < 1) {
+          return res.status(400).json({ message: "dryingReminderDays must be a positive number" });
+        }
+        updateData.dryingReminderDays = value;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await db.update(users).set(updateData).where(eq(users.id, req.userId));
+      }
+
+      res.json({ message: "Notification preferences updated successfully" });
+    } catch (error) {
+      appLogger.error("Update notification preferences error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   // User management routes (admin only)
   app.get("/api/users", authenticate, isAdmin, async (_req, res) => {
     try {

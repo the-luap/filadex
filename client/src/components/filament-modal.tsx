@@ -134,6 +134,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -198,6 +199,34 @@ interface Color {
 interface Material {
   id: number;
   name: string;
+  density?: string | null;
+  createdAt: string;
+}
+
+interface CommunityFilamentResult {
+  id: number;
+  manufacturer: string;
+  material: string;
+  name: string;
+  colorName: string;
+  colorCode: string | null;
+  diameter: string | null;
+  extruderTemp: number | null;
+  bedTemp: number | null;
+}
+
+interface CustomFieldDefinition {
+  id: number;
+  name: string;
+  fieldType: "text" | "number" | "boolean" | "date";
+}
+
+interface FilamentUsageLogEntry {
+  id: number;
+  deltaWeight: string;
+  remainingPercentageAfter: string;
+  note: string | null;
+  source: string;
   createdAt: string;
 }
 
@@ -215,6 +244,28 @@ export function FilamentModal({
   const [customWeightVisible, setCustomWeightVisible] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showNFCScanner, setShowNFCScanner] = useState(false);
+  const [usageNote, setUsageNote] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
+  const [communitySearchQuery, setCommunitySearchQuery] = useState("");
+
+  const { data: communityResults = [] } = useQuery<CommunityFilamentResult[]>({
+    queryKey: [`/api/community-filaments/search?q=${encodeURIComponent(communitySearchQuery)}`],
+    queryFn: () => apiRequest<CommunityFilamentResult[]>(`/api/community-filaments/search?q=${encodeURIComponent(communitySearchQuery)}`),
+    enabled: isOpen && !isEditing && communitySearchQuery.trim().length >= 2,
+  });
+
+  const { data: usageLog = [] } = useQuery<FilamentUsageLogEntry[]>({
+    queryKey: [`/api/filaments/${filament?.id}/usage-log`],
+    queryFn: () => apiRequest<FilamentUsageLogEntry[]>(`/api/filaments/${filament?.id}/usage-log`),
+    enabled: isOpen && isEditing && !!filament?.id && showHistory,
+  });
+
+  const { data: customFieldDefinitions = [] } = useQuery<CustomFieldDefinition[]>({
+    queryKey: ['/api/custom-fields'],
+    queryFn: () => apiRequest<CustomFieldDefinition[]>('/api/custom-fields'),
+    enabled: isOpen,
+  });
 
   // Create form schema with translations
   const formSchema = createFormSchema(t);
@@ -335,6 +386,9 @@ export function FilamentModal({
       setTotalWeight(1);
       setCustomWeightVisible(false);
     }
+    setUsageNote("");
+    setShowHistory(false);
+    setCustomFieldValues((filament?.customFieldValues as Record<string, any>) || {});
   }, [filament, form]);
 
   // Handle form submission
@@ -344,13 +398,47 @@ export function FilamentModal({
       data.totalWeight = totalWeight;
     }
 
-    onSave(data);
+    const withCustomFields = { ...data, customFieldValues };
+    onSave(usageNote.trim() ? { ...withCustomFields, note: usageNote.trim() } : withCustomFields);
+  };
+
+  // Pre-fill the form from a picked community database entry
+  const handleUseCommunityResult = (result: CommunityFilamentResult) => {
+    form.setValue('manufacturer', result.manufacturer);
+    form.setValue('material', result.material);
+    form.setValue('colorName', result.colorName);
+    if (result.colorCode) form.setValue('colorCode', result.colorCode);
+    if (result.diameter) form.setValue('diameter', Number(result.diameter));
+    if (result.extruderTemp) {
+      form.setValue('printTemp', result.bedTemp
+        ? `${result.extruderTemp}°C / Bed ${result.bedTemp}°C`
+        : `${result.extruderTemp}°C`);
+    }
+    const mfgText = result.manufacturer ? ` (${result.manufacturer})` : '';
+    form.setValue('name', `${result.name} ${result.colorName}${mfgText}`);
+    setCommunitySearchQuery("");
   };
 
   // Helper to calculate remaining weight
   const calculateRemainingWeight = () => {
     const total = typeof totalWeight === 'number' ? totalWeight : parseFloat(String(totalWeight)) || 0;
     return ((total * remainingPercentage) / 100).toFixed(2);
+  };
+
+  // Length remaining, given the selected material's density and diameter —
+  // only computable once density is known (materials.density is optional).
+  const calculateRemainingLength = (): string | null => {
+    const materialName = form.watch('material');
+    const density = materials.find((m) => m.name === materialName)?.density;
+    const diameterMm = form.watch('diameter');
+    if (!density || !diameterMm) return null;
+
+    const remainingWeightGrams = Number(calculateRemainingWeight()) * 1000;
+    const densityGCm3 = Number(density);
+    const radiusCm = (diameterMm / 10) / 2;
+    const crossSectionAreaCm2 = Math.PI * radiusCm * radiusCm;
+    const lengthCm = (remainingWeightGrams / densityGCm3) / crossSectionAreaCm2;
+    return (lengthCm / 100).toFixed(1);
   };
 
   // Handle total weight selection
@@ -451,6 +539,46 @@ export function FilamentModal({
           <div className="flex-1 overflow-y-auto p-6">
             <Form {...form}>
               <form id="filament-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {!isEditing && (
+                <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200">
+                  <label className="text-sm font-medium dark:text-neutral-300 text-gray-700 mb-1 block">
+                    {t('settings.communityFilaments.searchLabel')}
+                  </label>
+                  <Input
+                    placeholder={t('settings.communityFilaments.searchPlaceholder')}
+                    value={communitySearchQuery}
+                    onChange={(e) => setCommunitySearchQuery(e.target.value)}
+                  />
+                  {communitySearchQuery.trim().length >= 2 && (
+                    <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
+                      {communityResults.length === 0 ? (
+                        <p className="text-sm dark:text-neutral-400 text-gray-500">
+                          {t('settings.communityFilaments.noResults')}
+                        </p>
+                      ) : (
+                        communityResults.map((result) => (
+                          <button
+                            type="button"
+                            key={`${result.id}`}
+                            onClick={() => handleUseCommunityResult(result)}
+                            className="w-full text-left text-sm flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-primary/10"
+                          >
+                            <span className="truncate">
+                              {result.manufacturer} — {result.name} ({result.colorName})
+                            </span>
+                            {result.colorCode && (
+                              <span
+                                className="inline-block h-3 w-3 rounded-full border flex-shrink-0"
+                                style={{ backgroundColor: result.colorCode }}
+                              />
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -853,9 +981,55 @@ export function FilamentModal({
                         <span className="dark:text-neutral-300 text-gray-600">{t('filaments.equivalentTo')}:</span>
                         <span className="font-medium dark:text-neutral-400 text-gray-700">
                           {calculateRemainingWeight()}kg
+                          {calculateRemainingLength() && ` (~${calculateRemainingLength()}m)`}
                         </span>
                       </div>
                     </div>
+
+                    {isEditing && (
+                      <div>
+                        <label className="text-sm dark:text-neutral-300 text-gray-600 mb-1 block">
+                          {t('filaments.usageNote') || 'Note (optional)'}
+                        </label>
+                        <Input
+                          type="text"
+                          placeholder={t('filaments.usageNotePlaceholder') || 'e.g. printing cover piece'}
+                          value={usageNote}
+                          onChange={(e) => setUsageNote(e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    {isEditing && (
+                      <div className="border-t dark:border-neutral-700 border-gray-200 pt-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowHistory((prev) => !prev)}
+                          className="text-sm font-medium dark:text-neutral-300 text-gray-700 hover:underline"
+                        >
+                          {showHistory ? '▾' : '▸'} {t('filaments.usageHistory') || 'History'}
+                        </button>
+                        {showHistory && (
+                          <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
+                            {usageLog.length === 0 ? (
+                              <p className="text-sm dark:text-neutral-400 text-gray-500">
+                                {t('filaments.noUsageHistory') || 'No changes recorded yet.'}
+                              </p>
+                            ) : (
+                              usageLog.map((entry) => (
+                                <div key={entry.id} className="text-sm flex justify-between gap-2 dark:text-neutral-300 text-gray-700">
+                                  <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                                  <span className="font-medium">
+                                    {Number(entry.deltaWeight) > 0 ? '+' : ''}{Number(entry.deltaWeight).toFixed(1)}g → {entry.remainingPercentageAfter}%
+                                  </span>
+                                  {entry.note && <span className="italic dark:text-neutral-400 text-gray-500 truncate">{entry.note}</span>}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -979,6 +1153,35 @@ export function FilamentModal({
                   </div>
                 </div>
               </div>
+
+              {customFieldDefinitions.length > 0 && (
+                <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200">
+                  <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3">{t('settings.customFields.title')}</h4>
+                  <div className="space-y-4">
+                    {customFieldDefinitions.map((def) => (
+                      <div key={def.id}>
+                        <label className="text-sm dark:text-neutral-300 text-gray-600 mb-1 block">{def.name}</label>
+                        {def.fieldType === "boolean" ? (
+                          <Checkbox
+                            checked={!!customFieldValues[def.id]}
+                            onCheckedChange={(checked) =>
+                              setCustomFieldValues((prev) => ({ ...prev, [def.id]: !!checked }))
+                            }
+                          />
+                        ) : (
+                          <Input
+                            type={def.fieldType === "number" ? "number" : def.fieldType === "date" ? "date" : "text"}
+                            value={customFieldValues[def.id] ?? ""}
+                            onChange={(e) =>
+                              setCustomFieldValues((prev) => ({ ...prev, [def.id]: e.target.value }))
+                            }
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200">
                 <h4 className="font-medium dark:text-neutral-400 text-gray-700 mb-3">{t('filaments.status')}</h4>

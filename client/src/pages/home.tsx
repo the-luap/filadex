@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import Fuse from "fuse.js";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
@@ -9,6 +10,7 @@ import { FilterSidebar } from "@/components/filter-sidebar";
 import { FilamentGrid } from "@/components/filament-grid";
 import { FilamentModal } from "@/components/filament-modal";
 import { DeleteModal } from "@/components/delete-modal";
+import { LabelPrintModal } from "@/components/label-print-modal";
 import { MaterialColorChart } from "@/components/material-color-chart";
 import { StatisticsAccordion } from "@/components/statistics";
 import { BatchActionsPanel } from "@/components/batch-actions-panel";
@@ -22,6 +24,7 @@ export default function Home() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedFilament, setSelectedFilament] = useState<Filament | undefined>(undefined);
   const [copyFromFilament, setCopyFromFilament] = useState<Filament | undefined>(undefined);
+  const [labelFilament, setLabelFilament] = useState<Filament | undefined>(undefined);
 
   // Batch selection state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -41,12 +44,22 @@ export default function Home() {
     refetchOnMount: true, // Bei Mounten immer neu laden
   });
 
+  // Fuzzy search across name/manufacturer/material/color, rebuilt only when the list changes
+  const fuse = useMemo(() => new Fuse(filaments, {
+    keys: ['name', 'manufacturer', 'material', 'colorName'],
+    threshold: 0.35,
+    ignoreLocation: true,
+  }), [filaments]);
+
+  const searchMatchIds = useMemo(() => {
+    if (searchTerm.trim() === '') return null;
+    return new Set(fuse.search(searchTerm).map(result => result.item.id));
+  }, [fuse, searchTerm]);
+
   // Filter filaments based on all filters
   const filteredFilaments = filaments.filter(filament => {
-    // Filter by search term
-    const matchesSearch = searchTerm.trim() === '' ||
-      filament.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (filament.manufacturer && filament.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()));
+    // Filter by search term (fuzzy match across name/manufacturer/material/color)
+    const matchesSearch = searchMatchIds === null || searchMatchIds.has(filament.id);
 
     // Filter by material
     const matchesMaterial = selectedMaterials.length === 0 ||
@@ -242,6 +255,28 @@ export default function Home() {
     setShowAddModal(true);
   };
 
+  // Open the printable label modal for the selected filament
+  const handlePrintLabel = (filament: Filament) => {
+    setLabelFilament(filament);
+  };
+
+  // Deep link from a scanned label QR code (see label-print-modal.tsx):
+  // ?openFilament=<id> opens that spool's edit modal directly.
+  useEffect(() => {
+    if (filaments.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const openFilamentId = params.get('openFilament');
+    if (!openFilamentId) return;
+
+    const filament = filaments.find(f => f.id === Number(openFilamentId));
+    if (filament) {
+      handleEditFilament(filament);
+    }
+    params.delete('openFilament');
+    const newSearch = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
+  }, [filaments]);
+
   // Batch operation handlers
   const handleToggleSelectionMode = () => {
     setSelectionMode(prev => !prev);
@@ -384,6 +419,7 @@ export default function Home() {
                   onEditFilament={handleEditFilament}
                   onDeleteFilament={handleDeleteFilament}
                   onCopyFilament={handleCopyFilament}
+                  onPrintLabel={handlePrintLabel}
                   selectable={selectionMode}
                   selectedFilaments={selectedFilaments}
                   onSelectFilament={handleSelectFilament}
@@ -423,6 +459,13 @@ export default function Home() {
         }}
         onSave={handleSaveFilament}
         filament={selectedFilament || copyFromFilament}
+      />
+
+      {/* Label Print Modal */}
+      <LabelPrintModal
+        isOpen={!!labelFilament}
+        onClose={() => setLabelFilament(undefined)}
+        filament={labelFilament}
       />
 
       {/* Delete Confirmation Modal */}

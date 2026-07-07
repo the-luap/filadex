@@ -9,6 +9,10 @@ import {
   DiametersList,
   StorageLocationsList,
   UnitsSettings,
+  NotificationsSettings,
+  CustomFieldsSettings,
+  CommunityFilamentsSettings,
+  ApiTokensSettings,
   EmailSettingsCard,
   CatalogRequestsReview
 } from "./settings";
@@ -87,12 +91,18 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: SettingsDialo
                 <TabsTrigger value="diameters" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.diameters.title')}</TabsTrigger>
                 <TabsTrigger value="storage-locations" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.storageLocations.title')}</TabsTrigger>
                 <TabsTrigger value="units" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.units.title')}</TabsTrigger>
+                <TabsTrigger value="notifications" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.notifications.title')}</TabsTrigger>
+                <TabsTrigger value="custom-fields" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.customFields.title')}</TabsTrigger>
+                <TabsTrigger value="api-tokens" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.apiTokens.title')}</TabsTrigger>
                 <TabsTrigger value="filament-import-export" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.filamentImportExport.title')}</TabsTrigger>
                 {isAdmin && (
                   <TabsTrigger value="catalog-requests" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.catalogRequests.title')}</TabsTrigger>
                 )}
                 {isAdmin && (
                   <TabsTrigger value="email" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.email.title')}</TabsTrigger>
+                )}
+                {isAdmin && (
+                  <TabsTrigger value="community-filaments" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.communityFilaments.title')}</TabsTrigger>
                 )}
               </TabsList>
             </div>
@@ -124,6 +134,18 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: SettingsDialo
             <UnitsSettings />
           </TabsContent>
 
+          <TabsContent value="notifications">
+            <NotificationsSettings />
+          </TabsContent>
+
+          <TabsContent value="custom-fields">
+            <CustomFieldsSettings />
+          </TabsContent>
+
+          <TabsContent value="api-tokens">
+            <ApiTokensSettings />
+          </TabsContent>
+
           <TabsContent value="filament-import-export">
             <FilamentImportExport title={t('settings.filamentImportExport.title')} />
           </TabsContent>
@@ -137,6 +159,12 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: SettingsDialo
           {isAdmin && (
             <TabsContent value="email">
               <EmailSettingsCard />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="community-filaments">
+              <CommunityFilamentsSettings />
             </TabsContent>
           )}
           </div>

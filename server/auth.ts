@@ -6,6 +6,7 @@ import { db } from "./db";
 import { users } from "../shared/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "./utils/logger";
+import { storage } from "./storage";
 
 // Secret key for JWT. Falling back to a fixed, publicly-known string would let anyone forge
 // tokens for any unconfigured deployment, so an unset JWT_SECRET instead gets a random
@@ -79,6 +80,47 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   } catch (error) {
     return res.status(401).json({ message: "Invalid or expired token" });
   }
+}
+
+// API tokens (for printer/print-server integrations - see IMPLEMENTATION_PLAN.md #5)
+// are high-entropy random strings, so they're hashed with a plain, fast digest
+// rather than bcrypt: bcrypt has no way to look a row up by hash (it's salted
+// per-call), which would mean comparing against every token in the table on
+// every request. SHA-256 is fine here precisely because the input isn't a
+// low-entropy user-chosen password.
+const API_TOKEN_PREFIX = "fdx_";
+
+export function generateApiToken(): { plaintext: string; hash: string } {
+  const plaintext = API_TOKEN_PREFIX + crypto.randomBytes(24).toString("hex");
+  return { plaintext, hash: hashApiToken(plaintext) };
+}
+
+export function hashApiToken(plaintext: string): string {
+  return crypto.createHash("sha256").update(plaintext).digest("hex");
+}
+
+// Authenticates requests via an API token instead of the session cookie, for
+// callers that can't hold a browser session (print servers). Accepts the
+// token as `Authorization: Bearer <token>`, `X-Api-Key: <token>`, or
+// `?token=<token>` - print-server HTTP clients vary in which they support.
+export async function requireApiToken(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  const token =
+    (authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : undefined) ||
+    (typeof req.headers["x-api-key"] === "string" ? req.headers["x-api-key"] : undefined) ||
+    (typeof req.query.token === "string" ? req.query.token : undefined);
+
+  if (!token) {
+    return res.status(401).json({ message: "API token required" });
+  }
+
+  const userId = await storage.getUserIdByTokenHash(hashApiToken(token));
+  if (!userId) {
+    return res.status(401).json({ message: "Invalid API token" });
+  }
+
+  req.userId = userId;
+  next();
 }
 
 // RBAC middleware factory. Must run after `authenticate` (relies on req.user).

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { FilamentSpool } from "@/components/ui/filament-spool";
-import { Copy, ArrowUp, ArrowDown, Pencil, Trash2, CheckCircle2, Circle } from "lucide-react";
+import { Copy, ArrowUp, ArrowDown, Pencil, Trash2, CheckCircle2, Circle, Printer } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -19,6 +19,7 @@ interface FilamentTableProps {
   onEditFilament: (filament: Filament) => void;
   onDeleteFilament: (filament: Filament) => void;
   onCopyFilament?: (filament: Filament) => void;
+  onPrintLabel?: (filament: Filament) => void;
   selectable?: boolean;
   selectedFilaments?: Filament[];
   onSelectFilament?: (filament: Filament) => void;
@@ -34,6 +35,7 @@ export function FilamentTable({
   onEditFilament,
   onDeleteFilament,
   onCopyFilament,
+  onPrintLabel,
   selectable = false,
   selectedFilaments = [],
   onSelectFilament,
@@ -257,6 +259,18 @@ export function FilamentTable({
                         className="h-8 w-8"
                       >
                         <Copy className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onPrintLabel && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onPrintLabel(filament)}
+                        title={t('filaments.printLabel')}
+                        aria-label={t('filaments.printLabel')}
+                        className="h-8 w-8"
+                      >
+                        <Printer className="h-4 w-4" />
                       </Button>
                     )}
                     <Button
