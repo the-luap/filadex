@@ -82,30 +82,32 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: SettingsDialo
         </DialogHeader>
 
         <Tabs defaultValue="manufacturers" value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-4 sm:px-6 pb-3 flex-shrink-0 overflow-x-auto overflow-y-hidden -mx-4 sm:-mx-6 scrollbar-hide">
-            <div className="min-w-max inline-block px-4 sm:px-6">
-              <TabsList className="mb-0 w-full inline-flex min-w-max">
-                <TabsTrigger value="manufacturers" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.manufacturers.title')}</TabsTrigger>
-                <TabsTrigger value="materials" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.materials.title')}</TabsTrigger>
-                <TabsTrigger value="colors" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.colors.title')}</TabsTrigger>
-                <TabsTrigger value="diameters" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.diameters.title')}</TabsTrigger>
-                <TabsTrigger value="storage-locations" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.storageLocations.title')}</TabsTrigger>
-                <TabsTrigger value="units" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.units.title')}</TabsTrigger>
-                <TabsTrigger value="notifications" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.notifications.title')}</TabsTrigger>
-                <TabsTrigger value="custom-fields" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.customFields.title')}</TabsTrigger>
-                <TabsTrigger value="api-tokens" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.apiTokens.title')}</TabsTrigger>
-                <TabsTrigger value="filament-import-export" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.filamentImportExport.title')}</TabsTrigger>
-                {isAdmin && (
-                  <TabsTrigger value="catalog-requests" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.catalogRequests.title')}</TabsTrigger>
-                )}
-                {isAdmin && (
-                  <TabsTrigger value="email" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.email.title')}</TabsTrigger>
-                )}
-                {isAdmin && (
-                  <TabsTrigger value="community-filaments" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">{t('settings.communityFilaments.title')}</TabsTrigger>
-                )}
-              </TabsList>
-            </div>
+          {/* Wraps to multiple rows instead of horizontal-scrolling: with up to
+              13 tabs, a single scrolling row hid most of them with no visual
+              hint more existed. Wrapping costs some vertical space but keeps
+              every tab discoverable. */}
+          <div className="px-4 sm:px-6 pb-3 flex-shrink-0">
+            <TabsList className="h-auto w-full flex flex-wrap justify-start gap-1">
+              <TabsTrigger value="manufacturers" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.manufacturers.title')}</TabsTrigger>
+              <TabsTrigger value="materials" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.materials.title')}</TabsTrigger>
+              <TabsTrigger value="colors" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.colors.title')}</TabsTrigger>
+              <TabsTrigger value="diameters" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.diameters.title')}</TabsTrigger>
+              <TabsTrigger value="storage-locations" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.storageLocations.title')}</TabsTrigger>
+              <TabsTrigger value="units" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.units.title')}</TabsTrigger>
+              <TabsTrigger value="notifications" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.notifications.title')}</TabsTrigger>
+              <TabsTrigger value="custom-fields" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.customFields.title')}</TabsTrigger>
+              <TabsTrigger value="api-tokens" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.apiTokens.title')}</TabsTrigger>
+              <TabsTrigger value="filament-import-export" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.filamentImportExport.title')}</TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="catalog-requests" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.catalogRequests.title')}</TabsTrigger>
+              )}
+              {isAdmin && (
+                <TabsTrigger value="email" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.email.title')}</TabsTrigger>
+              )}
+              {isAdmin && (
+                <TabsTrigger value="community-filaments" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.communityFilaments.title')}</TabsTrigger>
+              )}
+            </TabsList>
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-4 sm:pb-6">

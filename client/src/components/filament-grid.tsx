@@ -71,14 +71,14 @@ export function FilamentGrid({
 
   return (
     <section className="lg:w-4/4">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
         <h2 className="text-xl font-medium text-neutral-400">{t('filaments.inventory')}</h2>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Select
             value={sortOrder}
             onValueChange={(value) => setSortOrder(value as SortOption)}
           >
-            <SelectTrigger className="border border-neutral-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary text-neutral-400 w-[200px]">
+            <SelectTrigger className="border border-neutral-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary text-neutral-400 w-[160px] sm:w-[200px]">
               <SelectValue placeholder={t('filters.sortBy')} />
             </SelectTrigger>
             <SelectContent>
@@ -89,7 +89,7 @@ export function FilamentGrid({
             </SelectContent>
           </Select>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Selection Mode Toggle */}
             {onSelectFilament && onSelectAll && (
               <Button

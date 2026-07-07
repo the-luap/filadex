@@ -282,6 +282,11 @@ npx tsx migrations/add_filament_types.ts
 echo "Running migration to drop redundant filament type columns..."
 npx tsx migrations/drop_filament_type_columns.ts
 
+# Run the migration moving the UI theme from a single global theme.json file
+# to per-user columns (backfills every user from theme.json if present)
+echo "Running migration to add per-user theme preferences..."
+npx tsx migrations/add_user_theme_preferences.ts
+
 # Start the application
 echo "Starting application..."
 exec "$@"

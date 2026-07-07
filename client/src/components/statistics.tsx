@@ -40,7 +40,7 @@ export function StatisticsAccordion() {
   return (
     <div className="dark:bg-neutral-800 light:bg-white rounded-lg shadow-md mb-6">
       <button
-        className="w-full flex items-center justify-between p-4 text-left focus:outline-none"
+        className="w-full flex flex-wrap items-center justify-between gap-1 p-4 text-left focus:outline-none"
         onClick={() => setIsOpen(!isOpen)}
       >
         <h2 className="text-lg font-semibold dark:text-neutral-200 light:text-gray-800 flex items-center">

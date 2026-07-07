@@ -291,7 +291,14 @@ export function SettingsCrudList<T extends { id: number }, FormValues extends Re
                     <TableRow>
                       {canReorder && <TableHead className="w-10"></TableHead>}
                       {columnHeaders.map((header, i) => (
-                        <TableHead key={i} className={i === 0 ? "w-[65%]" : undefined}>
+                        <TableHead
+                          key={i}
+                          // With more than one non-name column (e.g. Materials'
+                          // Density + Hygroscopic), a fixed 65% first column
+                          // leaves too little room for the rest and their
+                          // headers overlap the Actions column.
+                          className={i === 0 ? (columnHeaders.length > 2 ? "w-[40%]" : "w-[65%]") : undefined}
+                        >
                           {header}
                         </TableHead>
                       ))}
