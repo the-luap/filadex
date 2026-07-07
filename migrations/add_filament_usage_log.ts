@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "../server/db";
+import { createIndexIfMissing } from "./helpers";
 
 /**
  * Migration: adds the filament_usage_log table, recording every change to a
@@ -23,9 +24,10 @@ export async function runMigration() {
   `);
   console.log("✓ Created filament_usage_log table");
 
-  await db.execute(sql`
-    CREATE INDEX IF NOT EXISTS filament_usage_log_filament_id_idx ON filament_usage_log (filament_id);
-  `);
+  await createIndexIfMissing(
+    "filament_usage_log_filament_id_idx",
+    sql`CREATE INDEX filament_usage_log_filament_id_idx ON filament_usage_log (filament_id);`,
+  );
   console.log("✓ Added index on filament_id");
 
   console.log("Migration completed successfully!");

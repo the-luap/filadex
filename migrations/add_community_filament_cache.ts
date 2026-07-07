@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "../server/db";
+import { createIndexIfMissing } from "./helpers";
 
 /**
  * Migration: adds the community_filament_cache table, holding a locally
@@ -28,10 +29,13 @@ export async function runMigration() {
   `);
   console.log("✓ Created community_filament_cache table");
 
-  await db.execute(sql`
-    CREATE INDEX IF NOT EXISTS community_filament_cache_search_idx
-      ON community_filament_cache (manufacturer, name, color_name);
-  `);
+  await createIndexIfMissing(
+    "community_filament_cache_search_idx",
+    sql`
+      CREATE INDEX community_filament_cache_search_idx
+        ON community_filament_cache (manufacturer, name, color_name);
+    `,
+  );
   console.log("✓ Added search index");
 
   console.log("Migration completed successfully!");

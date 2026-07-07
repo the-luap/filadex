@@ -26,3 +26,27 @@ export async function addColumnIfMissing(
 
   await db.execute(statement);
 }
+
+export async function indexExists(indexName: string) {
+  const { rows } = await db.execute(sql`
+    SELECT 1
+    FROM pg_indexes
+    WHERE schemaname = 'public'
+      AND indexname = ${indexName}
+    LIMIT 1;
+  `);
+
+  return rows.length > 0;
+}
+
+export async function createIndexIfMissing(
+  indexName: string,
+  statement: ReturnType<typeof sql>,
+) {
+  if (await indexExists(indexName)) {
+    console.log(`✓ ${indexName} already exists - skipping`);
+    return;
+  }
+
+  await db.execute(statement);
+}

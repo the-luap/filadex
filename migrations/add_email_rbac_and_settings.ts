@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "../server/db";
-import { addColumnIfMissing } from "./helpers";
+import { addColumnIfMissing, createIndexIfMissing } from "./helpers";
 
 /**
  * Migration: adds RBAC (role column), email/verification/password-reset
@@ -34,9 +34,10 @@ export async function runMigration() {
     UPDATE users SET email_verified = true WHERE email_verified = false;
   `);
 
-  await db.execute(sql`
-    CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_idx ON users (LOWER(username));
-  `);
+  await createIndexIfMissing(
+    "users_username_lower_idx",
+    sql`CREATE UNIQUE INDEX users_username_lower_idx ON users (LOWER(username));`,
+  );
   console.log("✓ Added case-insensitive unique username index");
 
   await db.execute(sql`
