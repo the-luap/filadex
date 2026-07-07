@@ -234,38 +234,45 @@ else
   fi
 fi
 
+# Migrations below are NOT allowed to fail silently: `set -e` (top of this
+# script) means any of these exiting non-zero aborts startup instead of
+# leaving the app running against a partially-migrated DB (see GH issue #5 -
+# a missing tsconfig.json in this image used to make every one of these
+# fail with ERR_MODULE_NOT_FOUND, silently, because of the old
+# `|| echo ... continuing` fallback that was here).
+
 # Run the migration to add user_id column
 echo "Running migration to add user_id column to filaments table..."
-npx tsx run-migration.ts || echo "Migration failed, but continuing..."
+npx tsx run-migration.ts
 
 # Run the migration adding email/RBAC/catalog-request support
 echo "Running migration to add email, roles, and catalog request tables..."
-npx tsx migrations/add_email_rbac_and_settings.ts || echo "Migration failed, but continuing..."
+npx tsx migrations/add_email_rbac_and_settings.ts
 
 # Run the migration adding the filament usage log table
 echo "Running migration to add filament usage log table..."
-npx tsx migrations/add_filament_usage_log.ts || echo "Migration failed, but continuing..."
+npx tsx migrations/add_filament_usage_log.ts
 
 # Run the migration adding density to materials
 echo "Running migration to add material density column..."
-npx tsx migrations/add_material_density.ts || echo "Migration failed, but continuing..."
+npx tsx migrations/add_material_density.ts
 
 # Run the migration adding notification preferences
 echo "Running migration to add notification preference columns..."
-npx tsx migrations/add_notification_preferences.ts || echo "Migration failed, but continuing..."
+npx tsx migrations/add_notification_preferences.ts
 
 # Run the migration adding custom fields
 echo "Running migration to add custom field definitions..."
-npx tsx migrations/add_custom_fields.ts || echo "Migration failed, but continuing..."
+npx tsx migrations/add_custom_fields.ts
 
 # Run the migration adding the community filament cache table
 echo "Running migration to add community filament cache table..."
-npx tsx migrations/add_community_filament_cache.ts || echo "Migration failed, but continuing..."
+npx tsx migrations/add_community_filament_cache.ts
 
 # Run the migration adding filament_types (splits filament product identity
 # out of the flat filaments row into its own table - see IMPLEMENTATION_PLAN.md #9)
 echo "Running migration to add filament types table..."
-npx tsx migrations/add_filament_types.ts || echo "Migration failed, but continuing..."
+npx tsx migrations/add_filament_types.ts
 
 # Run the migration dropping the now-redundant manufacturer/material/
 # color_name/color_code/diameter/print_temp columns from `filaments` (they
@@ -273,7 +280,7 @@ npx tsx migrations/add_filament_types.ts || echo "Migration failed, but continui
 # anything if any filament row still lacks a filament_type_id, so it's safe
 # to run unconditionally right after the backfill above.
 echo "Running migration to drop redundant filament type columns..."
-npx tsx migrations/drop_filament_type_columns.ts || echo "Migration failed, but continuing..."
+npx tsx migrations/drop_filament_type_columns.ts
 
 # Start the application
 echo "Starting application..."
