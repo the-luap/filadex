@@ -198,7 +198,7 @@ export function BatchUpdateModal({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    if (updates.hasOwnProperty('remainingPercentage')) {
+                    if (Object.hasOwn(updates, 'remainingPercentage')) {
                       // Remove the field from updates if it's already set
                       const newUpdates = { ...updates };
                       delete newUpdates.remainingPercentage;
@@ -209,7 +209,7 @@ export function BatchUpdateModal({
                     }
                   }}
                 >
-                  {updates.hasOwnProperty('remainingPercentage')
+                  {Object.hasOwn(updates, 'remainingPercentage')
                     ? t('batch.noChange')
                     : t('batch.setPercentage')}
                 </Button>
@@ -230,7 +230,7 @@ export function BatchUpdateModal({
                       handleChange('remainingPercentage', value);
                     }
                   }}
-                  disabled={!updates.hasOwnProperty('remainingPercentage')}
+                  disabled={!Object.hasOwn(updates, 'remainingPercentage')}
                 />
                 <div className="flex items-center">
                   <input
@@ -245,7 +245,7 @@ export function BatchUpdateModal({
                         handleChange('remainingPercentage', value);
                       }
                     }}
-                    disabled={!updates.hasOwnProperty('remainingPercentage')}
+                    disabled={!Object.hasOwn(updates, 'remainingPercentage')}
                   />
                   <span className="ml-1">%</span>
                 </div>

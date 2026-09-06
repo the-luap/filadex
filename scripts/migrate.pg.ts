@@ -264,7 +264,7 @@ async function waitForDatabase(databaseUrl: string, maxRetries = 30, delayMs = 1
         return;
       }
       if (attempt === maxRetries) {
-        throw new Error(`Timeout waiting for the database! Last error: ${err.message}`);
+        throw new Error(`Timeout waiting for the database! Last error: ${err.message}`, { cause: err });
       }
       console.log(`Waiting for the database... Attempt ${attempt} of ${maxRetries}`);
       await new Promise((resolve) => setTimeout(resolve, delayMs));

@@ -223,7 +223,9 @@ export function registerBackupRoutes(app: Express): void {
     const cleanup = () => {
       try {
         if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-      } catch {}
+      } catch {
+        // Best effort: the file is in the OS temp directory anyway.
+      }
     };
 
     try {

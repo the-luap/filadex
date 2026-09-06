@@ -27,6 +27,11 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  // The scanner is started once, in an effect that runs only on mount, so the
+  // success callback it registers would otherwise keep calling the first
+  // render's handler with the first render's onScanSuccess. The ref always
+  // points at the latest one.
+  const handleScanSuccessRef = useRef<(decodedText: string) => void>(() => {});
   const qrScannerElementId = "qr-scanner";
 
   useEffect(() => {
@@ -66,7 +71,7 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
           },
           (decodedText) => {
             // Successfully scanned
-            handleScanSuccess(decodedText);
+            handleScanSuccessRef.current(decodedText);
           },
           (errorMessage) => {
             // Errors occur on every frame where no code is detected
@@ -84,10 +89,11 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       setupScanner();
     }, 500);
 
-    // Cleanup on unmount
+    // Cleanup on unmount. The isScanning state would be the mount-time value
+    // here (always false), so ask the scanner itself.
     return () => {
       clearTimeout(timer);
-      if (scannerRef.current && isScanning) {
+      if (scannerRef.current?.isScanning) {
         scannerRef.current.stop().catch(err => {
           console.error("Error stopping QR scanner:", err);
         });
@@ -127,6 +133,7 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       }
     }
   };
+  handleScanSuccessRef.current = handleScanSuccess;
 
   // Processes the scanned code and tries to recognize Bambulab filament data
   const processScanResult = (code: string): BambuFilamentData | null => {
