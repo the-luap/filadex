@@ -20,7 +20,7 @@ jobs:
           # .markAsUncloneable` at import. That export does not exist on Node 20,
           # so both jobs died loading the test harness, before any test ran.
           # The application itself is unaffected - testcontainers is a
-          # devDependency and the image still builds on node:20-alpine.
+          # devDependency, and the image is on node:22-alpine too.
           node-version: '22'
           cache: npm
       - run: npm ci
@@ -69,7 +69,7 @@ jobs:
           # .markAsUncloneable` at import. That export does not exist on Node 20,
           # so both jobs died loading the test harness, before any test ran.
           # The application itself is unaffected - testcontainers is a
-          # devDependency and the image still builds on node:20-alpine.
+          # devDependency, and the image is on node:22-alpine too.
           node-version: '22'
           cache: npm
       - run: npm ci
