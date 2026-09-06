@@ -167,7 +167,7 @@ services:
       - NODE_ENV=production
       - PORT=8080
       - DATABASE_URL=file:/data/filadex.db
-      - JWT_SECRET=PASTE-YOUR-OWN-RANDOM-32-CHAR-SECRET-HERE
+      # - JWT_SECRET=            # uncomment, paste your own `openssl rand -hex 32`
       - TRUST_PROXY=true
       - INIT_SAMPLE_DATA=true
       - LOG_LEVEL=INFO
@@ -176,11 +176,15 @@ services:
 ```
 
 > [!IMPORTANT]
-> Generate a fresh secret for `JWT_SECRET` and replace the placeholder before starting.
-> On PC or NAS terminal:
+> Generate a fresh secret of your own for `JWT_SECRET`, then uncomment that line and paste
+> the value in before starting. On PC or NAS terminal:
 > ```bash
 > openssl rand -hex 32
 > ```
+> Never reuse a secret written in this repository or in these docs - a session cookie signed
+> with a publicly known key can be forged by anyone. Leaving the line commented out is safe:
+> the application generates a random secret per process, at the cost of logging everyone out
+> on each restart.
 
 ### Why bind port 8080 to `127.0.0.1`?
 The mapping `"127.0.0.1:8080:8080"` exposes the container port exclusively to the NAS host loopback interface. DSM Reverse Proxy (Nginx) runs on the host and reaches `localhost:8080` effortlessly. However, the port is completely invisible and unreachable from the local network (LAN). This ensures the only access route is via HTTPS through the reverse proxy, which is required for secure authentication cookies.

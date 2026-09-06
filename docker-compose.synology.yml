@@ -55,9 +55,14 @@ services:
       - DATABASE_URL=file:/data/filadex.db
 
       # Secret used to sign JWT session cookies.
-      # Set to a long random string (min 32 characters, e.g. generated via: openssl rand -hex 32).
-      # If unset, a random secret is generated on every startup, logging out all users on restart.
-      - JWT_SECRET=REPLACE-WITH-YOUR-LONG-RANDOM-SECRET-HEX-32
+      # Uncomment and set it to a long random string of your own, generated with:
+      #   openssl rand -hex 32
+      # It stays commented out by default on purpose: a placeholder written here
+      # is a real signing key, and one published in this repository would let
+      # anyone forge an admin session on every install that pasted this file
+      # unedited. Left unset, the application generates a random secret per
+      # process instead - safe, but sessions do not survive a restart.
+      # - JWT_SECRET=
 
       # Enable trusted reverse proxy headers.
       # Must be "true" behind DSM Reverse Proxy so Express rate limiters and loggers
