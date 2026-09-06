@@ -1,11 +1,21 @@
 import { afterAll, beforeAll, beforeEach, vi } from "vitest";
 
-// The application builds its Postgres pool at import time from DATABASE_URL
-// (server/db.ts). Point it at the test database instead - still a real
-// Postgres reached through the same driver, just one the suite owns.
+// The application builds its database connection at import time from DATABASE_URL
+// (server/db.ts or server/db.sqlite.ts via @db). Point it at the test database
+// instead - reached through the dialect's driver, owned by the test suite.
+vi.mock("@db", async () => {
+  const { db, dialect, vacuumBackup } = await import("./helpers/db");
+  return {
+    db,
+    dialect,
+    vacuumBackup,
+    pool: undefined,
+    client: undefined,
+  };
+});
 vi.mock("../server/db.ts", async () => {
-  const { db } = await import("./helpers/db");
-  return { db, pool: undefined };
+  const { db, dialect, vacuumBackup } = await import("./helpers/db");
+  return { db, dialect, vacuumBackup, pool: undefined };
 });
 
 // SMTP is an external boundary: collect what would have been sent.

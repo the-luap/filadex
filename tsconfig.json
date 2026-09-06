@@ -20,7 +20,10 @@
     "types": ["node", "vite/client"],
     "paths": {
       "@/*": ["./client/src/*"],
-      "@shared/*": ["./shared/*"]
+      "@shared/columns": ["./shared/columns.pg.ts"],
+      "@shared/*": ["./shared/*"],
+      "@db": ["./server/db.ts"],
+      "@db/predicates": ["./server/db/predicates.pg.ts"]
     }
   }
 }

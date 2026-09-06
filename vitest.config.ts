@@ -1,10 +1,23 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
 
+import { isSqlite as checkIsSqlite } from "./tests/helpers/dialect";
+
+const isSqlite = checkIsSqlite();
+
 export default defineConfig({
   resolve: {
     alias: {
+      "@shared/columns": isSqlite
+        ? path.resolve(import.meta.dirname, "shared/columns.sqlite.ts")
+        : path.resolve(import.meta.dirname, "shared/columns.pg.ts"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
+      "@db/predicates": isSqlite
+        ? path.resolve(import.meta.dirname, "server/db/predicates.sqlite.ts")
+        : path.resolve(import.meta.dirname, "server/db/predicates.pg.ts"),
+      "@db": isSqlite
+        ? path.resolve(import.meta.dirname, "server/db.sqlite.ts")
+        : path.resolve(import.meta.dirname, "server/db.ts"),
     },
   },
   test: {

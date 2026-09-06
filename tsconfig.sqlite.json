@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo.sqlite",
+    "paths": {
+      "@/*": ["./client/src/*"],
+      "@shared/columns": ["./shared/columns.sqlite.ts"],
+      "@shared/*": ["./shared/*"],
+      "@db": ["./server/db.sqlite.ts"],
+      "@db/predicates": ["./server/db/predicates.sqlite.ts"]
+    }
+  },
+  "include": ["client/src/**/*", "shared/**/*", "server/**/*", "tests/**/*", "scripts/**/*", "migrations/**/*", "vitest.config.ts"]
+}

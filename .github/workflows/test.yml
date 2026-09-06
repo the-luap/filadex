@@ -8,6 +8,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dialect: [postgres, sqlite]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,8 +24,33 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npm run check
-      - run: npm test
+      - name: Type check (Postgres)
+        if: matrix.dialect == 'postgres'
+        run: npm run check
+      - name: Type check (SQLite)
+        if: matrix.dialect == 'sqlite'
+        run: npm run check:sqlite
+      - name: Run tests (Postgres)
+        if: matrix.dialect == 'postgres'
+        run: npm test
+      - name: Run tests (SQLite)
+        if: matrix.dialect == 'sqlite'
+        run: TEST_DIALECT=sqlite npm test
+
+  # Catches schema changes that missed a migration on either dialect: runs
+  # drizzle-kit generate for each engine into temporary directories and fails
+  # if any new migration is generated. Proves that checked-in migrations
+  # fully describe shared/schema.ts for both PostgreSQL and SQLite.
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run db:check-drift
 
   # Proves that a database created by an older Filadex still upgrades cleanly:
   # every row preserved, the same schema a fresh install gets, and every spool
@@ -46,3 +74,81 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run db:verify-upgrade
+
+  # Applies migrations/sqlite/0000_light_catseye.sql, the DDL every real SQLite
+  # deployment executes and which nothing else in CI executes at all: the test
+  # suite builds its schema from shared/schema.ts through drizzle-kit's API, and
+  # db:check-drift only compares snapshot JSON. An edit that breaks the file
+  # would otherwise ship green and fail on the first `docker run`.
+  #
+  # Then runs both fixtures scripts/seed.ts ships. verify-upgrade no longer
+  # invokes the seeder - it uses an inlined raw-SQL duplicate - so without this
+  # the two can drift apart unnoticed.
+  #
+  # The two fixtures are alternatives, not steps: --demo refuses to run against a
+  # database that already has users, and its catalog inserts are plain inserts
+  # that collide with the starter rows. Each gets its own database.
+  seed-sqlite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Starter fixture
+        env:
+          DATABASE_URL: file:${{ runner.temp }}/starter.db
+        run: |
+          npm run db:migrate:sqlite
+          npm run db:init:sqlite
+      - name: Demo fixture
+        env:
+          DATABASE_URL: file:${{ runner.temp }}/demo.db
+        run: |
+          npm run db:migrate:sqlite
+          npm run db:seed:sqlite
+
+  # The same two fixtures on Postgres, which is the engine they were written
+  # against and the only one main's CI ever ran a seeder on.
+  seed-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: filadex
+          # Throwaway credential for a service container that lives and dies
+          # with this job, so it is safe to keep in the repository (hence the
+          # ggignore tag).
+          POSTGRES_PASSWORD: filadex # ggignore
+          POSTGRES_DB: filadex
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Starter fixture
+        env:
+          DATABASE_URL: postgres://filadex:filadex@localhost:5432/filadex
+        run: |
+          npm run db:migrate
+          npm run db:init
+      # migrate.pg.ts creates the database when it does not exist, so naming a
+      # second one here is all it takes.
+      - name: Demo fixture
+        env:
+          DATABASE_URL: postgres://filadex:filadex@localhost:5432/filadex_demo
+        run: |
+          npm run db:migrate
+          npm run db:seed

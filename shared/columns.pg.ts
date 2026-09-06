@@ -1,3 +1,4 @@
+import { sql, type SQL } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -11,6 +12,7 @@ import {
   foreignKey,
   index,
   uniqueIndex,
+  type PgColumn,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -99,3 +101,18 @@ export const t = {
    */
   fk: (name: string) => integer(name),
 };
+
+/**
+ * Key expression for an index covering a nullable column alongside expressions.
+ *
+ * Postgres needs `coalesce(column, 0)`: drizzle-kit 0.30's introspection cannot
+ * round-trip an index whose key list mixes a bare column with an expression, and
+ * `npm run db:verify-upgrade` depends on that round-trip. The `coalesce` form is
+ * also already applied on every deployed installation, so changing it would
+ * generate an unnecessary index drop and recreate.
+ *
+ * See docs/adr/0004.
+ */
+export const nullableIndexKey = (column: PgColumn | SQL): SQL =>
+  sql`coalesce(${column}, 0)`;
+

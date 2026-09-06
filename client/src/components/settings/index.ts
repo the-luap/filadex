@@ -12,5 +12,6 @@ export { StorageLocationsList } from "./settings-storage-locations";
 export { ImportExportCard } from "./settings-import-export-card";
 export { EmailSettingsCard } from "./settings-email";
 export { CatalogRequestsReview } from "./settings-catalog-requests";
+export { BackupsSettings } from "./settings-backups";
 export * from "./settings-types";
 

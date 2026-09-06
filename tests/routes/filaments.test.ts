@@ -152,3 +152,72 @@ describe("auto-registration of a declared material", () => {
     expect(await ownRows(alice.id)).toHaveLength(0);
   });
 });
+
+describe("filament type reuse across dialects", () => {
+  // `t.numeric` is a real numeric on Postgres and TEXT on SQLite, so a plain `=`
+  // deduped "1.750" against "1.75" on one engine and not the other - the same
+  // CSV import producing one filament type or two depending on the install.
+  it("reuses one filament type for two spellings of the same diameter", async () => {
+    const alice = await newUser("alice");
+
+    const first = await storage.createFilament({
+      userId: alice.id,
+      name: "First spool",
+      material: "PLA",
+      colorName: "Black",
+      diameter: "1.75",
+      totalWeight: "1000",
+      remainingPercentage: "80",
+    });
+
+    const second = await storage.createFilament({
+      userId: alice.id,
+      name: "Second spool",
+      material: "PLA",
+      colorName: "Black",
+      diameter: "1.750",
+      totalWeight: "1000",
+      remainingPercentage: "80",
+    });
+
+    expect(second.filamentTypeId).toBe(first.filamentTypeId);
+  });
+
+  // The numeric match that fix relies on is a CAST on SQLite, and CAST stops at
+  // the first non-numeric character: "1.75mm" and "" would both compare equal to
+  // a real diameter and hand the spool a filament type it does not belong to.
+  // Postgres errors on the same parameter instead. Neither is allowed to happen.
+  it.each(["1.75mm", "", "   ", "abc"])("refuses %o as a diameter", async (value) => {
+    const alice = await newUser("alice");
+
+    await expect(storage.createFilament({
+      userId: alice.id,
+      name: "Bad spool",
+      material: "PLA",
+      colorName: "Black",
+      diameter: value,
+      totalWeight: "1000",
+      remainingPercentage: "80",
+    })).rejects.toThrow();
+
+    expect(await storage.getFilaments(alice.id)).toHaveLength(0);
+  });
+
+  it("refuses a non-numeric diameter on update too", async () => {
+    const alice = await newUser("alice");
+    const spool = await storage.createFilament({
+      userId: alice.id,
+      name: "Good spool",
+      material: "PLA",
+      colorName: "Black",
+      diameter: "1.75",
+      totalWeight: "1000",
+      remainingPercentage: "80",
+    });
+
+    await expect(storage.updateFilament(spool.id, { diameter: "1.75mm" }, alice.id)).rejects.toThrow();
+
+    const unchanged = await storage.getFilament(spool.id, alice.id);
+    expect(unchanged?.diameter).toBe("1.75");
+  });
+});

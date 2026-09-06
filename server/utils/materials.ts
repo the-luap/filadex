@@ -25,12 +25,35 @@
  * The partial unique indexes cannot catch that, because `lower(name)` genuinely
  * differs between `"PETG"` and `" PETG"`.
  *
- * Case is deliberately not folded in here: the database compares names with
- * `LOWER()` (see `eqIgnoreCase`), so folding case in JS as well would mean two
- * spellings of the same rule.
+ * Case is deliberately not folded in here - `foldMaterialName` does that, and
+ * the two are separate because the stored name keeps the spelling the user
+ * typed while only the comparison is folded.
  */
 export function catalogName(name: string): string {
   return name.trim();
+}
+
+/**
+ * The catalog's idea of "the same material name": trimmed, NFC-normalised and
+ * lowercased, in JS.
+ *
+ * Folding happens here rather than in SQL for the reason `foldUsername` exists
+ * (shared/schema.ts): SQLite's `LOWER()` folds ASCII only, so `LOWER('Äbs')` is
+ * `'Äbs'` there and `'äbs'` on Postgres. Left to the database, a user declaring
+ * `Äbs` against a catalog holding `äbs` resolves to nothing on SQLite, gains a
+ * second Personal Catalog row that looks identical to the first, and the spool
+ * inherits neither the density nor the hygroscopic flag - while the Add
+ * Material form, which compares in JS, answers 409 for the same pair. Two paths
+ * disagreeing about one question is what ADR-0003 set out to remove.
+ *
+ * `ß` does not fold to `ss`, the same deliberate limit `foldUsername` documents.
+ *
+ * The partial unique indexes on `lower(name)` stay as they are. They remain a
+ * backstop for the ASCII case on both engines; this is the rule the application
+ * enforces.
+ */
+export function foldMaterialName(name: string): string {
+  return catalogName(name).normalize("NFC").toLowerCase();
 }
 
 /**
@@ -38,6 +61,6 @@ export function catalogName(name: string): string {
  * material names, ignoring case.
  */
 export function isOneOfMaterials(catalogNames: string[]): (material: string) => boolean {
-  const names = new Set(catalogNames.map((name) => catalogName(name).toLowerCase()));
-  return (material) => names.has(catalogName(material).toLowerCase());
+  const names = new Set(catalogNames.map(foldMaterialName));
+  return (material) => names.has(foldMaterialName(material));
 }

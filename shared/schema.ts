@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { table, t, foreignKey, index, uniqueIndex } from "./columns";
+import { table, t, foreignKey, index, uniqueIndex, nullableIndexKey } from "@shared/columns";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -303,6 +303,30 @@ export type Filament = Omit<typeof filaments.$inferSelect, "filamentTypeId"> & F
 
 export type InsertFilament = Omit<typeof filaments.$inferInsert, "id" | "filamentTypeId"> & FilamentTypeInsertFields;
 
+/**
+ * A diameter has to be a number, not merely something that starts with one.
+ *
+ * It is stored as `numeric` - a real numeric on Postgres, TEXT on SQLite (see
+ * shared/columns.sqlite.ts) - and matched as a number when a spool looks for its
+ * filament type. A value like "1.75mm" or "" therefore diverges: Postgres errors
+ * on the parameter, while SQLite's CAST(x AS REAL) stops at the first
+ * non-numeric character and makes "1.75mm" equal to "1.75", silently attaching
+ * the spool to a catalog entry with a different diameter. Rejecting it at the
+ * boundary is what keeps both engines answering the same way.
+ *
+ * Enforced on the client by insertFilamentSchema below, and on the server by
+ * storage.createFilament/updateFilament - the routes that write a spool (direct
+ * POST, CSV and JSON import, batch, the Spoolman-compatible API) do not all
+ * parse a schema, but they all go through storage.
+ */
+export const diameterValueSchema = z.union([
+  z.string().refine(
+    (value) => value.trim() !== "" && Number.isFinite(Number(value)),
+    { message: "diameter must be a number" },
+  ),
+  z.number(),
+]);
+
 // Bearbeiten Sie das Schema, um sicherzustellen, dass numerische Felder korrekt konvertiert werden
 // Schema für das Einfügen von Filaments ohne Transformation
 const baseInsertFilamentSchema = createInsertSchema(filaments).omit({
@@ -313,7 +337,7 @@ const baseInsertFilamentSchema = createInsertSchema(filaments).omit({
   material: z.string(),
   colorName: z.string(),
   colorCode: z.string().nullable().optional(),
-  diameter: z.union([z.string(), z.number()]).nullable().optional(),
+  diameter: diameterValueSchema.nullable().optional(),
   printTemp: z.string().nullable().optional(),
 });
 
@@ -364,12 +388,14 @@ export const materials = table("materials", {
   // a single index would let the Global Catalog hold duplicates.
   uniqueIndex("materials_global_name_lower_idx")
     .on(sql`lower(${table.name})`).where(sql`${table.userId} IS NULL`),
-  // `coalesce(user_id, 0)` rather than a bare `user_id`: the WHERE clause means
-  // it is only ever `user_id` for rows this index covers, but drizzle-kit 0.30's
-  // introspection cannot round-trip an index whose key list mixes a bare column
-  // with an expression, and the coalesce makes both keys expressions.
+  // nullableIndexKey wraps user_id in `coalesce(user_id, 0)` on Postgres (because
+  // drizzle-kit 0.30's introspection cannot round-trip an index whose key list
+  // mixes a bare column with an expression) and leaves it as a bare column on
+  // SQLite (where drizzle-kit splits index keys on commas ignoring parentheses).
+  // The index is partial on WHERE user_id IS NOT NULL, so the bare column is
+  // semantically identical. See docs/adr/0004.
   uniqueIndex("materials_user_name_lower_idx")
-    .on(sql`coalesce(${table.userId}, 0)`, sql`lower(${table.name})`).where(sql`${table.userId} IS NOT NULL`),
+    .on(nullableIndexKey(table.userId), sql`lower(${table.name})`).where(sql`${table.userId} IS NOT NULL`),
 ]);
 
 export const colors = table("colors", {
@@ -516,6 +542,43 @@ export const updateEmailSettingsSchema = createInsertSchema(emailSettings).omit(
 
 export type UpdateEmailSettings = z.infer<typeof updateEmailSettingsSchema>;
 export type EmailSettings = typeof emailSettings.$inferSelect;
+
+// Singleton row (id fixed to 1) holding SQLite automated backup configuration
+export const backupSettings = table("backup_settings", {
+  id: t.int("id").primaryKey().default(1),
+  enabled: t.bool("enabled").default(false),
+  schedule: t.text("schedule").notNull().default("off"), // 'off' | 'daily' | 'weekly'
+  time: t.text("time").notNull().default("02:00"), // 'HH:MM' 24h format
+  dayOfWeek: t.int("day_of_week").default(1), // 1 = Monday ... 7 = Sunday
+  retentionCount: t.int("retention_count").notNull().default(7), // keep last N backups
+  lastBackupAt: t.timestamp("last_backup_at"),
+  updatedAt: t.timestamp("updated_at").defaultNow(),
+});
+
+// createInsertSchema only knows each column's type and nullability, which for
+// this table is not enough: the UI clamps retention to at least 1 but the API
+// did not, and `retentionCount: 0` makes pruneBackups slice(0) and delete every
+// backup including the one the request just wrote - answering 201 with a
+// filename that no longer exists. A negative value deletes the oldest N per run.
+// The remaining three fields are read as an enum, an HH:MM string and an ISO
+// weekday by the scheduler, so they say so here.
+export const updateBackupSettingsSchema = createInsertSchema(backupSettings)
+  .omit({
+    id: true,
+    updatedAt: true,
+  })
+  .extend({
+    schedule: z.enum(["off", "daily", "weekly"]).optional(),
+    time: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:MM in 24-hour format")
+      .optional(),
+    dayOfWeek: z.number().int().min(1).max(7).nullable().optional(),
+    retentionCount: z.number().int().min(1).optional(),
+  });
+
+export type UpdateBackupSettings = z.infer<typeof updateBackupSettingsSchema>;
+export type BackupSettings = typeof backupSettings.$inferSelect;
 
 // User-submitted requests to add a new catalog entry (manufacturer/material/
 // color/diameter/storage location); reviewed by an admin before the entry

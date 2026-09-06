@@ -56,3 +56,9 @@ style anyone chose.
 The related decision to drop `filaments.created_at` and `filaments.updated_at`
 is *not* deferred: those columns are written by nothing and read by nothing, so
 no value can be misinterpreted by removing them.
+
+This decision is Postgres-only in scope. A SQLite installation stores every
+timestamp as epoch milliseconds, which carries no zone, so both spellings map to
+one representation there: such a database is born with the unified form this ADR
+defers reaching on Postgres, and can never acquire the mixture. See
+`docs/adr/0004`.

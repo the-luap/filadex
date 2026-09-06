@@ -14,7 +14,8 @@ import {
   CommunityFilamentsSettings,
   ApiTokensSettings,
   EmailSettingsCard,
-  CatalogRequestsReview
+  CatalogRequestsReview,
+  BackupsSettings
 } from "./settings";
 import { useAuth } from "@/lib/auth";
 import {
@@ -56,6 +57,11 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: SettingsDialo
     queryKey: ["/api/filaments"],
     queryFn: () => apiRequest<Filament[]>("/api/filaments")
   });
+  const { data: systemDatabase } = useQuery<{ dialect: string }>({
+    queryKey: ["/api/system/database"],
+    queryFn: () => apiRequest<{ dialect: string }>("/api/system/database"),
+  });
+  const isSqlite = systemDatabase?.dialect === "sqlite";
 
   // Synchronisiere die Listen mit den vorhandenen Filament-Daten
   // Automatische Initialisierung wurde deaktiviert, um unerwünschtes Daten-Recycling zu verhindern
@@ -106,6 +112,9 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: SettingsDialo
               )}
               {isAdmin && (
                 <TabsTrigger value="community-filaments" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.communityFilaments.title')}</TabsTrigger>
+              )}
+              {isAdmin && isSqlite && (
+                <TabsTrigger value="backups" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.backups.title')}</TabsTrigger>
               )}
             </TabsList>
           </div>
@@ -167,6 +176,12 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: SettingsDialo
           {isAdmin && (
             <TabsContent value="community-filaments">
               <CommunityFilamentsSettings />
+            </TabsContent>
+          )}
+
+          {isAdmin && isSqlite && (
+            <TabsContent value="backups">
+              <BackupsSettings />
             </TabsContent>
           )}
           </div>

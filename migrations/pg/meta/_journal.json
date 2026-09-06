@@ -43,6 +43,13 @@
       "when": 1788583927186,
       "tag": "0005_careful_la_nuit",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788613973531,
+      "tag": "0006_steep_lucky_pierre",
+      "breakpoints": true
     }
   ]
 }

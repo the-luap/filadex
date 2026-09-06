@@ -9,5 +9,13 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+export const dialect = "postgres" as const;
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle(pool, { schema });
+export async function closeDb(): Promise<void> {
+  await pool.end();
+}
+export async function vacuumBackup(_destinationPath: string): Promise<void> {
+  throw new Error("Database backups are only supported on SQLite installations");
+}
+

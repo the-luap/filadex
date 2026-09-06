@@ -15,6 +15,7 @@ import { registerCustomFieldRoutes } from "./custom-fields";
 import { registerCommunityFilamentRoutes } from "./community-filaments";
 import { registerIntegrationRoutes } from "./integrations";
 import { registerSpoolmanCompatRoutes } from "./spoolman-compat";
+import { registerBackupRoutes } from "./backups";
 // All routes have been extracted - routes.ts is now empty or contains only legacy code
 // Keeping registerRemainingRoutes import for backward compatibility
 import { registerRemainingRoutes } from "../routes";
@@ -46,6 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerCommunityFilamentRoutes(app);
   registerIntegrationRoutes(app);
   registerSpoolmanCompatRoutes(app);
+  registerBackupRoutes(app);
 
   // Register any remaining routes from routes.ts (should be empty now)
   registerRemainingRoutes(app);

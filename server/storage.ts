@@ -16,13 +16,15 @@ import {
   catalogRequests, type CatalogRequest,
   communityFilamentCache, type CommunityFilamentCacheEntry,
   emailSettings, type EmailSettings,
+  backupSettings, type BackupSettings,
   foldUsername,
+  diameterValueSchema,
 } from "@shared/schema";
-import { db } from "./db";
+import { db, dialect, vacuumBackup } from "@db";
 import { eq, sql, and, or, inArray, desc, isNull, count } from "drizzle-orm";
 import { logger } from "./utils/logger";
-import { containsIgnoreCase, eqIgnoreCase } from "./db/predicates";
-import { catalogName } from "./utils/materials";
+import { containsIgnoreCase, eqIgnoreCase, eqNumeric } from "@db/predicates";
+import { catalogName, foldMaterialName } from "./utils/materials";
 
 /** What the authentication middleware needs to authorize a request. */
 export type AuthContext = {
@@ -75,6 +77,7 @@ export type UserChanges = {
 };
 
 export type EmailSettingsChanges = Partial<Omit<typeof emailSettings.$inferInsert, "id" | "updatedAt">>;
+export type BackupSettingsChanges = Partial<Omit<typeof backupSettings.$inferInsert, "id" | "updatedAt">>;
 
 export type NewCommunityFilament = typeof communityFilamentCache.$inferInsert;
 
@@ -166,7 +169,7 @@ async function findOrCreateFilamentType(userId: number, fields: FilamentTypeFiel
     eq(filamentTypes.colorName, fields.colorName),
     manufacturer !== null ? eq(filamentTypes.manufacturer, manufacturer) : isNull(filamentTypes.manufacturer),
     colorCode !== null ? eq(filamentTypes.colorCode, colorCode) : isNull(filamentTypes.colorCode),
-    diameter !== null ? eq(filamentTypes.diameter, diameter) : isNull(filamentTypes.diameter),
+    diameter !== null ? eqNumeric(filamentTypes.diameter, diameter) : isNull(filamentTypes.diameter),
     printTemp !== null ? eq(filamentTypes.printTemp, printTemp) : isNull(filamentTypes.printTemp),
   ];
 
@@ -307,6 +310,12 @@ export interface IStorage {
   getEmailSettings(): Promise<EmailSettings | undefined>;
   /** Writes the settings row a migration seeds; undefined if it is not there. */
   updateEmailSettings(changes: EmailSettingsChanges): Promise<EmailSettings | undefined>;
+
+  // System & Backups
+  getDialect(): "postgres" | "sqlite";
+  getBackupSettings(): Promise<BackupSettings | undefined>;
+  updateBackupSettings(changes: BackupSettingsChanges): Promise<BackupSettings>;
+  createBackup(destinationPath: string): Promise<void>;
 
   // Sharing settings
   getUserSharing(userId: number): Promise<UserSharing[]>;
@@ -547,7 +556,7 @@ export class DatabaseStorage implements IStorage {
 
     const winners = new Map<string, { name: string; isHygroscopic: boolean | null }>();
     for (const row of rows) {
-      const key = catalogName(row.name).toLowerCase();
+      const key = foldMaterialName(row.name);
       if (row.userId !== null || !winners.has(key)) winners.set(key, row);
     }
 
@@ -625,7 +634,7 @@ export class DatabaseStorage implements IStorage {
 
   async replaceCommunityFilaments(entries: NewCommunityFilament[]): Promise<void> {
     await db.transaction(async (tx) => {
-      await tx.execute(sql`TRUNCATE TABLE community_filament_cache`);
+      await tx.delete(communityFilamentCache);
       if (entries.length > 0) {
         // Insert in chunks to stay well under typical parameter-count limits
         const CHUNK_SIZE = 500;
@@ -639,9 +648,15 @@ export class DatabaseStorage implements IStorage {
   async getCommunityFilamentCacheStatus(): Promise<CommunityFilamentCacheStatus> {
     const [row] = await db.select({
       count: sql<number>`count(*)`,
-      lastUpdated: sql<string | null>`max(${communityFilamentCache.updatedAt})`,
+      lastUpdated: sql<string | number | null>`max(${communityFilamentCache.updatedAt})`,
     }).from(communityFilamentCache);
-    return { count: Number(row?.count ?? 0), lastUpdated: row?.lastUpdated ?? null };
+    let lastUpdated: string | null = null;
+    if (typeof row?.lastUpdated === "number") {
+      lastUpdated = new Date(row.lastUpdated).toISOString().replace("T", " ").slice(0, 19);
+    } else if (typeof row?.lastUpdated === "string") {
+      lastUpdated = row.lastUpdated;
+    }
+    return { count: Number(row?.count ?? 0), lastUpdated };
   }
 
   async getEmailSettings(): Promise<EmailSettings | undefined> {
@@ -655,6 +670,34 @@ export class DatabaseStorage implements IStorage {
       .where(eq(emailSettings.id, 1))
       .returning();
     return updated || undefined;
+  }
+
+  getDialect(): "postgres" | "sqlite" {
+    return dialect;
+  }
+
+  async getBackupSettings(): Promise<BackupSettings | undefined> {
+    const [settings] = await db.select().from(backupSettings).where(eq(backupSettings.id, 1));
+    return settings || undefined;
+  }
+
+  async updateBackupSettings(changes: BackupSettingsChanges): Promise<BackupSettings> {
+    const existing = await this.getBackupSettings();
+    if (!existing) {
+      const [inserted] = await db.insert(backupSettings)
+        .values({ id: 1, ...changes, updatedAt: new Date() })
+        .returning();
+      return inserted;
+    }
+    const [updated] = await db.update(backupSettings)
+      .set({ ...changes, updatedAt: new Date() })
+      .where(eq(backupSettings.id, 1))
+      .returning();
+    return updated;
+  }
+
+  async createBackup(destinationPath: string): Promise<void> {
+    await vacuumBackup(destinationPath);
   }
 
   async getUserTheme(userId: number): Promise<UserTheme | undefined> {
@@ -736,6 +779,9 @@ export class DatabaseStorage implements IStorage {
     if (spoolFields.userId == null) {
       throw new Error("createFilament requires a userId");
     }
+    // Only values a caller actually supplied are checked - a legacy row holding
+    // "1.75mm" from before this rule existed stays editable.
+    if (diameter != null) diameterValueSchema.parse(diameter);
 
     const filamentTypeId = await findOrCreateFilamentType(spoolFields.userId, {
       manufacturer, material, colorName, colorCode, diameter, printTemp,
@@ -753,6 +799,7 @@ export class DatabaseStorage implements IStorage {
       if (!existing) return undefined;
 
       const { manufacturer, material, colorName, colorCode, diameter, printTemp, ...spoolFields } = updateFilament;
+      if (diameter != null) diameterValueSchema.parse(diameter);
       const typeFieldsChanged = [manufacturer, material, colorName, colorCode, diameter, printTemp]
         .some((value) => value !== undefined);
 
@@ -944,12 +991,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async resolveMaterial(userId: number, declared: string): Promise<Material | undefined> {
-    const [row] = await db.select().from(materials)
-      .where(and(eqIgnoreCase(materials.name, catalogName(declared)), materialInScopeFor(userId)))
+    // Matched on the folded name in JS rather than with eqIgnoreCase, for the
+    // reason getUserByUsername matches on username_folded: SQLite's LOWER()
+    // folds ASCII only, so leaving this to the database makes `Äbs` resolve to
+    // `äbs` on Postgres and to nothing on SQLite. See foldMaterialName.
+    //
+    // The set is small by construction - the Global Catalog plus this user's own
+    // entries - and getHygroscopicMaterialNames already reads it whole for the
+    // same reason.
+    const target = foldMaterialName(declared);
+    const rows = await db.select().from(materials)
+      .where(materialInScopeFor(userId))
       // The user's own Personal Catalog row wins when a Global one also matches.
-      .orderBy(sql`${materials.userId} IS NULL`)
-      .limit(1);
-    return row ?? undefined;
+      .orderBy(sql`${materials.userId} IS NULL`);
+    return rows.find((row) => foldMaterialName(row.name) === target);
   }
 
   async createMaterial(insertMaterial: InsertMaterial): Promise<Material> {

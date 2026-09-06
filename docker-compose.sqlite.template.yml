@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # Filadex Application with SQLite (single-user install option)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - DATABASE_URL=file:/data/filadex.db
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-en}
+      - INIT_SAMPLE_DATA=${INIT_SAMPLE_DATA:-false}
+      # Where scheduled snapshots are written. Defaults to /data/backups, which
+      # is inside the volume below; set it only to move them elsewhere, and give
+      # it a directory of its own.
+      # - BACKUP_DIR=/data/backups
+      # Set to a long random string (e.g. `openssl rand -hex 32`) so login sessions
+      # survive restarts. If unset, a random secret is generated on each startup.
+      - JWT_SECRET=${JWT_SECRET:-}
+      # Only set to "true" if this runs behind a trusted reverse proxy (see .env.example)
+      - TRUST_PROXY=${TRUST_PROXY:-false}
+    volumes:
+      # Persistent volume containing the SQLite database and automated snapshots in /data/backups/
+      - filadex_data:/data
+    ports:
+      - "${APP_PORT:-8080}:8080"
+
+volumes:
+  filadex_data:
+
+# Note: This is a template file for running Filadex with an embedded SQLite database.
+# Copy to docker-compose.yml and modify as needed:
+#   cp docker-compose.sqlite.template.yml docker-compose.yml
+# No separate database container is needed. Database files and backups are persisted in the filadex_data volume.

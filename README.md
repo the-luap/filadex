@@ -39,7 +39,7 @@ Filadex is an open-source filament management system for 3D printing enthusiasts
 
 - Node.js (v16 or higher)
 - npm or yarn
-- PostgreSQL database
+- PostgreSQL (v12 or higher) or SQLite (embedded, no separate server needed)
 - Docker & Docker Compose (optional, for containerized deployment)
 
 ## 🚀 Installation
@@ -61,17 +61,21 @@ npm install
 
 3. **Set up environment variables**
 
-Create a `.env` file in the root directory with the following variables:
+Create a `.env` file in the root directory:
 
-```
+```env
+# For PostgreSQL:
 DATABASE_URL=postgres://username:password@localhost:5432/filadex
+
+# Or for SQLite:
+# DATABASE_URL=file:./dev.db
 ```
 
 4. **Initialize the database**
 
 ```bash
-npm run db:push
-node init-data.js
+npm run db:migrate
+npm run db:init
 ```
 
 5. **Start the development server**
@@ -84,57 +88,58 @@ The application will be available at http://localhost:5000
 
 ### Option 2: Docker Deployment
 
-1. **Clone the repository**
+Choose between PostgreSQL (multi-user default) and SQLite (single-user). Note that there is **no migration path** between the two engines in either direction — a deployer picks once:
 
-```bash
-git clone https://github.com/yourusername/filadex.git
-cd filadex
-```
+#### Variant A: PostgreSQL (Default)
 
-2. **Configure environment variables**
+1. Copy the PostgreSQL template:
+   ```bash
+   cp docker-compose.template.yml docker-compose.yml
+   cp .env.example .env
+   ```
 
-Create a `.env` file in the root directory with the following variables:
+2. Start the containers:
+   ```bash
+   docker-compose up -d
+   ```
 
-```
-# Database Configuration
-POSTGRES_USER=filadex
-POSTGRES_PASSWORD=your_secure_password
-POSTGRES_DB=filadex
-PGHOST=db
-PGPORT=5432
+#### Variant B: SQLite (Single-User, No External DB Container)
 
-# Application Configuration
-PORT=8080
-DEFAULT_ADMIN_PASSWORD=admin  # Password for the default admin user
-LOG_LEVEL=INFO  # Options: DEBUG, INFO, WARN, ERROR
-INIT_SAMPLE_DATA=false  # Set to 'true' to initialize with sample data
-```
+1. Copy the SQLite template:
+   ```bash
+   cp docker-compose.sqlite.template.yml docker-compose.yml
+   cp .env.example .env
+   ```
 
-3. **Build and start the containers**
+2. Start the container:
+   ```bash
+   docker-compose up -d
+   ```
 
-```bash
-docker-compose up -d
-```
+Database files and backups are persisted inside the `filadex_data` volume: the database at `/data/filadex.db` and scheduled snapshots in `/data/backups` (override with `BACKUP_DIR`). SQLite runs with write-ahead logging (WAL), producing `-wal` and `-shm` files beside the database, which is why external backups should copy the entire `/data` directory rather than copying a single `.db` file.
 
-The application will be available at http://localhost:8080 or at the domain configured in your docker-compose.yml file.
+The application will be available at http://localhost:8080.
+ 
+#### Variant C: Synology NAS (Container Manager with SQLite)
+
+For a complete step-by-step guide on deploying Filadex on a Synology NAS using Container Manager, HTTPS reverse proxy, automated SQLite backups, and persistent storage, see [`docs/deployment-synology.md`](docs/deployment-synology.md) and [`docker-compose.synology.yml`](docker-compose.synology.yml).
 
 ## 🔧 Configuration
 
 ### Database Configuration
 
-Filadex uses PostgreSQL as its database. You can configure the connection in the `.env` file:
+Filadex supports PostgreSQL and SQLite:
 
-```
-# Direct connection string
+```env
+# PostgreSQL:
 DATABASE_URL=postgres://username:password@localhost:5432/filadex
 
-# Or individual connection parameters
-POSTGRES_USER=filadex
-POSTGRES_PASSWORD=your_secure_password
-POSTGRES_DB=filadex
-PGHOST=db
-PGPORT=5432
+# SQLite:
+DATABASE_URL=file:/data/filadex.db
 ```
+
+When using SQLite, an admin-only **DB Backups** panel appears in Settings with on-demand snapshot creation, download, and automated scheduled backups (daily or weekly) with configurable retention pruning.
+
 
 ### Application Configuration
 

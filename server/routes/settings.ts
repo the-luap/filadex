@@ -16,8 +16,19 @@ import {
 } from "@shared/schema";
 import { parseCSVLine, escapeCsvField } from "../utils/csv-parser";
 import { registerCrudSettingsRoutes, simpleNameParseLine } from "../utils/settings-crud";
-import { equalsIgnoreCase } from "../db/predicates";
-import { catalogName } from "../utils/materials";
+import { foldMaterialName } from "../utils/materials";
+
+// Two diameters are the same when they are the same number: "1.750" and "1.75"
+// name one filament width. Non-numeric text falls back to an exact comparison
+// rather than collapsing to 0, which is what Number() would do with it.
+function sameDiameter(a: string, b: string): boolean {
+  const left = Number(a);
+  const right = Number(b);
+  if (Number.isFinite(left) && Number.isFinite(right)) {
+    return left === right;
+  }
+  return a.trim() === b.trim();
+}
 
 export function registerSettingsRoutes(app: Express): void {
   registerCrudSettingsRoutes<Manufacturer, { name: string }>(app, {
@@ -79,14 +90,15 @@ export function registerSettingsRoutes(app: Express): void {
         return { kind: "create", data: { name, density, isHygroscopic } };
       },
     },
-    // The rule a create actually has to satisfy: materials_global_name_lower_idx
-    // plus the trimming storage.createMaterial applies. So a second "petg"
-    // alongside "PETG" is a 409 rather than a unique-violation 500.
-    duplicateOf: (item, data) => equalsIgnoreCase(catalogName(item.name), catalogName(data.name)),
+    // The rule a create has to satisfy: the same fold storage.resolveMaterial
+    // matches on. So a second "petg" alongside "PETG" is a 409 rather than a
+    // unique-violation 500 - and so is "Äbs" alongside "äbs", which
+    // materials_global_name_lower_idx does not catch on SQLite.
+    duplicateOf: (item, data) => foldMaterialName(item.name) === foldMaterialName(data.name),
     // Case-insensitive and whitespace-trimmed, to agree with how a declared
     // material resolves to a Catalog Material (storage.resolveMaterial).
     isInUse: (filament: Filament, item) =>
-      equalsIgnoreCase(catalogName(filament.material), catalogName(item.name)),
+      foldMaterialName(filament.material) === foldMaterialName(item.name),
   });
 
   registerCrudSettingsRoutes<Color, { name: string; code: string }>(app, {
@@ -157,13 +169,20 @@ export function registerSettingsRoutes(app: Express): void {
         const [rawValue] = parseCSVLine(line);
         const value = rawValue?.trim();
         if (!value) return { kind: "skip" };
-        if (existing.some((d) => d.value.toLowerCase() === value.toLowerCase())) {
+        if (existing.some((d) => sameDiameter(d.value, value))) {
           return { kind: "duplicate" };
         }
         return { kind: "create", data: { value } };
       },
     },
-    isInUse: (filament: Filament, item) => filament.diameter === String(item.value),
+    // diameters.value is `numeric UNIQUE` on Postgres, where "1.750" collides
+    // with the existing "1.75" and surfaces as a bare 500, and `text UNIQUE` on
+    // SQLite, where it does not collide at all and a second row that looks
+    // identical appears in the list. Deciding it here makes both engines answer
+    // 409, on the same rule a declared diameter finds its filament type by
+    // (eqNumeric).
+    duplicateOf: (item, data) => sameDiameter(item.value, data.value),
+    isInUse: (filament: Filament, item) => filament.diameter !== null && sameDiameter(filament.diameter, String(item.value)),
   });
 
   registerCrudSettingsRoutes<StorageLocation, { name: string }>(app, {

@@ -19,7 +19,7 @@ This guide provides detailed information for developers working on Filadex.
 Before you begin, ensure you have the following installed:
 
 - **Node.js** v16 or higher ([Download](https://nodejs.org/))
-- **PostgreSQL** v12 or higher ([Download](https://www.postgresql.org/download/))
+- **PostgreSQL** v12 or higher ([Download](https://www.postgresql.org/download/)) or **SQLite** (built-in; no external server needed)
 - **npm** (comes with Node.js) or **yarn**
 - **Git**
 
@@ -51,15 +51,19 @@ Copy the example environment file and configure it:
 cp .env.example .env
 ```
 
-Edit `.env` and update the database connection string:
-
+Edit `.env` and set the database connection string:
+ 
 ```env
+# For PostgreSQL:
 DATABASE_URL=postgres://username:password@localhost:5432/filadex
+
+# Or for SQLite:
+# DATABASE_URL=file:./dev.db
 ```
 
 ### 4. Set Up Database
 
-Create a PostgreSQL database:
+If using PostgreSQL, create the database first:
 
 ```bash
 createdb filadex
@@ -67,18 +71,20 @@ createdb filadex
 # psql -U postgres -c "CREATE DATABASE filadex;"
 ```
 
-Push the database schema:
+Apply database migrations:
 
 ```bash
-npm run db:push
+npm run db:migrate
 ```
 
-(Optional) Initialize with sample data:
+(Optional) Initialize starter selection options or demo fixtures:
 
 ```bash
+# Starter dropdown options (manufacturers, materials, colors):
 npm run db:init
-# Or set INIT_SAMPLE_DATA=true in .env and run:
-# INIT_SAMPLE_DATA=true node init-data.js
+
+# Or full demo dataset:
+npm run db:seed
 ```
 
 ### 5. Start Development Server
@@ -196,16 +202,40 @@ The database schema is defined in `shared/schema.ts` using Drizzle ORM.
 **To update the database schema:**
 
 1. Modify the schema in `shared/schema.ts`
-2. Generate a migration from the change:
+2. Generate a migration **for both engines** - `shared/schema.ts` feeds both, so
+   a change that reaches only one leaves the other behind:
    ```bash
-   npm run db:generate
+   npm run db:generate         # writes migrations/pg
+   npm run db:generate:sqlite  # writes migrations/sqlite
    ```
-   This writes a new numbered `.sql` file into `migrations/pg` and records it in
-   `migrations/pg/meta/_journal.json`. Commit both.
+   Each writes a new numbered `.sql` file and records it in that engine's
+   `meta/_journal.json`. Commit the `.sql`, the journal, and the snapshot.
 3. Apply it:
    ```bash
    npm run db:migrate
    ```
+
+`npm run db:check-drift` regenerates both chains into a temp directory and
+fails if either is missing a migration, so forgetting one is caught in CI rather
+than in production.
+
+#### Two drizzle-kit behaviours worth knowing
+
+**Generated `.sql` files have no trailing newline.** This is drizzle-kit's output
+format, not an oversight: `migrations/pg/0000_right_mathemanic.sql`,
+`0002_nifty_joseph.sql`, `0004_materials_attention_dismissed.sql` and
+`migrations/sqlite/0000_light_catseye.sql` are all written this way, while the
+hand-written migrations beside them do end in one. Do not "fix" a generated file
+to satisfy the CONTRIBUTING.md "end all files with a newline" rule - the next
+`db:generate` silently reverts it, and it puts the file out of step with every
+other generated migration. That rule is about files people write.
+
+**Regenerating a chain from scratch needs the directory removed, not emptied.**
+`drizzle-kit generate` reads `meta/_journal.json` before it writes anything and
+dies with `ENOENT ... _journal.json` if the directory exists without it. To
+rebuild a baseline, `rm -rf` the whole engine directory and let the command
+recreate it. Only ever do this for an engine with no deployed databases; a
+released chain is frozen, and rewriting it strands every installation on it.
 
 **Note**: `npm run db:push` applies the schema directly, without a migration
 file. It is convenient for a scratch database, but a deployment only ever gets
@@ -214,12 +244,9 @@ migration.
 
 ### Running Migrations
 
-`npm run db:migrate` (`scripts/migrate.ts`) is the only migration entry point,
-and `docker-entrypoint.sh` runs it on every container start. It handles three
-cases: a fresh database is created from the generated migrations; a database
-already on them gets whatever is new; and a pre-Drizzle installation is first
-caught up on the frozen scripts in `migrations/legacy` (see the README there)
-and then recorded at the baseline.
+`npm run db:migrate` (`scripts/migrate.ts`) is a development dispatcher into `scripts/migrate.pg.ts` or `scripts/migrate.sqlite.ts` based on `DATABASE_URL`. In production, `docker-entrypoint.sh` executes the bundled migrator (`dist/migrate.pg.js` or `dist/migrate.sqlite.js`) directly on container start.
+
+On PostgreSQL, migration handles three cases: a fresh database is created from the generated migrations; a database already on them gets whatever is new; and a pre-Drizzle installation is first caught up on the frozen scripts in `migrations/legacy` (see the README there) and then recorded at the baseline. SQLite has no legacy chain and applies migrations directly from `migrations/sqlite`.
 
 To check that an existing installation can still upgrade:
 
@@ -232,22 +259,27 @@ against a fresh install. It needs Docker, and CI runs it on every pull request.
 
 ### Initializing Data
 
-Initialize the database with sample data:
+Initialize the database with starter or demo fixtures:
 
 ```bash
+# Basic starter options (manufacturers, materials, colors, diameters, locations)
 npm run db:init
-# or
-node init-data.js
+
+# Full demo dataset (refuses if users already exist)
+npm run db:seed
 ```
 
-Set `INIT_SAMPLE_DATA=true` in `.env` to include sample filaments.
+Set `INIT_SAMPLE_DATA=true` in `.env` or container environment to automatically seed starter data on fresh installs.
 
-### Database Connection
+### Database Engines & Connection
 
-The application uses PostgreSQL. Connection is configured via:
+Filadex supports two database engines:
 
-- `DATABASE_URL` (recommended): Full connection string
-- Individual variables: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `PGHOST`, `PGPORT`
+- **PostgreSQL** (default, recommended for multi-user deployments):
+  Configured via `DATABASE_URL=postgres://user:password@host:port/database` or individual variables (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `PGHOST`, `PGPORT`).
+- **SQLite** (single-user install option, no external database server needed):
+  Configured via `DATABASE_URL=file:/path/to/filadex.db` (or `file:./dev.db` for local development). There is **no migration path** between the two engines in either direction. SQLite connections set WAL mode, producing `-wal` and `-shm` companion files beside the database file, which is why external backups should copy `/data` rather than naming one file.
+  When running on SQLite, an admin-only **DB Backups** settings panel is available to create and download snapshots (using SQLite `VACUUM INTO`) and configure automated recurring backups with automatic pruning.
 
 ## Code Style
 
@@ -385,14 +417,18 @@ This runs TypeScript compiler without emitting files.
 **Error**: `DATABASE_URL must be set`
 
 - Ensure `.env` file exists and contains `DATABASE_URL`
+- For PostgreSQL: verify connection string format: `postgres://user:password@host:port/database`
+- For SQLite: verify file path format: `file:/path/to/filadex.db` or `file:./dev.db`
+
+**Error**: `Connection refused` (PostgreSQL)
+
 - Check PostgreSQL is running: `pg_isready` or `psql -U postgres`
-- Verify connection string format: `postgres://user:password@host:port/database`
-
-**Error**: `Connection refused`
-
-- Check PostgreSQL is running
 - Verify host and port in connection string
 - Check firewall settings
+
+**Error**: SQLite directory or permission error
+
+- Ensure the directory containing the SQLite database file exists and is writable by the running process (or mounted container volume).
 
 ### Port Already in Use
 

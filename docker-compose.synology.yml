@@ -1,0 +1,91 @@
+# ---------------------------------------------------------------------------
+# Filadex — Synology Container Manager (Project) with SQLite
+#
+# This file is intended EXCLUSIVELY for deployment on Synology NAS.
+# Unlike docker-compose.sqlite.template.yml, this does not build from source —
+# it runs a pre-built image imported from a .tar archive
+# (docker save on PC -> Container Manager -> Image -> Action -> Import -> From file).
+#
+# Project directory on NAS:  /docker/filadex (or /volume1/docker/filadex)
+# The ./data volume resolves relative to this project folder.
+#
+# Application access is routed through DSM Reverse Proxy (HTTPS -> localhost:8080).
+# ---------------------------------------------------------------------------
+
+version: '3.8'
+
+services:
+  filadex:
+    image: filadex:1.0.0
+    container_name: filadex
+
+    # Autostart after NAS or Docker daemon reboot.
+    # NOTE: "unless-stopped" will not automatically resume a container that was
+    # stopped manually — if stopped by hand, it must be restarted by hand.
+    restart: unless-stopped
+
+    # Uncomment if Container Manager fails to find the local image and tries
+    # pulling from Docker Hub with "pull access denied":
+    # pull_policy: never
+
+    ports:
+      # Port exposed ONLY on the NAS host loopback interface.
+      # DSM Reverse Proxy (Nginx on the host) connects to localhost:8080 seamlessly,
+      # but port 8080 is not reachable directly from the LAN.
+      # The only route to the app is HTTPS via reverse proxy (required for session cookies).
+      #
+      # Note: You cannot preview the app at http://NAS_IP:8080. If diagnosing connectivity,
+      # temporarily change this to "8080:8080" or test locally via SSH: curl -I http://localhost:8080/
+      - "127.0.0.1:8080:8080"
+
+    volumes:
+      # Persistent storage containing:
+      # - /data/filadex.db (and -wal, -shm write-ahead log files)
+      # - /data/backups/ (automated VACUUM snapshots created by Filadex)
+      - ./data:/data
+
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+
+      # SQLite database URL.
+      # MUST be an absolute path starting with file: (or sqlite:).
+      # In production, relative paths (e.g. file:./dev.db) are rejected on startup to
+      # prevent data loss inside ephemeral container layers.
+      - DATABASE_URL=file:/data/filadex.db
+
+      # Secret used to sign JWT session cookies.
+      # Uncomment and set it to a long random string of your own, generated with:
+      #   openssl rand -hex 32
+      # It stays commented out by default on purpose: a placeholder written here
+      # is a real signing key, and one published in this repository would let
+      # anyone forge an admin session on every install that pasted this file
+      # unedited. Left unset, the application generates a random secret per
+      # process instead - safe, but sessions do not survive a restart.
+      # - JWT_SECRET=
+
+      # Enable trusted reverse proxy headers.
+      # Must be "true" behind DSM Reverse Proxy so Express rate limiters and loggers
+      # read the true client IP from X-Forwarded-For rather than treating every request
+      # as coming from 127.0.0.1.
+      - TRUST_PROXY=true
+
+      # Populate initial starter selection options (manufacturers, materials, colors, 1.75mm diameter).
+      # Safe to leave "true" on fresh install; if data already exists, seeding is skipped.
+      - INIT_SAMPLE_DATA=true
+
+      # Logging level: DEBUG, INFO, WARN, ERROR
+      - LOG_LEVEL=INFO
+
+      # Default language for new users: en, de
+      - DEFAULT_LANGUAGE=en
+
+      # Where automated SQLite backup snapshots are saved.
+      # Defaults to /data/backups (inside the persistent ./data volume above).
+      # - BACKUP_DIR=/data/backups
+
+    # NOTE: DO NOT specify "logging: driver: json-file" here.
+    # The Synology Docker daemon uses a custom logging driver ("db").
+    # The Container Manager "Log" tab reads directly from that database.
+    # Overriding the logging driver redirects streams to a JSON file and causes the DSM
+    # GUI to show "No logs available", even when the container is functioning properly.

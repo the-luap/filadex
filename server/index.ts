@@ -4,6 +4,7 @@ import helmet from "helmet";
 import { registerRoutes } from "./routes/index";
 import { setupVite, serveStatic, log } from "./vite";
 import { runScheduledChecks } from "./utils/notification-checks";
+import { startBackupScheduler } from "./backup-scheduler";
 import { logger } from "./utils/logger";
 
 const app = express();
@@ -92,4 +93,7 @@ app.use((req, res, next) => {
   setInterval(() => {
     runScheduledChecks().catch((error) => logger.error("Scheduled notification check failed:", error));
   }, SCHEDULED_CHECKS_INTERVAL_MS);
+
+  // SQLite database automated backups (if enabled; no-op on Postgres)
+  startBackupScheduler();
 })();

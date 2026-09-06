@@ -45,6 +45,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import pg from "pg";
+import bcrypt from "bcrypt";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { buildLegacyDatabase, describeSchema } from "./legacy-db";
 import * as schema from "../shared/schema";
@@ -268,6 +269,146 @@ async function verifyBackfill(containers: StartedPostgreSqlContainer[]): Promise
     problems.length === 0, problems.join("\n"));
 }
 
+async function seedLegacyDatabase(pool: pg.Pool): Promise<void> {
+  const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const dateDaysAgo = (days: number) => daysAgo(days).toISOString().slice(0, 10);
+  const password = await bcrypt.hash("demo-password", 10);
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const { rows: usersRows } = await client.query<{ id: number; username: string }>(`
+      INSERT INTO users (username, password, role, is_admin, email_verified, force_change_password, email, language, currency, temperature_unit, low_stock_threshold_percent, notify_low_stock, drying_reminder_days, theme_variant, theme_primary, theme_appearance, theme_radius, email_verification_token, email_verification_expires, last_login)
+      VALUES
+        ('admin', $1, 'admin', true, true, false, NULL, 'en', 'EUR', 'C', 15, true, 30, 'professional', '#EA580C', 'dark', '0.8', NULL, NULL, $2),
+        ('alice', $1, 'user', false, true, false, 'alice@example.com', 'en', 'EUR', 'C', 20, true, 30, 'tint', '#00AAFF', 'light', '1.25', NULL, NULL, $3),
+        ('bob', $1, 'user', false, true, true, 'bob@example.com', 'de', 'PLN', 'F', 15, false, 14, 'professional', '#EA580C', 'dark', '0.8', NULL, NULL, NULL),
+        ('carol', $1, 'user', false, false, false, 'carol@example.com', 'en', 'EUR', 'C', 15, true, 30, 'professional', '#EA580C', 'dark', '0.8', 'seed-verification-token', $4, NULL)
+      RETURNING id, username
+    `, [password, daysAgo(1), daysAgo(2), daysAgo(-1)]);
+
+    const admin = usersRows.find((u) => u.username === "admin")!;
+    const alice = usersRows.find((u) => u.username === "alice")!;
+    const bob = usersRows.find((u) => u.username === "bob")!;
+    const carol = usersRows.find((u) => u.username === "carol")!;
+
+    await client.query(`
+      INSERT INTO manufacturers (name, sort_order) VALUES
+        ('Bambu Lab', 1),
+        ('Prusament', 2),
+        ('Overture', 3)
+    `);
+
+    const { rows: materialsRows } = await client.query<{ id: number; name: string }>(`
+      INSERT INTO materials (name, sort_order, density, is_hygroscopic) VALUES
+        ('PLA', 1, 1.24, false),
+        ('PETG', 2, 1.27, true),
+        ('ABS', 3, 1.04, true),
+        ('TPU', 4, 1.21, true)
+      RETURNING id, name
+    `);
+    const petg = materialsRows.find((m) => m.name === "PETG")!;
+
+    await client.query(`
+      INSERT INTO colors (name, code) VALUES
+        ('Black', '#000000'),
+        ('Jade White', '#FFFFFF'),
+        ('Orange', '#EA580C')
+    `);
+
+    await client.query(`
+      INSERT INTO diameters (value) VALUES ('1.75'), ('2.85')
+    `);
+
+    await client.query(`
+      INSERT INTO storage_locations (name, sort_order) VALUES
+        ('Dry box A', 1),
+        ('Shelf', 2)
+    `);
+
+    const { rows: typesRows } = await client.query<{ id: number }>(`
+      INSERT INTO filament_types (user_id, manufacturer, material, color_name, color_code, diameter, print_temp) VALUES
+        ($1, 'Bambu Lab', 'PLA', 'Jade White', '#FFFFFF', '1.75', '220'),
+        ($1, 'Prusament', 'PETG', 'Orange', '#EA580C', '1.75', '240'),
+        ($2, 'Overture', 'ABS', 'Black', '#000000', '2.85', '250')
+      RETURNING id
+    `, [alice.id, bob.id]);
+
+    const { rows: spoolsRows } = await client.query<{ id: number }>(`
+      INSERT INTO filaments (user_id, filament_type_id, name, total_weight, remaining_percentage, purchase_date, purchase_price, status, spool_type, dryer_count, last_drying_date, storage_location, custom_field_values, low_stock_notified_at, drying_reminder_notified_at) VALUES
+        ($1, $2, 'Jade White #1', '1000', '82.5', $3, '24.99', 'opened', 'spooled', 2, $4, 'Dry box A', '{"1": "printed a benchy"}', NULL, NULL),
+        ($1, $5, 'Orange PETG (low)', '1000', '8', $6, '29.99', 'opened', 'spooled', 0, NULL, 'Shelf', NULL, $7, $8),
+        ($9, $10, 'Black ABS sealed', '1000', '100', $11, '19.50', 'sealed', 'spoolless', 0, NULL, NULL, NULL, NULL, NULL)
+      RETURNING id
+    `, [
+      alice.id, typesRows[0].id, dateDaysAgo(120), dateDaysAgo(40),
+      typesRows[1].id, dateDaysAgo(300), daysAgo(3), daysAgo(1),
+      bob.id, typesRows[2].id, dateDaysAgo(10),
+    ]);
+
+    await client.query(`
+      INSERT INTO filament_usage_log (filament_id, user_id, delta_weight, remaining_percentage_after, note, source) VALUES
+        ($1, $2, '-120', '88', 'benchy', 'manual'),
+        ($1, $2, '-55', '82.5', NULL, 'printer'),
+        ($3, $2, '-900', '8', NULL, 'manual')
+    `, [spoolsRows[0].id, alice.id, spoolsRows[1].id]);
+
+    await client.query(`
+      INSERT INTO custom_field_definitions (user_id, name, entity_type, field_type) VALUES
+        ($1, 'Notes', 'filament', 'text'),
+        ($2, 'Batch', 'filament', 'text')
+    `, [alice.id, bob.id]);
+
+    await client.query(`
+      INSERT INTO user_sharing (user_id, material_id, is_public) VALUES
+        ($1, $2, true),
+        ($3, NULL, true),
+        ($4, NULL, false)
+    `, [alice.id, petg.id, bob.id, carol.id]);
+
+    await client.query(`
+      INSERT INTO catalog_requests (user_id, entity_type, payload, status, reviewed_by, reviewed_at, review_note) VALUES
+        ($1, 'material', '{"name": "PCTG"}', 'pending', NULL, NULL, NULL),
+        ($2, 'manufacturer', '{"name": "Polymaker"}', 'approved', $3, $4, NULL),
+        ($2, 'color', '{"name": "Puce", "code": "#CC8899"}', 'rejected', $3, $5, 'too niche')
+    `, [alice.id, bob.id, admin.id, daysAgo(5), daysAgo(4)]);
+
+    await client.query(`
+      INSERT INTO api_tokens (user_id, token_hash, label, last_used_at) VALUES
+        ($1, 'seed-token-hash-alice', 'Print server', $2),
+        ($3, 'seed-token-hash-bob', NULL, NULL)
+    `, [alice.id, daysAgo(1), bob.id]);
+
+    await client.query(`
+      INSERT INTO community_filament_cache (manufacturer, material, name, color_name, color_code, density, diameter, extruder_temp, bed_temp) VALUES
+        ('Bambu Lab', 'PLA', 'Basic PLA Jade White', 'Jade White', '#FFFFFF', '1.24', '1.75', 220, 60),
+        ('Prusament', 'PETG', 'Prusament PETG Orange', 'Orange', '#EA580C', '1.27', '1.75', 240, 85)
+    `);
+
+    await client.query(`
+      INSERT INTO email_settings (id, enabled, smtp_host, smtp_port, smtp_user, smtp_password, smtp_secure, from_email, from_name) VALUES
+        (1, false, 'smtp.example.com', 587, 'postmaster', 'not-a-real-password', true, 'filadex@example.com', 'Filadex')
+      ON CONFLICT (id) DO UPDATE SET
+        enabled = EXCLUDED.enabled,
+        smtp_host = EXCLUDED.smtp_host,
+        smtp_port = EXCLUDED.smtp_port,
+        smtp_user = EXCLUDED.smtp_user,
+        smtp_password = EXCLUDED.smtp_password,
+        smtp_secure = EXCLUDED.smtp_secure,
+        from_email = EXCLUDED.from_email,
+        from_name = EXCLUDED.from_name
+    `);
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 const dataBeforePath = join(tmpdir(), "upgrade-data-before.txt");
 const dataAfterPath = join(tmpdir(), "upgrade-data-after.txt");
 
@@ -281,7 +422,7 @@ try {
   containers.push(legacy.container);
 
   console.log("Seeding it...");
-  run("scripts/seed-demo-data.ts", legacy.url, "seed");
+  await seedLegacyDatabase(legacy.pool);
 
   // Discovered from the database as it is now, before scripts/migrate.ts runs,
   // and reused for every snapshot below.

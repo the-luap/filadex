@@ -24,17 +24,6 @@ export function eqIgnoreCase(column: AnyPgColumn, value: string): SQL {
 }
 
 /**
- * The same rule as {@link eqIgnoreCase}, for two values already in hand rather
- * than in SQL. It lives here so the one place the caseless-comparison rule is
- * defined also covers the JS side: `isInUse` for materials compares a declared
- * material against a Catalog Material name and has to agree with how the two
- * resolve in the database.
- */
-export function equalsIgnoreCase(a: string, b: string): boolean {
-  return a.toLowerCase() === b.toLowerCase();
-}
-
-/**
  * Matches when the column contains the value anywhere in it, ignoring case.
  *
  * `%`, `_` and `\` in the value are escaped rather than stripped, so a search
@@ -48,4 +37,22 @@ export function equalsIgnoreCase(a: string, b: string): boolean {
 export function containsIgnoreCase(column: AnyPgColumn, value: string): SQL {
   const escaped = value.replace(/[\\%_]/g, (char) => `\\${char}`);
   return sql`${column} ILIKE ${`%${escaped}%`} ESCAPE E'\\\\'`;
+}
+
+/**
+ * Matches when a `numeric` column equals the value as a *number* rather than as
+ * a string, so "1.750" and "1.75" are the same diameter.
+ *
+ * This is the one comparison in the application that reads a `numeric` column
+ * with a SQL operator, and it is the one place the two engines disagree about
+ * it: `t.numeric` is a real `numeric` here and TEXT on SQLite (see
+ * shared/columns.sqlite.ts for why), so a plain `=` dedupes "1.750" against an
+ * existing "1.75" on Postgres and creates a second filament type on SQLite.
+ *
+ * Postgres is the side with deployed installations and with a `numeric UNIQUE`
+ * on `diameters.value`, so its behaviour is the one both engines are held to:
+ * here that means the existing operator, unchanged.
+ */
+export function eqNumeric(column: AnyPgColumn, value: string): SQL {
+  return sql`${column} = ${value}`;
 }

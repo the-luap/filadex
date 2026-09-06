@@ -1,4 +1,4 @@
-FROM node:20-alpine as build
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -13,14 +13,11 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application - build both frontend and backend
+# Build the application - build frontend, server, migrators, and seeders
 RUN npm run build
 
 # Production image
-FROM node:20-alpine as production
-
-# Install PostgreSQL client for database initialization
-RUN apk add --no-cache postgresql-client netcat-openbsd
+FROM node:20-alpine AS production
 
 WORKDIR /app
 
@@ -31,40 +28,25 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install production dependencies including tsx for running TypeScript scripts
+# Install production dependencies
 RUN npm ci --omit=dev
-# Install tsx and TypeScript for running migration scripts
-RUN npm install --save-dev tsx typescript
-# Install PostgreSQL client and database dependencies
-RUN npm install pg drizzle-orm zod
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/server ./server
-COPY --from=build /app/shared ./shared
-# Required so tsx (used to run scripts/migrate.ts and init-data.ts as raw
-# TypeScript) can resolve the @shared/* path alias. Without this,
-# `@shared/schema` fails with ERR_MODULE_NOT_FOUND. dist/index.js itself
-# doesn't need this: esbuild already resolved the alias at build time when
-# bundling it.
-COPY --from=build /app/tsconfig.json ./tsconfig.json
-# The migration runner, the generated SQL migrations it applies, and the frozen
-# legacy chain it uses to catch an older database up before baselining it.
-# Only migrate.ts: the other scripts are development tools and pull in
-# devDependencies this image does not install.
-COPY --from=build /app/scripts/migrate.ts ./scripts/migrate.ts
-COPY --from=build /app/migrations ./migrations
-COPY --from=build /app/init-data.ts ./init-data.ts
 
-# Kopiere das Entrypoint-Skript
+# Copy compiled bundles and static assets from build stage
+COPY --from=build /app/dist ./dist
+# The migration runners apply the SQL migrations from migrations/ at runtime
+COPY --from=build /app/migrations ./migrations
+
+# Copy entrypoint script
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# Umgebungsvariablen
+# Environment variables
 ENV NODE_ENV=production
 ENV PORT=8080
 
-# Verwende das Entrypoint-Skript als Startpunkt
+# Use the entrypoint script
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/index.pg.js"]
 
-# Stelle sicher, dass der Container auf Port 8080 hört
+# Expose port
 EXPOSE 8080
