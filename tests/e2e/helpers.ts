@@ -22,6 +22,17 @@ export async function signIn(page: Page, user = DEMO_ADMIN): Promise<void> {
   await page.getByLabel(/password/i).fill(user.password);
   await page.getByRole("button", { name: /login|sign in|anmelden/i }).click();
   await expect(page).not.toHaveURL(/\/login/);
+  // Leaving /login only means the redirect happened; the header renders once the
+  // session query resolves, and everything after this looks for a control inside
+  // it. Waiting here makes that one wait rather than a race repeated at every
+  // call site - which is what timed out in CI on the first spec to run, while
+  // later specs passed against an already-warm app.
+  await expect(settingsButton(page)).toBeVisible({ timeout: 30_000 });
+}
+
+/** The header control every settings interaction starts from. */
+function settingsButton(page: Page) {
+  return page.getByRole("button", { name: /^settings$/i });
 }
 
 /**
@@ -33,7 +44,8 @@ export async function signIn(page: Page, user = DEMO_ADMIN): Promise<void> {
  */
 export async function openMaterialsSettings(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByRole("button", { name: /^settings$/i }).click();
+  await expect(settingsButton(page)).toBeVisible({ timeout: 30_000 });
+  await settingsButton(page).click();
   await page.getByRole("menuitem", { name: /list management/i }).click();
   await page.getByRole("tab", { name: /^materials$/i }).click();
   await expect(page.getByRole("table")).toBeVisible();
