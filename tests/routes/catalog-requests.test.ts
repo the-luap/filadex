@@ -12,6 +12,8 @@ import { registerAuthRoutes } from "../../server/routes/auth";
 import { registerCatalogRequestRoutes } from "../../server/routes/catalog-requests";
 import { initializeAdminUser } from "../../server/auth";
 import { storage } from "../../server/storage";
+import { catalogRequests } from "../../shared/schema";
+import { db } from "../helpers/db";
 import { createApp, loginAs, registerAndVerify } from "../helpers/app";
 import { lastMailTo, mailbox } from "../helpers/mailbox";
 
@@ -123,6 +125,22 @@ describe("GET /api/catalog-requests", () => {
   it("returns the newest request first", async () => {
     await submit("material", { name: "PCTG" });
     await submit("material", { name: "TPU95" });
+
+    const response = await request(app).get("/api/catalog-requests").set("Cookie", adminCookie);
+
+    expect(response.body.map((r: { payload: { name: string } }) => r.payload.name)).toEqual(["TPU95", "PCTG"]);
+  });
+
+  // The case above is racy on SQLite: created_at defaults to epoch
+  // milliseconds there, and two submissions inside the same millisecond tie.
+  // This pins what a tie must resolve to - the later id, which is the later
+  // submission - without depending on the clock.
+  it("puts the later submission first when two share a timestamp", async () => {
+    const createdAt = new Date("2026-01-01T00:00:00.000Z");
+    await db.insert(catalogRequests).values([
+      { userId: aliceId, entityType: "material", payload: { name: "PCTG" }, createdAt },
+      { userId: aliceId, entityType: "material", payload: { name: "TPU95" }, createdAt },
+    ]);
 
     const response = await request(app).get("/api/catalog-requests").set("Cookie", adminCookie);
 

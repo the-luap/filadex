@@ -26,7 +26,17 @@ export async function loginAs(app: Express, username: string, password: string):
   if (response.status !== 200) {
     throw new Error(`login as ${username} failed: ${response.status} ${JSON.stringify(response.body)}`);
   }
-  return response.headers["set-cookie"][0];
+  // Seen once, in a full run under load: a 200 with no Set-Cookie at all,
+  // which the route cannot produce. Rather than a TypeError on [0] that says
+  // nothing, record what actually came back so the next occurrence can be
+  // traced.
+  const cookie = response.headers["set-cookie"]?.[0];
+  if (!cookie) {
+    throw new Error(
+      `login as ${username} answered 200 without a session cookie; headers: ${JSON.stringify(response.headers)} body: ${JSON.stringify(response.body)}`,
+    );
+  }
+  return cookie;
 }
 
 /**
