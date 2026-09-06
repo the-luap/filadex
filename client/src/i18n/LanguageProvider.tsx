@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LanguageContext, Language, getTranslation, interpolate } from './index';
+import { getInitialClientLanguage, resolveClientLanguage, isSupportedLanguage, getCookie } from './resolve-language';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +21,7 @@ interface LanguageProviderProps {
 }
 
 export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) => {
-  const [language, setLanguageState] = useState<Language>('en');
+  const [language, setLanguageState] = useState<Language>(getInitialClientLanguage);
   const { toast } = useToast();
   
   // Temporary translation function for error messages before language is initialized
@@ -74,40 +75,32 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     // Priority:
     // 1. User settings from API (if logged in)
     // 2. localStorage
-    // 3. Browser language
-    // 4. Environment variable DEFAULT_LANGUAGE
-    // 5. Default to English
+    // 3. language cookie
+    // 4. document.documentElement.lang (server-rendered in commit 9b8abeb)
+    // 5. Browser language
+    // 6. Environment variable DEFAULT_LANGUAGE
+    // 7. Default to English
 
-    if (userData?.language) {
-      setLanguageState(userData.language as Language);
+    if (userData?.language && isSupportedLanguage(userData.language)) {
+      setLanguageState(userData.language);
       return;
     }
 
-    const storedLanguage = localStorage.getItem('language') as Language;
-    if (storedLanguage && (storedLanguage === 'en' || storedLanguage === 'de' || storedLanguage === 'pl')) {
-      setLanguageState(storedLanguage);
-      return;
-    }
+    const resolved = resolveClientLanguage({
+      localStorage: (() => {
+        try {
+          return localStorage.getItem('language');
+        } catch {
+          return null;
+        }
+      })(),
+      cookie: getCookie('language'),
+      documentLang: typeof document !== 'undefined' ? document.documentElement?.lang : null,
+      browserLanguage: typeof navigator !== 'undefined' ? navigator.language : null,
+      defaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE,
+    });
 
-    // Check browser language
-    const browserLanguage = navigator.language.split('-')[0];
-    if (browserLanguage === 'de' || browserLanguage === 'pl') {
-      setLanguageState(browserLanguage);
-      return;
-    }
-
-    // Check for environment variable
-    // This is injected at build time or runtime via container environment
-    if (import.meta.env.VITE_DEFAULT_LANGUAGE) {
-      const envLanguage = import.meta.env.VITE_DEFAULT_LANGUAGE as Language;
-      if (envLanguage === 'en' || envLanguage === 'de' || envLanguage === 'pl') {
-        setLanguageState(envLanguage);
-        return;
-      }
-    }
-
-    // Default to English
-    setLanguageState('en');
+    setLanguageState(resolved);
   }, [userData]);
 
   // Keep the <html lang> attribute and the language cookie (read by the server
