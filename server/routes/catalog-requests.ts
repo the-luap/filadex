@@ -85,7 +85,7 @@ export function registerCatalogRequestRoutes(app: Express): void {
 
     await sendMail({
       to: requester.email,
-      ...catalogRequestReviewedEmail((requester.language as "en" | "de") || "en", approved, entityLabel, reviewNote),
+      ...catalogRequestReviewedEmail((requester.language as "en" | "de" | "pl") || "en", approved, entityLabel, reviewNote),
     });
   }
 

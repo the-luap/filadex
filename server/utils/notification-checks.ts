@@ -28,7 +28,7 @@ export async function runScheduledChecks(): Promise<void> {
     // directly (see IMPLEMENTATION_PLAN.md #9) - storage.getFilaments joins it
     // back in from filamentTypes.
     const userFilaments = await storage.getFilaments(user.id);
-    const language = user.language === "de" ? "de" : "en";
+    const language = user.language === "de" || user.language === "pl" ? user.language : "en";
 
     if (user.notifyLowStock) {
       const threshold = user.lowStockThresholdPercent ?? 15;

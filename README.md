@@ -162,7 +162,7 @@ LOG_LEVEL=INFO                # Logging level (DEBUG, INFO, WARN, ERROR)
 JWT_SECRET=your_secret_key    # Secret key for JWT token generation
 
 # Localization
-DEFAULT_LANGUAGE=en           # Default language for new users (en, de)
+DEFAULT_LANGUAGE=en           # Default language for new users (en, de, pl)
 
 # Data Initialization
 INIT_SAMPLE_DATA=false        # Set to 'true' to initialize with sample data
@@ -249,6 +249,7 @@ Filadex supports multiple languages:
 1. **Available Languages**
    - English (en)
    - German (de)
+   - Polish (pl)
 
 2. **Language Selection**
    - Users can select their preferred language from the language selector in the header

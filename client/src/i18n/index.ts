@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 
 // Define available languages
-export type Language = 'en' | 'de';
+export type Language = 'en' | 'de' | 'pl';
 
 // Define the structure of our translations
 export interface Translations {

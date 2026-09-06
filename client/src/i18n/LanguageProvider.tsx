@@ -7,10 +7,12 @@ import { useToast } from '@/hooks/use-toast';
 // Import language files
 import enTranslations from './locales/en';
 import deTranslations from './locales/de';
+import plTranslations from './locales/pl';
 
 const translations = {
   en: enTranslations,
   de: deTranslations,
+  pl: plTranslations,
 };
 
 interface LanguageProviderProps {
@@ -82,15 +84,15 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     }
 
     const storedLanguage = localStorage.getItem('language') as Language;
-    if (storedLanguage && (storedLanguage === 'en' || storedLanguage === 'de')) {
+    if (storedLanguage && (storedLanguage === 'en' || storedLanguage === 'de' || storedLanguage === 'pl')) {
       setLanguageState(storedLanguage);
       return;
     }
 
     // Check browser language
     const browserLanguage = navigator.language.split('-')[0];
-    if (browserLanguage === 'de') {
-      setLanguageState('de');
+    if (browserLanguage === 'de' || browserLanguage === 'pl') {
+      setLanguageState(browserLanguage);
       return;
     }
 
@@ -98,7 +100,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     // This is injected at build time or runtime via container environment
     if (import.meta.env.VITE_DEFAULT_LANGUAGE) {
       const envLanguage = import.meta.env.VITE_DEFAULT_LANGUAGE as Language;
-      if (envLanguage === 'en' || envLanguage === 'de') {
+      if (envLanguage === 'en' || envLanguage === 'de' || envLanguage === 'pl') {
         setLanguageState(envLanguage);
         return;
       }

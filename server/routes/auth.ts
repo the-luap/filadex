@@ -175,7 +175,7 @@ export function registerAuthRoutes(app: Express): void {
         );
 
         const resetUrl = `${baseUrl(req)}/reset-password?token=${resetToken}`;
-        await sendMail({ to: email, ...passwordResetEmail((user.language as "en" | "de") || "en", resetUrl) });
+        await sendMail({ to: email, ...passwordResetEmail((user.language as "en" | "de" | "pl") || "en", resetUrl) });
       }
 
       res.json(genericResponse);

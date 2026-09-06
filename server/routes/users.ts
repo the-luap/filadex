@@ -25,8 +25,8 @@ export function registerUserRoutes(app: Express): void {
       const { language } = req.body;
 
       // Validate language
-      if (language !== 'en' && language !== 'de') {
-        return res.status(400).json({ message: "Invalid language. Supported languages are 'en' and 'de'." });
+      if (language !== 'en' && language !== 'de' && language !== 'pl') {
+        return res.status(400).json({ message: "Invalid language. Supported languages are 'en', 'de' and 'pl'." });
       }
 
       await storage.updateUserPreferences(req.userId, { language });

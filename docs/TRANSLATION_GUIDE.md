@@ -19,6 +19,7 @@ Filadex uses a simple translation system based on TypeScript files. Each languag
 
 - English (en)
 - German (de)
+- Polish (pl)
 
 We welcome contributions for additional languages!
 
@@ -62,6 +63,7 @@ Translation files are located in the `client/src/i18n/locales/` directory. Each 
 
 - `en.ts` - English (base language)
 - `de.ts` - German
+- `pl.ts` - Polish
 - Add your language file here, e.g., `fr.ts` for French
 
 The translation files follow a nested object structure where keys are organized by feature or component.
@@ -129,16 +131,18 @@ To maintain consistency across translations, please use the following terminolog
 
 | English Term | Description | Example Translations |
 |--------------|-------------|----------------------|
-| Filament | The 3D printing material | German: "Filament" |
-| Spool | The container holding the filament | German: "Spule" |
-| Material | The type of filament (PLA, PETG, etc.) | German: "Material" |
-| Manufacturer | The company that made the filament | German: "Hersteller" |
-| Color | The color of the filament | German: "Farbe" |
-| Diameter | The thickness of the filament | German: "Durchmesser" |
-| Storage Location | Where the filament is stored | German: "Lagerort" |
-| Remaining Percentage | How much filament is left | German: "Verbleibender Prozentsatz" |
-| Print Temperature | Temperature for printing | German: "Drucktemperatur" |
-| Total Weight | The total weight of the filament | German: "Gesamtgewicht" |
+| Filament | The 3D printing material | German: "Filament"; Polish: "filament" |
+| Spool | The container holding the filament | German: "Spule"; Polish: "szpula" |
+| Material | The type of filament (PLA, PETG, etc.) | German: "Material"; Polish: "materiał" |
+| Manufacturer | The company that made the filament | German: "Hersteller"; Polish: "producent" |
+| Color | The color of the filament | German: "Farbe"; Polish: "kolor" |
+| Diameter | The thickness of the filament | German: "Durchmesser"; Polish: "średnica" |
+| Storage Location | Where the filament is stored | German: "Lagerort"; Polish: "miejsce przechowywania" |
+| Remaining Percentage | How much filament is left | German: "Verbleibender Prozentsatz"; Polish: "pozostały procent" |
+| Print Temperature | Temperature for printing | German: "Drucktemperatur"; Polish: "temperatura druku" |
+| Total Weight | The total weight of the filament | German: "Gesamtgewicht"; Polish: "waga całkowita" |
+| Public Collection | The publicly shared view of a collection | German: "Öffentliche Sammlung"; Polish: "kolekcja publiczna" |
+| Catalog Request | A proposal to add an entry to the shared catalog | German: "Kataloganfrage"; Polish: "wniosek katalogowy" |
 
 ### Technical Terms
 
@@ -148,14 +152,14 @@ For technical terms related to 3D printing, it's often best to use the establish
 
 | English Term | Description | Example Translations |
 |--------------|-------------|----------------------|
-| Settings | Application settings | German: "Einstellungen" |
-| Dashboard | Main overview page | German: "Dashboard" |
-| Add | Add a new item | German: "Hinzufügen" |
-| Edit | Edit an existing item | German: "Bearbeiten" |
-| Delete | Remove an item | German: "Löschen" |
-| Save | Save changes | German: "Speichern" |
-| Cancel | Cancel an action | German: "Abbrechen" |
-| Search | Search for items | German: "Suchen" |
+| Settings | Application settings | German: "Einstellungen"; Polish: "Ustawienia" |
+| Dashboard | Main overview page | German: "Dashboard"; Polish: "Panel" |
+| Add | Add a new item | German: "Hinzufügen"; Polish: "Dodaj" |
+| Edit | Edit an existing item | German: "Bearbeiten"; Polish: "Edytuj" |
+| Delete | Remove an item | German: "Löschen"; Polish: "Usuń" |
+| Save | Save changes | German: "Speichern"; Polish: "Zapisz" |
+| Cancel | Cancel an action | German: "Abbrechen"; Polish: "Anuluj" |
+| Search | Search for items | German: "Suchen"; Polish: "Szukaj" |
 
 ## Testing Your Translations
 

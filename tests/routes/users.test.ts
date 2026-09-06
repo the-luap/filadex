@@ -76,7 +76,7 @@ describe("POST /api/users/language", () => {
     expect(response.status).toBe(401);
   });
 
-  it.each(["en", "de"])("stores the %s preference", async (language) => {
+  it.each(["en", "de", "pl"])("stores the %s preference", async (language) => {
     const cookie = await registerAndVerify(app, alice);
 
     const response = await request(app).post("/api/users/language").set("Cookie", cookie).send({ language });
@@ -92,7 +92,7 @@ describe("POST /api/users/language", () => {
     const response = await request(app).post("/api/users/language").set("Cookie", cookie).send({ language });
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Invalid language. Supported languages are 'en' and 'de'.");
+    expect(response.body.message).toBe("Invalid language. Supported languages are 'en', 'de' and 'pl'.");
   });
 });
 

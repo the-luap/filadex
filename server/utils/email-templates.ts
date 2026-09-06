@@ -1,4 +1,4 @@
-type Language = "en" | "de";
+type Language = "en" | "de" | "pl";
 
 interface EmailTemplate {
   subject: string;
@@ -16,6 +16,17 @@ function wrapper(bodyHtml: string): string {
 }
 
 export function verificationEmail(language: Language, verifyUrl: string): EmailTemplate {
+  if (language === "pl") {
+    return {
+      subject: "Potwierdź swój adres e-mail",
+      html: wrapper(`
+        <p>Witamy w Filadex!</p>
+        <p>Potwierdź swój adres e-mail, aby aktywować konto:</p>
+        <p><a href="${verifyUrl}" style="display:inline-block;padding:10px 20px;background:#E11D48;color:#fff;text-decoration:none;border-radius:6px;">Potwierdź e-mail</a></p>
+        <p>Ten link jest ważny przez 24 godziny. Jeśli nie zakładano konta, można zignorować tę wiadomość.</p>
+      `),
+    };
+  }
   if (language === "de") {
     return {
       subject: "Bestätige deine E-Mail-Adresse",
@@ -39,6 +50,16 @@ export function verificationEmail(language: Language, verifyUrl: string): EmailT
 }
 
 export function passwordResetEmail(language: Language, resetUrl: string): EmailTemplate {
+  if (language === "pl") {
+    return {
+      subject: "Zresetuj hasło",
+      html: wrapper(`
+        <p>Zgłoszono prośbę o zresetowanie hasła.</p>
+        <p><a href="${resetUrl}" style="display:inline-block;padding:10px 20px;background:#E11D48;color:#fff;text-decoration:none;border-radius:6px;">Zresetuj hasło</a></p>
+        <p>Ten link jest ważny przez 1 godzinę. Jeśli to nie była Twoja prośba, można zignorować tę wiadomość.</p>
+      `),
+    };
+  }
   if (language === "de") {
     return {
       subject: "Passwort zurücksetzen",
@@ -61,6 +82,16 @@ export function passwordResetEmail(language: Language, resetUrl: string): EmailT
 
 export function lowStockEmail(language: Language, filamentNames: string[]): EmailTemplate {
   const items = filamentNames.map((name) => `<li>${name}</li>`).join("");
+  if (language === "pl") {
+    return {
+      subject: "Filadex: Niski stan filamentu",
+      html: wrapper(`
+        <p>Następujące szpule są prawie puste:</p>
+        <ul>${items}</ul>
+        <p>Próg powiadomień można dostosować w ustawieniach konta.</p>
+      `),
+    };
+  }
   if (language === "de") {
     return {
       subject: "Filadex: Niedriger Restbestand",
@@ -83,6 +114,16 @@ export function lowStockEmail(language: Language, filamentNames: string[]): Emai
 
 export function dryingReminderEmail(language: Language, filamentNames: string[]): EmailTemplate {
   const items = filamentNames.map((name) => `<li>${name}</li>`).join("");
+  if (language === "pl") {
+    return {
+      subject: "Filadex: Przypomnienie o suszeniu",
+      html: wrapper(`
+        <p>Następujące szpule wrażliwe na wilgoć nie były suszone od dłuższego czasu:</p>
+        <ul>${items}</ul>
+        <p>Okres przypomnień można dostosować w ustawieniach konta.</p>
+      `),
+    };
+  }
   if (language === "de") {
     return {
       subject: "Filadex: Trocknungserinnerung",
@@ -109,6 +150,16 @@ export function catalogRequestReviewedEmail(
   entityLabel: string,
   reviewNote?: string | null
 ): EmailTemplate {
+  if (language === "pl") {
+    return {
+      subject: approved ? "Twój wniosek został zatwierdzony" : "Twój wniosek został odrzucony",
+      html: wrapper(
+        approved
+          ? `<p>Twój wniosek dotyczący „${entityLabel}" został zatwierdzony i jest już dostępny.</p>`
+          : `<p>Twój wniosek dotyczący „${entityLabel}" został niestety odrzucony.</p>${reviewNote ? `<p>Uwaga: ${reviewNote}</p>` : ""}`
+      ),
+    };
+  }
   if (language === "de") {
     return {
       subject: approved ? "Deine Anfrage wurde genehmigt" : "Deine Anfrage wurde abgelehnt",

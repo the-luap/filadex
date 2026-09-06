@@ -32,6 +32,12 @@ export function LanguageSelector() {
         >
           Deutsch
         </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => setLanguage('pl')}
+          className={language === 'pl' ? 'bg-accent' : ''}
+        >
+          Polski
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
