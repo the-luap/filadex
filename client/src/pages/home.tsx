@@ -376,8 +376,6 @@ export default function Home() {
           setSelectedFilament(undefined);
           setShowAddModal(true);
         }}
-        onToggleSelectionMode={handleToggleSelectionMode}
-        selectionMode={selectionMode}
       />
 
       <main className="flex-grow container mx-auto px-4 py-6">
