@@ -37,6 +37,20 @@ jobs:
         if: matrix.dialect == 'sqlite'
         run: TEST_DIALECT=sqlite npm test
 
+  # ESLint, on the narrow rule set eslint.config.js explains. --max-warnings 0
+  # so that a rule downgraded to "warn" still fails here: the check is green
+  # today, and the point is that it stays that way.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
   # Catches schema changes that missed a migration on either dialect: runs
   # drizzle-kit generate for each engine into temporary directories and fails
   # if any new migration is generated. Proves that checked-in migrations

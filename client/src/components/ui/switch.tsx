@@ -6,17 +6,17 @@ import { cn } from "@/lib/utils"
 const Switch = React.forwardRef<
   React.ElementRef<typeof SwitchPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>
->(({ className, ...props }, ref) => {
+>(({ className, onClick, ...props }, ref) => {
   // Create a click handler that stops propagation
   const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     // Stop event propagation to prevent parent elements from capturing the click
     e.stopPropagation();
 
     // Call the original onClick if it exists
-    if (props.onClick) {
-      props.onClick(e);
+    if (onClick) {
+      onClick(e);
     }
-  }, [props.onClick]);
+  }, [onClick]);
 
   return (
     <SwitchPrimitives.Root

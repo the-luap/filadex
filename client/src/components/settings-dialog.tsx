@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/dialog";
 import { Filament } from "@shared/schema";
 import { useTranslation } from "@/i18n";
-import type { Manufacturer, Material, Color, Diameter, StorageLocation } from "./settings/settings-types";
 
 interface SettingsDialogProps {
   open: boolean;

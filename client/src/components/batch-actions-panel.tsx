@@ -7,8 +7,7 @@ import {
   Download,
   X,
   CheckSquare,
-  Square,
-  AlertTriangle
+  Square
 } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import { BatchUpdateModal } from "./batch-update-modal";

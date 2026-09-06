@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { Filament, InsertFilament, insertFilamentSchema } from "@shared/schema";
+import { Filament } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { de, enUS } from "date-fns/locale";
-import { CalendarIcon, Scan, ScanFace, Copy } from "lucide-react";
+import { CalendarIcon, Scan, ScanFace } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -137,7 +137,6 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -145,11 +144,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRScanner } from "./qr-scanner";
 import { NFCScanner } from "./nfc-scanner";
 import { useUnits } from "@/lib/use-units";
-import { formatCurrency, formatTemperature, getTemperatureUnitSymbol, convertTemperature } from "@/lib/units";
+import { formatCurrency, getTemperatureUnitSymbol } from "@/lib/units";
 
 // Create a custom schema for the form with translations
 const createFormSchema = (t: (key: string) => string) => z.object({

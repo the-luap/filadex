@@ -30,7 +30,7 @@
     "db:seed:sqlite": "tsx --tsconfig=tsconfig.sqlite.json scripts/seed.ts --demo",
     "db:verify-upgrade": "tsx scripts/verify-upgrade.ts",
     "setup": "bash scripts/setup-local.sh",
-    "lint": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
     "type-check": "tsc --noEmit",
     "test:e2e": "playwright test"
   },
@@ -112,6 +112,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
     "@replit/vite-plugin-cartographer": "^0.0.11",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
@@ -128,11 +129,15 @@
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.30.4",
     "esbuild": "^0.25.0",
+    "eslint": "^10.10.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
     "postcss": "^8.4.47",
     "supertest": "^7.2.2",
     "tailwindcss": "^3.4.14",
     "tsx": "^4.19.1",
     "typescript": "5.6.3",
+    "typescript-eslint": "^8.69.0",
     "vite": "^5.4.14",
     "vitest": "^3.2.7"
   }

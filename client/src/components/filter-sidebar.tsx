@@ -5,13 +5,6 @@ import { Filament } from "@shared/schema";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -25,30 +18,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Check, ChevronDown, ChevronsUpDown, X, Search, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
-
-interface MaterialDistribution {
-  name: string;
-  percentage: number;
-}
-
-interface Statistics {
-  totalSpools: number;
-  totalWeight: string;
-  remainingWeight: string;
-  averageRemaining: number;
-  lowStockCount: number;
-  materialDistribution: MaterialDistribution[];
-  topMaterials: string[];
-  topColors: string[];
-  estimatedValue: number;
-  totalPurchaseValue: number;
-  averageAge: number;
-  oldestFilament?: {name: string, days: number} | null;
-  newestFilament?: {name: string, days: number} | null;
-}
 
 interface Manufacturer {
   id: number;
@@ -88,17 +60,17 @@ export function FilterSidebar({
   const [minRemaining, setMinRemaining] = useState(0);
 
   // Laden der Hersteller, Materialien und Farben aus der Datenbank
-  const { data: manufacturers = [], isLoading: isLoadingManufacturers } = useQuery({
+  const { data: manufacturers = [] } = useQuery({
     queryKey: ['/api/manufacturers'],
     queryFn: () => apiRequest<Manufacturer[]>('/api/manufacturers')
   });
 
-  const { data: materials = [], isLoading: isLoadingMaterials } = useQuery({
+  const { data: materials = [] } = useQuery({
     queryKey: ['/api/materials'],
     queryFn: () => apiRequest<{id: number, name: string, createdAt: string}[]>('/api/materials')
   });
 
-  const { data: colors = [], isLoading: isLoadingColors } = useQuery({
+  const { data: colors = [] } = useQuery({
     queryKey: ['/api/colors'],
     queryFn: () => apiRequest<Color[]>('/api/colors')
   });

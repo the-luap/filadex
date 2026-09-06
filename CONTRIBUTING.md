@@ -125,8 +125,14 @@ behaviour should not be.
 
 The codebase is TypeScript, and TypeScript is what checks it: `npm run check`
 (Postgres) and `npm run check:sqlite` (SQLite) must both pass, and CI runs both.
-There is no ESLint or Prettier configuration in the repository — an earlier
-version of this file claimed there was.
+`noUnusedLocals` is on, so an unused import or variable is a type error.
+
+`npm run lint` runs ESLint on a deliberately small rule set — the React hook
+rules, which catch stale closures and missing effect dependencies that
+TypeScript cannot see, plus a few core correctness rules. It is not a style
+checker and there is no Prettier configuration. CI runs it with
+`--max-warnings 0`, so it must come back clean; the rationale for each rule is
+in `eslint.config.js`, and that is where to argue for adding one.
 
 * Prefer the object spread operator (`{...anotherObj}`) to `Object.assign()`
 * Inline `export`s with expressions whenever possible

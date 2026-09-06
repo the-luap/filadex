@@ -6,7 +6,7 @@
  * a specification: a behaviour change belongs in its own commit, together with
  * the test that pins it.
  */
-import { beforeEach, describe, expect, it, afterEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
 import { registerAuthRoutes } from "../../server/routes/auth";

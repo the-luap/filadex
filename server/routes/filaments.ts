@@ -7,7 +7,6 @@ import { fromZodError } from "zod-validation-error";
 import { logger as appLogger } from "../utils/logger";
 import { validateId } from "../utils/validation";
 import { parseCSVLine, detectCSVFormat, escapeCsvField } from "../utils/csv-parser";
-import { validateBatchIds } from "../utils/batch-operations";
 
 export function registerFilamentRoutes(app: Express): void {
   // GET all filaments with optional export
