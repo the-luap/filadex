@@ -49,6 +49,19 @@ export function registerSettingsRoutes(app: Express): void {
       parseLine: simpleNameParseLine,
     },
     isInUse: (filament: Filament, item) => filament.manufacturer === item.name,
+    // Exact match, matching manufacturers_name_key. Without it a repeat of a
+    // name already in the list reaches the unique index and comes back as a
+    // bare 500 - every install is seeded with a few, so retyping one in the Add
+    // form is the ordinary case rather than an edge one.
+    //
+    // Exactly what the index compares, so this rejects only what the database
+    // was going to reject anyway. Deliberately not caseless and deliberately
+    // not trimmed: `Prusa` alongside `prusa`, and `" Prusa"` alongside
+    // `"Prusa"`, are both accepted today, and refusing either would be a
+    // behaviour change rather than a fix. The CSV import does compare caselessly
+    // (simpleNameParseLine), so the two paths still disagree - see #11, which is
+    // where that decision belongs.
+    duplicateOf: (item, data) => item.name === data.name,
   });
 
   registerCrudSettingsRoutes<Material, { name: string; density?: string | null; isHygroscopic?: boolean | null }>(app, {
@@ -203,5 +216,8 @@ export function registerSettingsRoutes(app: Express): void {
       parseLine: simpleNameParseLine,
     },
     isInUse: (filament: Filament, item) => filament.storageLocation === item.name,
+    // Exact match, matching storage_locations_name_key - same reasoning as
+    // manufacturers above, including why it is neither caseless nor trimmed.
+    duplicateOf: (item, data) => item.name === data.name,
   });
 }

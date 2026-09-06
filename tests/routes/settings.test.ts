@@ -470,3 +470,37 @@ describe("catalog matching agrees across dialects", () => {
     expect(remaining.body).toHaveLength(1);
   });
 });
+
+// Retyping a name the list already holds used to reach the unique index and
+// come back as a bare 500 - `Failed to create manufacturer` - which tells an
+// admin nothing about what went wrong. See #11; `colors` is deliberately not
+// covered here, because it has no unique constraint at all and deciding what
+// makes two colours the same is a product question rather than a bug.
+describe("duplicate creates on the exact-match settings entities", () => {
+  const cases = [
+    { label: "manufacturer", path: "/api/manufacturers", create: (name: string) => storage.createManufacturer({ name }) },
+    { label: "storage location", path: "/api/storage-locations", create: (name: string) => storage.createStorageLocation({ name }) },
+  ];
+
+  for (const { label, path, create } of cases) {
+    it(`answers 409 rather than 500 when a ${label} already has that name`, async () => {
+      await create("Prusa");
+
+      const res = await request(app).post(path).set("Cookie", adminCookie).send({ name: "Prusa" });
+
+      expect(res.status).toBe(409);
+      expect(res.body.message).toMatch(/already exists/i);
+    });
+
+    // The check matches the index exactly, so it rejects only what the database
+    // was going to reject anyway. A case variant is accepted today and stays
+    // accepted - changing that is the open decision in #11, not this fix.
+    it(`still accepts a ${label} that differs only by case`, async () => {
+      await create("Prusa");
+
+      const res = await request(app).post(path).set("Cookie", adminCookie).send({ name: "prusa" });
+
+      expect(res.status).toBe(201);
+    });
+  }
+});
