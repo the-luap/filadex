@@ -23,9 +23,16 @@ import path from "path";
  */
 
 // The integer widths drizzle-zod derives a range from: int4 on Postgres, and
-// SQLite's safe-integer range. Only these exact values are exempt from the
-// equality comparison - a column that grows to bigint produces bounds outside
-// this set and fails, which is the point.
+// SQLite's safe-integer range. Only these exact values leave the equality
+// comparison; any other bound stays in it and has to match across dialects.
+//
+// This set is deliberately not a bigint tripwire, and does not read as one: a
+// Postgres `bigint({ mode: "number" })` derives the same safe-integer pair
+// SQLite's integer does, so it is exempted here too. What holds a widened column
+// honest is the separate assertion below - Postgres, whose schemas the client
+// bundles, must stay no wider than SQLite. A bigint on both sides passes it
+// because neither side is wider; a bigint on Postgres against a narrower SQLite
+// column fails it.
 const WIDTH_BOUNDS = [-2147483648, 2147483647, -9007199254740991, 9007199254740991];
 
 const script = `
