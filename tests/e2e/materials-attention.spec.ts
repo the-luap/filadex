@@ -11,9 +11,15 @@ import { signIn, openMaterialsSettings } from "./helpers";
  * notice, and only the last step tells you the round trip actually worked.
  */
 test.describe("the needs-attention prompt", () => {
-  const material = "MoonPLA";
+  // Unique per attempt, because the prompt is a one-way door: the test dismisses
+  // it, which persists. A fixed name makes the CI retry hit an already-dismissed
+  // row and fail for a reason that has nothing to do with the behaviour - which
+  // is exactly what happened the first time this ran on a retry.
+  let material: string;
 
   test.beforeEach(async ({ page }) => {
+    material = `MoonPLA-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+
     await signIn(page);
 
     // Declaring a material that resolves to nothing is what auto-registers it
