@@ -7,7 +7,10 @@ services:
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-filadex}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-filadex}
+      # Required, not defaulted: a default here would become the password of
+      # every install that followed the README's `cp .env.example .env`.
+      # Generate one with: openssl rand -base64 24
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?required}
       - POSTGRES_DB=${POSTGRES_DB:-filadex}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -29,10 +32,12 @@ services:
       - PGHOST=db
       - PGPORT=5432
       - PGUSER=${POSTGRES_USER:-filadex}
-      - PGPASSWORD=${POSTGRES_PASSWORD:-filadex}
+      - PGPASSWORD=${POSTGRES_PASSWORD:?required}
       - PGDATABASE=${POSTGRES_DB:-filadex}
-      - DATABASE_URL=postgres://${POSTGRES_USER:-filadex}:${POSTGRES_PASSWORD:-filadex}@db:5432/${POSTGRES_DB:-filadex}
-      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin}
+      # ggignore: both halves of the userinfo are variable references, but the
+      # line matches postgres://user:pass@host and GitGuardian scans changed
+      # lines, so touching it at all trips the URI-credential detector.
+      - DATABASE_URL=postgres://${POSTGRES_USER:-filadex}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-filadex} # ggignore
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-en}
       - INIT_SAMPLE_DATA=${INIT_SAMPLE_DATA:-false}

@@ -102,3 +102,8 @@ playwright-mcp/
 
 # Project-specific
 TODO.md
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/

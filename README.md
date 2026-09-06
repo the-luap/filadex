@@ -98,7 +98,13 @@ Choose between PostgreSQL (multi-user default) and SQLite (single-user). Note th
    cp .env.example .env
    ```
 
-2. Start the containers:
+2. Set a database password. `.env.example` ships with `POSTGRES_PASSWORD`
+   empty on purpose, and Compose refuses to start until it has a value:
+   ```bash
+   echo "POSTGRES_PASSWORD=$(openssl rand -base64 24)" >> .env
+   ```
+
+3. Start the containers:
    ```bash
    docker-compose up -d
    ```
@@ -151,7 +157,8 @@ PORT=8080                     # Port the application will run on
 LOG_LEVEL=INFO                # Logging level (DEBUG, INFO, WARN, ERROR)
 
 # Authentication
-DEFAULT_ADMIN_PASSWORD=admin  # Default password for the admin user
+# The first admin is always created as admin/admin and must change the password
+# at first login - there is no variable that sets it.
 JWT_SECRET=your_secret_key    # Secret key for JWT token generation
 
 # Localization
