@@ -303,6 +303,30 @@ export type Filament = Omit<typeof filaments.$inferSelect, "filamentTypeId"> & F
 
 export type InsertFilament = Omit<typeof filaments.$inferInsert, "id" | "filamentTypeId"> & FilamentTypeInsertFields;
 
+/**
+ * A diameter has to be a number, not merely something that starts with one.
+ *
+ * It is stored as `numeric` - a real numeric on Postgres, TEXT on SQLite (see
+ * shared/columns.sqlite.ts) - and matched as a number when a spool looks for its
+ * filament type. A value like "1.75mm" or "" therefore diverges: Postgres errors
+ * on the parameter, while SQLite's CAST(x AS REAL) stops at the first
+ * non-numeric character and makes "1.75mm" equal to "1.75", silently attaching
+ * the spool to a catalog entry with a different diameter. Rejecting it at the
+ * boundary is what keeps both engines answering the same way.
+ *
+ * Enforced on the client by insertFilamentSchema below, and on the server by
+ * storage.createFilament/updateFilament - the routes that write a spool (direct
+ * POST, CSV and JSON import, batch, the Spoolman-compatible API) do not all
+ * parse a schema, but they all go through storage.
+ */
+export const diameterValueSchema = z.union([
+  z.string().refine(
+    (value) => value.trim() !== "" && Number.isFinite(Number(value)),
+    { message: "diameter must be a number" },
+  ),
+  z.number(),
+]);
+
 // Bearbeiten Sie das Schema, um sicherzustellen, dass numerische Felder korrekt konvertiert werden
 // Schema für das Einfügen von Filaments ohne Transformation
 const baseInsertFilamentSchema = createInsertSchema(filaments).omit({
@@ -313,7 +337,7 @@ const baseInsertFilamentSchema = createInsertSchema(filaments).omit({
   material: z.string(),
   colorName: z.string(),
   colorCode: z.string().nullable().optional(),
-  diameter: z.union([z.string(), z.number()]).nullable().optional(),
+  diameter: diameterValueSchema.nullable().optional(),
   printTemp: z.string().nullable().optional(),
 });
 

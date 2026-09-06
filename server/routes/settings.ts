@@ -182,7 +182,7 @@ export function registerSettingsRoutes(app: Express): void {
     // 409, on the same rule a declared diameter finds its filament type by
     // (eqNumeric).
     duplicateOf: (item, data) => sameDiameter(item.value, data.value),
-    isInUse: (filament: Filament, item) => filament.diameter === String(item.value),
+    isInUse: (filament: Filament, item) => filament.diameter !== null && sameDiameter(filament.diameter, String(item.value)),
   });
 
   registerCrudSettingsRoutes<StorageLocation, { name: string }>(app, {

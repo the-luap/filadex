@@ -18,6 +18,7 @@ import {
   emailSettings, type EmailSettings,
   backupSettings, type BackupSettings,
   foldUsername,
+  diameterValueSchema,
 } from "@shared/schema";
 import { db, dialect, vacuumBackup } from "@db";
 import { eq, sql, and, or, inArray, desc, isNull, count } from "drizzle-orm";
@@ -778,6 +779,9 @@ export class DatabaseStorage implements IStorage {
     if (spoolFields.userId == null) {
       throw new Error("createFilament requires a userId");
     }
+    // Only values a caller actually supplied are checked - a legacy row holding
+    // "1.75mm" from before this rule existed stays editable.
+    if (diameter != null) diameterValueSchema.parse(diameter);
 
     const filamentTypeId = await findOrCreateFilamentType(spoolFields.userId, {
       manufacturer, material, colorName, colorCode, diameter, printTemp,
@@ -795,6 +799,7 @@ export class DatabaseStorage implements IStorage {
       if (!existing) return undefined;
 
       const { manufacturer, material, colorName, colorCode, diameter, printTemp, ...spoolFields } = updateFilament;
+      if (diameter != null) diameterValueSchema.parse(diameter);
       const typeFieldsChanged = [manufacturer, material, colorName, colorCode, diameter, printTemp]
         .some((value) => value !== undefined);
 

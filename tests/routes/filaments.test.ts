@@ -182,4 +182,42 @@ describe("filament type reuse across dialects", () => {
 
     expect(second.filamentTypeId).toBe(first.filamentTypeId);
   });
+
+  // The numeric match that fix relies on is a CAST on SQLite, and CAST stops at
+  // the first non-numeric character: "1.75mm" and "" would both compare equal to
+  // a real diameter and hand the spool a filament type it does not belong to.
+  // Postgres errors on the same parameter instead. Neither is allowed to happen.
+  it.each(["1.75mm", "", "   ", "abc"])("refuses %o as a diameter", async (value) => {
+    const alice = await newUser("alice");
+
+    await expect(storage.createFilament({
+      userId: alice.id,
+      name: "Bad spool",
+      material: "PLA",
+      colorName: "Black",
+      diameter: value,
+      totalWeight: "1000",
+      remainingPercentage: "80",
+    })).rejects.toThrow();
+
+    expect(await storage.getFilaments(alice.id)).toHaveLength(0);
+  });
+
+  it("refuses a non-numeric diameter on update too", async () => {
+    const alice = await newUser("alice");
+    const spool = await storage.createFilament({
+      userId: alice.id,
+      name: "Good spool",
+      material: "PLA",
+      colorName: "Black",
+      diameter: "1.75",
+      totalWeight: "1000",
+      remainingPercentage: "80",
+    });
+
+    await expect(storage.updateFilament(spool.id, { diameter: "1.75mm" }, alice.id)).rejects.toThrow();
+
+    const unchanged = await storage.getFilament(spool.id, alice.id);
+    expect(unchanged?.diameter).toBe("1.75");
+  });
 });

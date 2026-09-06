@@ -441,4 +441,32 @@ describe("catalog matching agrees across dialects", () => {
 
     expect(duplicate.status).toBe(409);
   });
+
+  // The in-use guard has to read a diameter the same way everything else does. On
+  // exact string equality a catalog entry spelled "1.750" looks unused to spools
+  // carrying "1.75", and deleting it removes a diameter that is in use - the one
+  // thing the guard exists to prevent.
+  it("refuses to delete a diameter a spool uses under a different spelling", async () => {
+    const created = await request(app).post("/api/diameters").set("Cookie", adminCookie).send({ value: "1.750" });
+    expect(created.status).toBe(201);
+
+    const admin = await storage.getUserByUsername("admin");
+    await storage.createFilament({
+      userId: admin!.id,
+      name: "A spool",
+      material: "PLA",
+      colorName: "Black",
+      diameter: "1.75",
+      totalWeight: "1000",
+      remainingPercentage: "80",
+    });
+
+    const deleted = await request(app)
+      .delete(`/api/diameters/${created.body.id}`)
+      .set("Cookie", adminCookie);
+
+    expect(deleted.status).toBe(400);
+    const remaining = await request(app).get("/api/diameters").set("Cookie", adminCookie);
+    expect(remaining.body).toHaveLength(1);
+  });
 });
