@@ -110,6 +110,14 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     setLanguageState('en');
   }, [userData]);
 
+  // Keep the <html lang> attribute and the language cookie (read by the server
+  // to server-render the correct lang on the next load) in sync with the
+  // active language.
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.cookie = `language=${language};path=/;max-age=31536000;samesite=lax`;
+  }, [language]);
+
   // Function to set language and persist it
   const setLanguage = (newLanguage: Language) => {
     setLanguageState(newLanguage);

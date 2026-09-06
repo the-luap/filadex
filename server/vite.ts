@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
+import { resolveLanguage, setHtmlLang } from "./utils/resolve-language";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -61,7 +62,8 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
-      const page = await vite.transformIndexHtml(url, template);
+      let page = await vite.transformIndexHtml(url, template);
+      page = setHtmlLang(page, await resolveLanguage(req));
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
@@ -79,10 +81,16 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // index: false so the SPA entry always goes through the catch-all below,
+  // which stamps the correct <html lang> before sending it.
+  app.use(express.static(distPath, { index: false }));
+
+  const indexHtml = fs.readFileSync(path.resolve(distPath, "index.html"), "utf-8");
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  app.use("*", async (req, res) => {
+    res.status(200).set({ "Content-Type": "text/html" }).end(
+      setHtmlLang(indexHtml, await resolveLanguage(req)),
+    );
   });
 }

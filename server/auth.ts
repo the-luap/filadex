@@ -26,6 +26,18 @@ export function generateToken(userId: number): string {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
 }
 
+// Verify a JWT from the token cookie without requiring a full request context.
+// Returns the userId on success, or null if the token is missing/invalid/expired.
+export function verifyToken(token: string | undefined): number | null {
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId?: number };
+    return decoded?.userId ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Verify password
 export async function verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
   return await bcrypt.compare(plainPassword, hashedPassword);
