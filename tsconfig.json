@@ -10,6 +10,7 @@
     // ES5 and rejects it.
     "target": "ESNext",
     "strict": true,
+    "noUnusedLocals": true,
     "lib": ["esnext", "dom", "dom.iterable"],
     "jsx": "preserve",
     "esModuleInterop": true,

@@ -12,7 +12,6 @@ interface NFCScannerProps {
 
 export function NFCScanner({ onScanSuccess, onClose }: NFCScannerProps) {
   const { t } = useTranslation();
-  const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nfcSupported, setNfcSupported] = useState(true);
 
@@ -26,7 +25,6 @@ export function NFCScanner({ onScanSuccess, onClose }: NFCScannerProps) {
 
     // Start NFC scanning with a small delay to ensure component is fully mounted
     const startNfcScan = async () => {
-      setIsScanning(true);
       setError(null);
 
       try {
@@ -73,7 +71,6 @@ export function NFCScanner({ onScanSuccess, onClose }: NFCScannerProps) {
         ndef.addEventListener("error", (error: any) => {
           console.error("NFC error:", error);
           setError(`NFC error: ${error.message}`);
-          setIsScanning(false);
         });
 
       } catch (error: any) {
@@ -89,7 +86,6 @@ export function NFCScanner({ onScanSuccess, onClose }: NFCScannerProps) {
         } else {
           setError(t('common.scanner.nfcScanError', { message: error.message }));
         }
-        setIsScanning(false);
       }
     };
 

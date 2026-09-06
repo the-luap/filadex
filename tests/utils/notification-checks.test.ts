@@ -303,8 +303,6 @@ describe("per-user hygroscopy", () => {
   // unchecks "hygroscopic" on their own row and the reminders keep coming with
   // nothing in the UI explaining why.
   it("lets the user's own row override a Global Catalog row of the same name", async () => {
-    const alice = await storage.getUser(aliceId);
-
     // Alice declares PLA-CF; auto-registration gives her a blank personal row.
     await giveSpool(aliceId, { name: "Alice CF", material: "PLA-CF", lastDryingDate: daysAgo(400) });
     // An admin later approves her Catalog Request, which creates it globally.

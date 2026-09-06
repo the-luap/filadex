@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Currency, TemperatureUnit } from './units';
-import { useTranslation } from '@/i18n';
 
 interface UserUnits {
   currency: Currency;
@@ -17,7 +16,6 @@ const DEFAULT_UNITS: UserUnits = {
  * Hook to access and update user units preferences
  */
 export function useUnits() {
-  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   // Fetch user data to get units preferences

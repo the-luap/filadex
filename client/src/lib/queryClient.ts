@@ -27,20 +27,6 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-// List of API endpoints that don't require authentication
-const PUBLIC_API_ENDPOINTS = [
-  '/api/auth/login',
-  '/api/auth/logout',
-  '/api/public'
-];
-
-// Check if an API endpoint is public
-function isPublicApiEndpoint(url: string): boolean {
-  return PUBLIC_API_ENDPOINTS.some(endpoint =>
-    url === endpoint || url.startsWith(endpoint + '/')
-  );
-}
-
 export async function apiRequest<T = any>(
   url: string,
   options?: RequestInit

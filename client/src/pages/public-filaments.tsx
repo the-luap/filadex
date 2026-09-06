@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/api";
 import { FilamentCard } from "@/components/filament-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

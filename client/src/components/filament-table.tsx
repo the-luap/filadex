@@ -9,8 +9,7 @@ import {
   TableCell
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { FilamentSpool } from "@/components/ui/filament-spool";
-import { Copy, ArrowUp, ArrowDown, Pencil, Trash2, CheckCircle2, Circle, Printer } from "lucide-react";
+import { Copy, ArrowUp, ArrowDown, Pencil, Trash2, Printer } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import { Checkbox } from "@/components/ui/checkbox";
 

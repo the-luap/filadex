@@ -12,8 +12,6 @@ import {
   Wrench,
   ChevronDown,
   List,
-  CheckSquare,
-  Square,
   Gauge,
   ClipboardList
 } from "lucide-react";
@@ -34,7 +32,6 @@ import { SharingModal } from "./sharing-modal";
 import { ChangePasswordModal } from "./change-password-modal";
 import { MyRequestsModal } from "./my-requests-modal";
 import { Link, useLocation } from "wouter";
-import { Logo } from "./logo";
 import { useAuth } from "@/lib/auth";
 import { useTranslation } from "@/i18n";
 
