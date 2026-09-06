@@ -75,36 +75,58 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/the-lu
 * Fill in the required template
 * Do not include issue numbers in the PR title
 * Include screenshots and animated GIFs in your pull request whenever possible
-* Follow the JavaScript and CSS styleguides
-* Include adequate tests
+* Follow the TypeScript and Documentation styleguides below
+* Include adequate tests — `npm test` runs against both database engines, and
+  `npm run test:e2e` covers browser-only behaviour
 * Document new code based on the Documentation Styleguide
-* End all files with a newline
+* End all files with a newline, with one deliberate exception: the generated
+  files under `migrations/pg/` are written and identified by `drizzle-kit`, and
+  a trailing newline changes the hash `scripts/migrate.pg.ts` records when it
+  baselines an existing installation. See `docs/adr/0001` before touching them.
 
 ## Styleguides
 
 ### Git Commit Messages
 
-* Use the present tense ("Add feature" not "Added feature")
-* Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
-* Limit the first line to 72 characters or less
-* Reference issues and pull requests liberally after the first line
-* Consider starting the commit message with an applicable emoji:
-    * 🎨 `:art:` when improving the format/structure of the code
-    * 🐎 `:racehorse:` when improving performance
-    * 🚱 `:non-potable_water:` when plugging memory leaks
-    * 📝 `:memo:` when writing docs
-    * 🐛 `:bug:` when fixing a bug
-    * 🔥 `:fire:` when removing code or files
-    * 💚 `:green_heart:` when fixing the CI build
-    * ✅ `:white_check_mark:` when adding tests
-    * 🔒 `:lock:` when dealing with security
-    * ⬆️ `:arrow_up:` when upgrading dependencies
-    * ⬇️ `:arrow_down:` when downgrading dependencies
-    * 👕 `:shirt:` when removing linter warnings
+This section describes what the repository already does, so that following it
+and following the history give the same answer.
 
-### JavaScript Styleguide
+**Subject line**
 
-All JavaScript code is linted with [ESLint](https://eslint.org/) and formatted with [Prettier](https://prettier.io/).
+* Limit it to 72 characters, and say what changed rather than which files moved.
+* The imperative mood is the norm — "Add a browser test harness", "Drop
+  DEFAULT_ADMIN_PASSWORD, which nothing reads", "Stop shipping a working
+  database password".
+* A declarative subject naming the resulting behaviour is also used and is
+  equally welcome — "An unparseable density does not clear the stored one",
+  "Ownership reads the role, not the is_admin mirror". Both forms appear
+  throughout the log; neither is a defect, and reviewers should not ask for one
+  to be rewritten as the other.
+* No emoji prefix. Nothing in the history uses one.
+
+**Body**
+
+This is the part that matters most here, and it is the project's most consistent
+habit: nearly every non-trivial commit carries one.
+
+* Explain **why**, not what — the diff already says what. A reader coming back
+  in six months needs the reasoning, the alternative that was rejected, and the
+  constraint that forced the shape.
+* Where a claim is checkable, say how it was checked. Commits that fix a bug
+  routinely quote the failing output, the command that reproduces it, or the
+  test that fails without the change.
+* Wrap at 72 characters.
+* Reference issues and pull requests liberally after the first line.
+
+A commit that only reformats or renames can be a single line. One that changes
+behaviour should not be.
+
+### TypeScript Styleguide
+
+The codebase is TypeScript, and TypeScript is what checks it: `npm run check`
+(Postgres) and `npm run check:sqlite` (SQLite) must both pass, and CI runs both.
+There is no ESLint or Prettier configuration in the repository — an earlier
+version of this file claimed there was.
 
 * Prefer the object spread operator (`{...anotherObj}`) to `Object.assign()`
 * Inline `export`s with expressions whenever possible
@@ -120,17 +142,14 @@ All JavaScript code is linted with [ESLint](https://eslint.org/) and formatted w
   * External packages
   * Internal modules
   * Local modules
-* Place class properties in the following order:
-  * Class methods and properties (methods starting with `static`)
-  * Instance methods and properties
 
 ### Documentation Styleguide
 
 * Use [Markdown](https://daringfireball.net/projects/markdown/) for documentation.
-* Reference methods and classes in markdown with the custom `{}` notation:
-    * Reference classes with `{ClassName}`
-    * Reference instance methods with `{ClassName.methodName}`
-    * Reference class methods with `{ClassName.methodName}`
+* Reference code as a path, optionally with a line — `server/storage.ts:171` —
+  which is what the existing docs and ADRs do and what a reader can click.
+* A decision that shapes the codebase belongs in `docs/adr/`, next to the four
+  already there, rather than only in a pull request description.
 
 ## Additional Notes
 
