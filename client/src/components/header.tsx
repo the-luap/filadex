@@ -37,23 +37,9 @@ import { useTranslation } from "@/i18n";
 
 interface HeaderProps {
   onAddFilament: () => void;
-  onSearch?: (searchTerm: string) => void;
-  searchTerm?: string;
-  onViewModeChange?: (viewMode: 'grid' | 'table') => void;
-  viewMode?: 'grid' | 'table';
-  onToggleSelectionMode?: () => void;
-  selectionMode?: boolean;
 }
 
-export function Header({
-  onAddFilament,
-  onSearch,
-  searchTerm,
-  onViewModeChange,
-  viewMode,
-  onToggleSelectionMode,
-  selectionMode
-}: HeaderProps) {
+export function Header({ onAddFilament }: HeaderProps) {
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [settingsDialogTab, setSettingsDialogTab] = useState<string | undefined>(undefined);
