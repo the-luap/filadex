@@ -98,7 +98,13 @@ Choose between PostgreSQL (multi-user default) and SQLite (single-user). Note th
    cp .env.example .env
    ```
 
-2. Start the containers:
+2. Set a database password. `.env.example` ships with `POSTGRES_PASSWORD`
+   empty on purpose, and Compose refuses to start until it has a value:
+   ```bash
+   echo "POSTGRES_PASSWORD=$(openssl rand -base64 24)" >> .env
+   ```
+
+3. Start the containers:
    ```bash
    docker-compose up -d
    ```
