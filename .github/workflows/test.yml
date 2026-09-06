@@ -152,3 +152,27 @@ jobs:
         run: |
           npm run db:migrate
           npm run db:seed
+
+  # Browser tests. Separate from `test` because they need a built application
+  # and a browser, which the unit suite deliberately does not: keeping that one
+  # fast is worth more than one job fewer. Runs on SQLite - see the note in
+  # playwright.config.ts - so this job needs no service container.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
