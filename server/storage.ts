@@ -599,13 +599,16 @@ export class DatabaseStorage implements IStorage {
       .from(catalogRequests)
       .leftJoin(users, eq(catalogRequests.userId, users.id))
       .where(status ? eq(catalogRequests.status, status) : undefined)
-      .orderBy(desc(catalogRequests.createdAt));
+      // Two requests submitted in the same millisecond - the SQLite default
+      // is millisecond epoch - tie on createdAt, and a tie leaves the order to
+      // the engine. The id was handed out in insertion order, so it settles it.
+      .orderBy(desc(catalogRequests.createdAt), desc(catalogRequests.id));
   }
 
   async getCatalogRequestsByUser(userId: number): Promise<CatalogRequest[]> {
     return await db.select().from(catalogRequests)
       .where(eq(catalogRequests.userId, userId))
-      .orderBy(desc(catalogRequests.createdAt));
+      .orderBy(desc(catalogRequests.createdAt), desc(catalogRequests.id));
   }
 
   async getPendingCatalogRequest(id: number): Promise<CatalogRequest | undefined> {
