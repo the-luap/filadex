@@ -40,7 +40,6 @@ PGPORT=5432
 
 # Application Configuration
 PORT=8080
-DEFAULT_ADMIN_PASSWORD=admin  # Password for the default admin user
 LOG_LEVEL=INFO  # Options: DEBUG, INFO, WARN, ERROR
 EOL
 
@@ -63,7 +62,6 @@ The application will be available at http://localhost:8080 with default credenti
 
 ### Application Configuration
 - `PORT`: Port the application will run on (default: 8080)
-- `DEFAULT_ADMIN_PASSWORD`: Default password for the admin user (default: admin)
 - `LOG_LEVEL`: Logging level (DEBUG, INFO, WARN, ERROR)
 - `DEFAULT_LANGUAGE`: Default language for new users (default: en)
 
@@ -83,7 +81,6 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
-      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       - db

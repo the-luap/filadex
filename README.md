@@ -157,7 +157,8 @@ PORT=8080                     # Port the application will run on
 LOG_LEVEL=INFO                # Logging level (DEBUG, INFO, WARN, ERROR)
 
 # Authentication
-DEFAULT_ADMIN_PASSWORD=admin  # Default password for the admin user
+# The first admin is always created as admin/admin and must change the password
+# at first login - there is no variable that sets it.
 JWT_SECRET=your_secret_key    # Secret key for JWT token generation
 
 # Localization
