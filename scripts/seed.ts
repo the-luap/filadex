@@ -85,10 +85,17 @@ async function seedStarter(): Promise<void> {
  * the same flag.
  *
  * They need an owner, and the only account a fresh install has is the default
- * admin the application creates at startup. The Docker entrypoint seeds before
- * the application runs, so there is nobody to own them there and this is a
- * no-op - exactly as it was on main, where these spools only ever appeared via
- * `npm run db:init` after a first run.
+ * admin the application creates at startup - so on the very first Docker start,
+ * where the entrypoint seeds before the application runs, there is nobody to own
+ * them and this is a no-op.
+ *
+ * The entrypoint re-runs the seeder on *every* start, though, so by the second
+ * one the admin exists. An empty `filaments` table cannot tell "fresh install"
+ * apart from "install whose owner has not added a spool yet", which is how these
+ * fixtures would otherwise appear in a real inventory after a reboot. The admin
+ * having logged in at least once is the signal that the install belongs to
+ * somebody: past that point these spools are never inserted again, whatever the
+ * flag says and however empty the table gets.
  */
 async function seedSampleSpools(): Promise<void> {
   if (process.env.INIT_SAMPLE_DATA !== "true") return;
@@ -96,6 +103,11 @@ async function seedSampleSpools(): Promise<void> {
   const [admin] = await db.select().from(users).where(eq(users.username, "admin"));
   if (!admin) {
     console.log("Sample spools need an account to own them; the application creates the default admin next.");
+    return;
+  }
+
+  if (admin.lastLogin) {
+    console.log("The admin account is already in use, skipping sample spools.");
     return;
   }
 
