@@ -21,6 +21,14 @@ import { logger } from "../utils/logger";
  */
 const BACKUP_FILENAME_PREFIX = "filadex-backup-";
 
+/** True for the snapshots createBackupFile writes, and nothing else. */
+function isBackupFilename(filename: string): boolean {
+  return (
+    filename.startsWith(BACKUP_FILENAME_PREFIX) &&
+    (filename.endsWith(".db") || filename.endsWith(".sqlite"))
+  );
+}
+
 export function getBackupDir(): string {
   if (process.env.BACKUP_DIR) {
     return path.resolve(process.env.BACKUP_DIR);
@@ -43,7 +51,7 @@ export function listBackupFiles(backupDir: string): BackupFileInfo[] {
   if (!fs.existsSync(backupDir)) return [];
   const files = fs
     .readdirSync(backupDir)
-    .filter((f) => f.startsWith(BACKUP_FILENAME_PREFIX) && (f.endsWith(".db") || f.endsWith(".sqlite")));
+    .filter(isBackupFilename);
   const backups = files
     .map((file) => {
       const fullPath = path.join(backupDir, file);
@@ -116,7 +124,10 @@ function resolveBackupPath(filename: string): string | null {
   if (base !== filename || filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
     return null;
   }
-  if (!filename.endsWith(".db") && !filename.endsWith(".sqlite")) {
+  // The same predicate listBackupFiles enumerates by, for the same reason: with
+  // BACKUP_DIR pointed at /data, an unprefixed *.db match resolves the live
+  // database, and the download route would serve it although it is never listed.
+  if (!isBackupFilename(filename)) {
     return null;
   }
   const backupDir = getBackupDir();

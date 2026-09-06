@@ -227,10 +227,21 @@ describe.skipIf(storage.getDialect() !== "sqlite")("Backup routes on SQLite", ()
       .set("Cookie", adminCookie);
     expect(traversal2.status).toBe(400);
 
+    // A name shaped like one of our snapshots, for a file that is not there.
     const notFound = await request(app)
-      .get("/api/admin/backups/nonexistent-backup.db")
+      .get("/api/admin/backups/filadex-backup-nonexistent.db")
       .set("Cookie", adminCookie);
     expect(notFound.status).toBe(404);
+
+    // A *.db in BACKUP_DIR that this application did not write is not a backup:
+    // listBackupFiles already skips it, and the download route refuses it too,
+    // so pointing BACKUP_DIR at /data cannot serve the live database.
+    fs.writeFileSync(path.join(backupDir(), "filadex.db"), "live database");
+    const unlisted = await request(app)
+      .get("/api/admin/backups/filadex.db")
+      .set("Cookie", adminCookie);
+    expect(unlisted.status).toBe(400);
+    expect(fs.readFileSync(path.join(backupDir(), "filadex.db"), "utf8")).toBe("live database");
   });
 
   it("streams a snapshot without leaving a persistent file", async () => {
