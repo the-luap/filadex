@@ -182,6 +182,25 @@ describe("DELETE /api/materials/:id", () => {
     expect(await allMaterialRows()).toHaveLength(1);
   });
 
+  it("blocks an admin deleting a Global Catalog row another user's Spool uses", async () => {
+    const alice = await newUser("alice");
+    const shared = await storage.createMaterial({ name: "SharedPETG" });
+    await storage.createFilament({
+      userId: alice.id,
+      name: "spool",
+      material: "SharedPETG",
+      colorName: "Black",
+      totalWeight: "1000",
+      remainingPercentage: "50",
+    });
+
+    // The admin owns no spool of it; the check used to look only at theirs.
+    const res = await request(app).delete(`/api/materials/${shared.id}`).set("Cookie", adminCookie);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/in use/);
+  });
+
   it("still blocks deleting a Catalog Material one of the caller's Spools uses", async () => {
     const alice = await newUser("alice");
     const [row] = await db.insert(materials).values({ userId: alice.id, name: "InUse" }).returning();

@@ -1352,7 +1352,7 @@ Lets a print server (Klipper/Moonraker, or a custom integration) report filament
 
 ### API Tokens
 
-API tokens authenticate the endpoints below in place of the session cookie. Send the token as `Authorization: Bearer <token>`, `X-Api-Key: <token>`, or a `?token=<token>` query parameter (support varies by print-server client).
+API tokens authenticate the endpoints below in place of the session cookie. Send the token as `Authorization: Bearer <token>` or `X-Api-Key: <token>`. A `?token=` query parameter is not accepted: a token in the URL lands in proxy access logs.
 
 #### List API Tokens
 
@@ -1626,7 +1626,7 @@ Returned when an unexpected error occurs on the server.
 
 Most endpoints require authentication. To authenticate, include the JWT token in a cookie named `token`. The token is obtained by calling the `/api/auth/login` endpoint.
 
-The [Printer Integration](#printer-integration) endpoints (`/api/integrations/usage` and `/api/spoolman-compat/v1/*`) use a separate mechanism instead, since a print server can't hold a browser session cookie: a per-user **API token**, sent as `Authorization: Bearer <token>`, `X-Api-Key: <token>`, or a `?token=` query parameter. See [API Tokens](#api-tokens) for how to create one.
+The [Printer Integration](#printer-integration) endpoints (`/api/integrations/usage` and `/api/spoolman-compat/v1/*`) use a separate mechanism instead, since a print server can't hold a browser session cookie: a per-user **API token**, sent as `Authorization: Bearer <token>` or `X-Api-Key: <token>`. See [API Tokens](#api-tokens) for how to create one.
 
 ### Admin-Only Endpoints
 

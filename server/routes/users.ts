@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { type User, adminCreateUserSchema, adminUpdateUserSchema, usernameSchema } from "../../shared/schema";
+import { type User, adminCreateUserSchema, adminUpdateUserSchema, usernameSchema, userSharingSchema } from "../../shared/schema";
 import { formatSupportedLanguages, isSupportedLanguage } from "@shared/languages";
 import { authenticate, isAdmin, hashPassword } from "../auth";
 import { storage, type UserChanges, type UserPreferences } from "../storage";
@@ -295,13 +295,22 @@ export function registerUserRoutes(app: Express): void {
 
   app.post("/api/user-sharing", authenticate, async (req, res) => {
     try {
-      const { materialId, isPublic } = req.body;
+      const parsed = userSharingSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
+      }
+      const { materialId = null, isPublic = false } = parsed.data;
 
-      const newSharing = await storage.setUserSharing(
-        req.userId,
-        materialId ?? null,
-        isPublic || false,
-      );
+      // A per-material share names a catalog row the caller can see: the
+      // Global Catalog or their own. Anything else is a typo or a probe.
+      if (materialId !== null) {
+        const visible = await storage.getMaterials(req.userId);
+        if (!visible.some((material) => material.id === materialId)) {
+          return res.status(400).json({ message: "Unknown material" });
+        }
+      }
+
+      const newSharing = await storage.setUserSharing(req.userId, materialId, isPublic);
 
       res.status(201).json(newSharing);
     } catch (error) {

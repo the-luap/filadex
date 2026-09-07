@@ -44,11 +44,7 @@ export async function apiRequest<T = any>(
   options?: RequestInit
 ): Promise<T> {
   try {
-    // Only log API requests for non-authentication endpoints to reduce console noise
     const isAuthEndpoint = url.includes('/api/auth/');
-    if (!isAuthEndpoint) {
-      console.log(`Making API request to: ${url}`, options);
-    }
 
     const res = await fetch(url, {
       ...options,
@@ -74,14 +70,7 @@ export async function apiRequest<T = any>(
       return undefined as T;
     }
 
-    const data = await res.json();
-
-    // Only log responses for non-authentication endpoints
-    if (!isAuthEndpoint) {
-      console.log(`API response from ${url}:`, data);
-    }
-
-    return data;
+    return await res.json();
   } catch (error) {
     // Only log errors for non-authentication endpoints or if it's not a 401 error
     const isAuthEndpoint = url.includes('/api/auth/');
@@ -106,11 +95,6 @@ export const getQueryFn: <T>(options: {
       const url = queryKey[0] as string;
       const isAuthEndpoint = url.includes('/api/auth/');
 
-      // Only log queries for non-authentication endpoints
-      if (!isAuthEndpoint) {
-        console.log(`Making query to: ${url}`);
-      }
-
       const res = await fetch(url, {
         credentials: "include",
       });
@@ -128,14 +112,7 @@ export const getQueryFn: <T>(options: {
       }
 
       await throwIfResNotOk(res);
-      const data = await res.json();
-
-      // Only log responses for non-authentication endpoints
-      if (!isAuthEndpoint) {
-        console.log(`Query response from ${url}:`, data);
-      }
-
-      return data;
+      return await res.json();
     } catch (error) {
       const url = queryKey[0] as string;
       const isAuthEndpoint = url.includes('/api/auth/');

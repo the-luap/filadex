@@ -59,11 +59,37 @@ describe("GET /api/public/filaments/:userId", () => {
     expect(response.body.message).toBe("Invalid user ID");
   });
 
-  it("reports an unknown user as not found", async () => {
+  // The same answer as for a user who shares nothing, so the endpoint cannot be
+  // used to list which ids are accounts.
+  it("answers an unknown user exactly like a user who shares nothing", async () => {
     const response = await request(app).get("/api/public/filaments/9999");
 
     expect(response.status).toBe(404);
-    expect(response.body.message).toBe("User not found");
+    expect(response.body.message).toBe("No public filaments found");
+  });
+
+  it("shows the product, not the purchase", async () => {
+    await storage.createFilament({
+      userId: aliceId,
+      name: "Orange PETG",
+      material: "PETG",
+      colorName: "Orange",
+      totalWeight: "1000",
+      remainingPercentage: "80",
+      purchasePrice: "29.99",
+      purchaseDate: "2026-01-01",
+      storageLocation: "Top shelf, left",
+      customFieldValues: { "1": "batch 7" },
+    });
+    await share(aliceCookie, { isPublic: true });
+
+    const response = await request(app).get(`/api/public/filaments/${aliceId}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.filaments).toHaveLength(1);
+    expect(Object.keys(response.body.filaments[0]).sort()).toEqual([
+      "colorCode", "colorName", "diameter", "id", "manufacturer", "material", "name", "printTemp", "remainingPercentage",
+    ]);
   });
 
   it("reports a user who has shared nothing as having no public filaments", async () => {

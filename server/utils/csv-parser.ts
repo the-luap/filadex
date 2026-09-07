@@ -80,9 +80,17 @@ export function detectCSVFormat(
  */
 export function escapeCsvField(field: unknown): string {
   if (field === null || field === undefined) return '';
-  const str = String(field);
-  return str.includes(',') || str.includes('"') || str.includes('\n') 
-    ? `"${str.replace(/"/g, '""')}"` 
+  let str = String(field);
+  // A cell that starts with = + - @ or a tab is a formula to Excel and
+  // LibreOffice, and a spool named `=HYPERLINK(...)` would run when the export
+  // is opened. A leading apostrophe makes it text. Plain numbers keep their
+  // minus sign, since they are the one thing a spreadsheet should still treat
+  // as a number.
+  if (/^[=+\-@\t\r]/.test(str) && !/^-?\d+(\.\d+)?$/.test(str)) {
+    str = `'${str}`;
+  }
+  return /[",\n\r]/.test(str)
+    ? `"${str.replace(/"/g, '""')}"`
     : str;
 }
 

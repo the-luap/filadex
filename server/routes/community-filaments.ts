@@ -3,6 +3,7 @@ import { authenticate, isAdmin } from "../auth";
 import { storage } from "../storage";
 import { refreshCommunityFilamentCache, searchCommunityFilaments } from "../utils/spoolmandb-sync";
 import { logger as appLogger } from "../utils/logger";
+import { sensitiveActionLimiter } from "../utils/rate-limits";
 
 export function registerCommunityFilamentRoutes(app: Express): void {
   app.get("/api/community-filaments/search", authenticate, async (req, res) => {
@@ -28,7 +29,7 @@ export function registerCommunityFilamentRoutes(app: Express): void {
     }
   });
 
-  app.post("/api/community-filaments/refresh", authenticate, isAdmin, async (_req, res) => {
+  app.post("/api/community-filaments/refresh", authenticate, isAdmin, sensitiveActionLimiter, async (_req, res) => {
     try {
       const count = await refreshCommunityFilamentCache();
       res.json({ count });

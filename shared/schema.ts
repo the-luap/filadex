@@ -358,6 +358,60 @@ export const insertFilamentSchema = baseInsertFilamentSchema.transform((data) =>
   };
 });
 
+// What a spool write may carry, checked at the HTTP boundary. The routes used
+// to copy fields off req.body one by one - which kept ownership and the
+// notification latches out of a caller's reach, but let a status of "bogus", a
+// purchase date of "yesterday" or a string where custom-field values belong
+// straight into the row. Numbers may arrive as strings or numbers, since the
+// form, the imports and the print-server clients disagree; the database
+// stores them as text either way.
+const numberish = (min: number, max?: number) => z.union([z.string(), z.number()])
+  .transform((value) => String(value).trim())
+  .refine((value) => value !== "" && Number.isFinite(Number(value)), { message: "must be a number" })
+  .refine((value) => Number(value) >= min, { message: `must be at least ${min}` })
+  .refine((value) => max === undefined || Number(value) <= max, { message: `must be at most ${max}` });
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be a date in YYYY-MM-DD form");
+
+export const filamentStatuses = ["sealed", "opened"] as const;
+export const spoolTypes = ["spooled", "spoolless"] as const;
+
+// Values for the caller's custom fields, keyed by definition id. Scalars only,
+// bounded in count and length, so the JSON column cannot become a dumping
+// ground for arbitrary documents.
+export const customFieldValuesSchema = z.record(
+  z.string().max(20),
+  z.union([z.string().max(1000), z.number(), z.boolean(), z.null()]),
+).refine((values) => Object.keys(values).length <= 50, { message: "too many custom field values" });
+
+export const filamentWriteSchema = z.object({
+  name: z.string().trim().min(1, "name is required").max(200),
+  manufacturer: z.string().max(200).nullable().optional(),
+  material: z.string().trim().min(1, "material is required").max(100),
+  colorName: z.string().max(100),
+  colorCode: z.string().max(20).nullable().optional(),
+  printTemp: z.union([z.string().max(50), z.number()]).transform((v) => String(v)).optional(),
+  diameter: diameterValueSchema.nullable().optional(),
+  totalWeight: numberish(0),
+  remainingPercentage: numberish(0, 100),
+  purchaseDate: isoDate.nullable().optional(),
+  purchasePrice: numberish(0).nullable().optional(),
+  status: z.enum(filamentStatuses).nullable().optional(),
+  spoolType: z.enum(spoolTypes).nullable().optional(),
+  dryerCount: z.number().int().min(0).max(10_000).optional(),
+  lastDryingDate: isoDate.nullable().optional(),
+  storageLocation: z.string().max(200).nullable().optional(),
+  customFieldValues: customFieldValuesSchema.optional(),
+});
+
+export const filamentPatchSchema = filamentWriteSchema.partial();
+
+// One sharing setting: the whole collection (materialId null) or one material.
+export const userSharingSchema = z.object({
+  materialId: z.number().int().positive().nullable().optional(),
+  isPublic: z.boolean().optional(),
+});
+
 // Neue Listen für die Einstellungen
 export const manufacturers = table("manufacturers", {
   id: t.pk("id"),

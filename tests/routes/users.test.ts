@@ -13,6 +13,8 @@ import { registerAuthRoutes } from "../../server/routes/auth";
 import { registerUserRoutes } from "../../server/routes/users";
 import { hashPassword, initializeAdminUser } from "../../server/auth";
 import { storage } from "../../server/storage";
+import { db } from "../helpers/db";
+import { materials } from "../../shared/schema";
 import { createApp, loginAs, registerAndVerify, bootstrapAdmin } from "../helpers/app";
 
 let app: Express;
@@ -924,5 +926,35 @@ describe("POST /api/user-sharing for a global share", () => {
 
     const listed = await request(app).get("/api/user-sharing").set("Cookie", cookie);
     expect(listed.body).toHaveLength(2);
+  });
+});
+
+describe("POST /api/user-sharing", () => {
+  it("refuses a material id that is not a positive integer", async () => {
+    const cookie = await registerAndVerify(app, alice);
+
+    const res = await request(app).post("/api/user-sharing").set("Cookie", cookie).send({ materialId: "1; drop", isPublic: true });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("refuses a material the caller cannot see", async () => {
+    const cookie = await registerAndVerify(app, alice);
+    const bobCookie = await registerAndVerify(app, { username: "bob", email: "bob@example.com", password: "bobs-password" });
+    const bob = await request(app).get("/api/auth/me").set("Cookie", bobCookie);
+    const [bobsMaterial] = await db.insert(materials).values({ userId: bob.body.id, name: "BobOnly" }).returning();
+
+    const res = await request(app).post("/api/user-sharing").set("Cookie", cookie).send({ materialId: bobsMaterial.id, isPublic: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Unknown material");
+  });
+
+  it("accepts the whole-collection setting and a Global Catalog material", async () => {
+    const cookie = await registerAndVerify(app, alice);
+    const petg = await storage.createMaterial({ name: "PETG" });
+
+    await request(app).post("/api/user-sharing").set("Cookie", cookie).send({ isPublic: true }).expect(201);
+    await request(app).post("/api/user-sharing").set("Cookie", cookie).send({ materialId: petg.id, isPublic: true }).expect(201);
   });
 });

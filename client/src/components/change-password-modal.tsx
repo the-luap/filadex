@@ -41,10 +41,6 @@ export function ChangePasswordModal({ open, onOpenChange }: { open: boolean; onO
 
   const changePasswordMutation = useMutation({
     mutationFn: async (data: PasswordFormValues) => {
-      console.log("Sending change password request:", {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword
-      });
 
       return apiRequest("/api/auth/change-password", {
         method: "POST",

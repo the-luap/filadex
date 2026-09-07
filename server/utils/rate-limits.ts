@@ -23,6 +23,17 @@ export const loginLimiter = rateLimit({
   message: { message: "Too many login attempts, please try again later" },
 });
 
+// The anonymous share page. Generous, since one shared link may be opened by
+// many people behind one address, but bounded, since the user id in the path
+// is a small integer and the endpoint otherwise enumerates accounts for free.
+export const publicReadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests, please try again later" },
+});
+
 // Authenticated actions that mint credentials or do expensive work per call:
 // API token creation, backups, cache refresh, test mail.
 export const sensitiveActionLimiter = rateLimit({

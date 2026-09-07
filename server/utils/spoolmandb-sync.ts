@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { type CommunityFilamentCacheEntry } from "@shared/schema";
 import { storage, type NewCommunityFilament } from "../storage";
 import { logger } from "./logger";
@@ -5,44 +6,78 @@ import { logger } from "./logger";
 const REPO = "Donkie/SpoolmanDB";
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/main`;
 
-interface SpoolmanDbColor {
-  name: string;
-  hex: string;
-}
+// The upstream is trusted to be SpoolmanDB, not to be well-formed: a request
+// that never answers, a response that never ends, or a file whose shape has
+// changed must each fail that one file or that one refresh, not hang the
+// server or fill the cache with whatever arrived.
+const FETCH_TIMEOUT_MS = 20_000;
+const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 
-interface SpoolmanDbFilament {
-  name: string;
-  material: string;
-  density?: number;
-  diameters?: number[];
-  extruder_temp?: number;
-  bed_temp?: number;
-  colors?: SpoolmanDbColor[];
-}
+const spoolmanDbColorSchema = z.object({
+  name: z.string().max(200),
+  hex: z.string().max(20).optional().default(""),
+});
 
-interface SpoolmanDbVendorFile {
-  manufacturer: string;
-  filaments: SpoolmanDbFilament[];
+const spoolmanDbFilamentSchema = z.object({
+  name: z.string().max(300),
+  material: z.string().max(100),
+  density: z.number().optional(),
+  diameters: z.array(z.number()).optional(),
+  extruder_temp: z.number().int().optional(),
+  bed_temp: z.number().int().optional(),
+  colors: z.array(spoolmanDbColorSchema).optional(),
+});
+
+const spoolmanDbVendorFileSchema = z.object({
+  manufacturer: z.string().max(200),
+  filaments: z.array(spoolmanDbFilamentSchema),
+});
+
+type SpoolmanDbFilament = z.infer<typeof spoolmanDbFilamentSchema>;
+type SpoolmanDbVendorFile = z.infer<typeof spoolmanDbVendorFileSchema>;
+
+const treeSchema = z.object({
+  tree: z.array(z.object({ path: z.string(), type: z.string() })),
+});
+
+async function fetchJson(url: string): Promise<unknown> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  if (!res.ok) {
+    throw new Error(`${res.status} ${res.statusText}`);
+  }
+  const text = await res.text();
+  if (text.length > MAX_RESPONSE_BYTES) {
+    throw new Error(`response larger than ${MAX_RESPONSE_BYTES} bytes`);
+  }
+  return JSON.parse(text);
 }
 
 async function fetchVendorFilePaths(): Promise<string[]> {
-  const res = await fetch(`https://api.github.com/repos/${REPO}/git/trees/main?recursive=1`);
-  if (!res.ok) {
-    throw new Error(`Failed to list SpoolmanDB tree: ${res.status} ${res.statusText}`);
+  let data: unknown;
+  try {
+    data = await fetchJson(`https://api.github.com/repos/${REPO}/git/trees/main?recursive=1`);
+  } catch (error) {
+    throw new Error(`Failed to list SpoolmanDB tree: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
-  const data = await res.json() as { tree: Array<{ path: string; type: string }> };
-  return data.tree
+  return treeSchema.parse(data).tree
     .filter((entry) => entry.type === "blob" && entry.path.startsWith("filaments/") && entry.path.endsWith(".json"))
     .map((entry) => entry.path);
 }
 
 async function fetchVendorFile(path: string): Promise<SpoolmanDbVendorFile | null> {
-  const res = await fetch(`${RAW_BASE}/${path}`);
-  if (!res.ok) {
-    logger.warn(`Failed to fetch SpoolmanDB file ${path}: ${res.status}`);
+  let data: unknown;
+  try {
+    data = await fetchJson(`${RAW_BASE}/${path}`);
+  } catch (error) {
+    logger.warn(`Failed to fetch SpoolmanDB file ${path}: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
-  return await res.json() as SpoolmanDbVendorFile;
+  const parsed = spoolmanDbVendorFileSchema.safeParse(data);
+  if (!parsed.success) {
+    logger.warn(`Skipping SpoolmanDB file ${path}: ${parsed.error.errors[0]?.message ?? "unexpected shape"}`);
+    return null;
+  }
+  return parsed.data;
 }
 
 function toCacheRows(vendorFile: SpoolmanDbVendorFile): NewCommunityFilament[] {

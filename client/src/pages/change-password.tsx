@@ -43,10 +43,6 @@ export default function ChangePasswordPage() {
 
   const changePasswordMutation = useMutation({
     mutationFn: async (data: ChangePasswordFormValues) => {
-      console.log("Sending change password request:", {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword
-      });
 
       return apiRequest("/api/auth/change-password", {
         method: "POST",
