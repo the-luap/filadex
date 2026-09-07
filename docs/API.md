@@ -2,6 +2,8 @@
 
 This document provides comprehensive documentation for the Filadex API endpoints. The API allows you to manage filaments, materials, colors, manufacturers, and other resources in the Filadex application.
 
+Every path under `/api` that no endpoint below claims answers `404 Not Found` with `{"message": "Not found"}`, for every method. Only paths outside `/api` fall through to the web application.
+
 ## Table of Contents
 
 1. [Authentication](#authentication)

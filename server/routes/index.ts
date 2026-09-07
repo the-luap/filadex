@@ -16,6 +16,7 @@ import { registerCommunityFilamentRoutes } from "./community-filaments";
 import { registerIntegrationRoutes } from "./integrations";
 import { registerSpoolmanCompatRoutes } from "./spoolman-compat";
 import { registerBackupRoutes } from "./backups";
+import { registerApiNotFound } from "./not-found";
 // All routes have been extracted - routes.ts is now empty or contains only legacy code
 // Keeping registerRemainingRoutes import for backward compatibility
 import { registerRemainingRoutes } from "../routes";
@@ -51,6 +52,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register any remaining routes from routes.ts (should be empty now)
   registerRemainingRoutes(app);
+
+  // Last, so that every /api path no module above claimed is a JSON 404
+  // rather than the SPA shell the catch-all would otherwise serve it.
+  registerApiNotFound(app);
 
   const httpServer = createServer(app);
   return httpServer;
