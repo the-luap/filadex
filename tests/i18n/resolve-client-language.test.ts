@@ -1,9 +1,26 @@
-import { describe, expect, it } from "vitest";
-import { resolveClientLanguage } from "../../client/src/i18n/resolve-language";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  getBrowserLanguages,
+  getLanguageCookie,
+  getStorageLanguage,
+  resolveClientLanguage,
+  type ClientLanguageSources,
+} from "../../client/src/i18n/resolve-language";
+import { formatSupportedLanguages } from "../../shared/languages";
+
+/** Every source absent, so each case states only what it is actually about. */
+const noSources: ClientLanguageSources = {
+  localStorage: null,
+  cookie: null,
+  browserLanguages: null,
+  defaultLanguage: null,
+  documentLang: null,
+};
 
 describe("resolveClientLanguage", () => {
   it("prefers localStorage language if supported", () => {
     const lang = resolveClientLanguage({
+      ...noSources,
       localStorage: "pl",
       cookie: "de",
       documentLang: "de",
@@ -14,7 +31,7 @@ describe("resolveClientLanguage", () => {
 
   it("uses cookie language if localStorage is empty", () => {
     const lang = resolveClientLanguage({
-      localStorage: null,
+      ...noSources,
       cookie: "de",
       documentLang: "en",
       browserLanguages: ["en"],
@@ -24,8 +41,7 @@ describe("resolveClientLanguage", () => {
 
   it("uses browser languages if localStorage and cookie are empty", () => {
     const lang = resolveClientLanguage({
-      localStorage: null,
-      cookie: null,
+      ...noSources,
       browserLanguages: ["de"],
       documentLang: "en",
     });
@@ -34,8 +50,7 @@ describe("resolveClientLanguage", () => {
 
   it("uses defaultLanguage if no browser language is supported", () => {
     const lang = resolveClientLanguage({
-      localStorage: null,
-      cookie: null,
+      ...noSources,
       browserLanguages: ["fr"],
       defaultLanguage: "pl",
       documentLang: "en",
@@ -45,10 +60,8 @@ describe("resolveClientLanguage", () => {
 
   it("uses document.documentElement.lang if storage, cookie, browser and defaultLanguage are empty", () => {
     const lang = resolveClientLanguage({
-      localStorage: null,
-      cookie: null,
+      ...noSources,
       browserLanguages: ["fr"],
-      defaultLanguage: null,
       documentLang: "pl",
     });
     expect(lang).toBe("pl");
@@ -56,6 +69,7 @@ describe("resolveClientLanguage", () => {
 
   it("defaults to 'en' when all sources are empty or unsupported", () => {
     const lang = resolveClientLanguage({
+      ...noSources,
       localStorage: "fr",
       cookie: "es",
       browserLanguages: ["ja"],
@@ -69,8 +83,7 @@ describe("resolveClientLanguage", () => {
     // Accept-Language header and stamps `de`; the client must agree, rather
     // than giving up at the unsupported `fr` and falling to defaultLanguage.
     const lang = resolveClientLanguage({
-      localStorage: null,
-      cookie: null,
+      ...noSources,
       browserLanguages: ["fr-FR", "fr", "de-AT"],
       defaultLanguage: "en",
       documentLang: "de",
@@ -80,8 +93,7 @@ describe("resolveClientLanguage", () => {
 
   it("falls back to navigator.language semantics for a single-entry list", () => {
     const lang = resolveClientLanguage({
-      localStorage: null,
-      cookie: null,
+      ...noSources,
       browserLanguages: ["de-DE"],
       documentLang: "en",
     });
@@ -90,40 +102,79 @@ describe("resolveClientLanguage", () => {
 
   it("ignores an empty or missing browser list", () => {
     expect(
-      resolveClientLanguage({ browserLanguages: [], defaultLanguage: "pl" }),
+      resolveClientLanguage({ ...noSources, browserLanguages: [], defaultLanguage: "pl" }),
     ).toBe("pl");
     expect(
-      resolveClientLanguage({ browserLanguages: null, defaultLanguage: "pl" }),
+      resolveClientLanguage({ ...noSources, browserLanguages: null, defaultLanguage: "pl" }),
     ).toBe("pl");
   });
+});
 
-  it("reads the whole ranked list from navigator with getBrowserLanguages", async () => {
-    const { getBrowserLanguages } = await import("../../client/src/i18n/resolve-language");
-    // Node exposes a global navigator, so this exercises the populated branch:
-    // the full `languages` list, not just the single `language`.
-    expect(getBrowserLanguages()).toEqual(Array.from(navigator.languages));
+describe("getBrowserLanguages", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
-  it("extracts language cookie from cookie string with getCookie", async () => {
-    const { getCookie } = await import("../../client/src/i18n/resolve-language");
-    // in Node environment without document
-    expect(getCookie("language")).toBeNull();
+  it("returns the whole ranked list, not just the first entry", () => {
+    vi.stubGlobal("navigator", { languages: ["fr-FR", "de-AT", "en"], language: "fr-FR" });
+    // Reading only `navigator.language` would yield ["fr-FR"] and stop there,
+    // which is what made the client disagree with the server's header scan.
+    expect(getBrowserLanguages()).toEqual(["fr-FR", "de-AT", "en"]);
   });
 
-  it("safely handles getStorageLanguage when window/localStorage is missing", async () => {
-    const { getStorageLanguage } = await import("../../client/src/i18n/resolve-language");
+  it("falls back to navigator.language where the list is unavailable", () => {
+    vi.stubGlobal("navigator", { languages: [], language: "de-DE" });
+    expect(getBrowserLanguages()).toEqual(["de-DE"]);
+  });
+
+  it("returns an empty list when navigator exposes no language at all", () => {
+    vi.stubGlobal("navigator", { languages: [], language: "" });
+    expect(getBrowserLanguages()).toEqual([]);
+  });
+
+  it("returns an empty list outside a browser", () => {
+    vi.stubGlobal("navigator", undefined);
+    expect(getBrowserLanguages()).toEqual([]);
+  });
+});
+
+describe("getLanguageCookie", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns null without a document", () => {
+    expect(getLanguageCookie()).toBeNull();
+  });
+
+  it("reads the language cookie out of a cookie string", () => {
+    vi.stubGlobal("document", { cookie: "theme=dark; language=pl; token=abc" });
+    expect(getLanguageCookie()).toBe("pl");
+  });
+
+  it("returns null when no language cookie is set", () => {
+    vi.stubGlobal("document", { cookie: "theme=dark; token=abc" });
+    expect(getLanguageCookie()).toBeNull();
+  });
+
+  it("does not match a cookie whose name merely ends in 'language'", () => {
+    vi.stubGlobal("document", { cookie: "fallback_language=de" });
+    expect(getLanguageCookie()).toBeNull();
+  });
+});
+
+describe("getStorageLanguage", () => {
+  it("safely handles a missing window/localStorage", () => {
     expect(getStorageLanguage()).toBeNull();
   });
 });
 
 describe("formatSupportedLanguages", () => {
-  it("formats default supported languages", async () => {
-    const { formatSupportedLanguages } = await import("../../shared/languages");
+  it("formats default supported languages", () => {
     expect(formatSupportedLanguages()).toBe("'en', 'de' and 'pl'");
   });
 
-  it("handles empty, single, pair, and multiple language arrays", async () => {
-    const { formatSupportedLanguages } = await import("../../shared/languages");
+  it("handles empty, single, pair, and multiple language arrays", () => {
     expect(formatSupportedLanguages([])).toBe("");
     expect(formatSupportedLanguages(["en"])).toBe("'en'");
     expect(formatSupportedLanguages(["en", "de"])).toBe("'en' and 'de'");

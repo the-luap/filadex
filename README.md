@@ -165,9 +165,6 @@ JWT_SECRET=your_secret_key    # Secret key for JWT token generation
 # Build-time fallback for the UI when a visitor has no stored choice, no
 # language cookie, and no supported browser language (en, de, pl).
 VITE_DEFAULT_LANGUAGE=en
-# Note: DEFAULT_LANGUAGE appears in the compose files but no server code reads
-# it. A new user's language comes from the request (language cookie, then
-# Accept-Language, then en), not from this variable.
 
 # Data Initialization
 INIT_SAMPLE_DATA=false        # Set to 'true' to initialize with sample data
@@ -270,7 +267,6 @@ Filadex supports multiple languages:
 
 4. **Environment Variables**
    - `VITE_DEFAULT_LANGUAGE`: UI fallback when a visitor has no stored choice, no language cookie, and no supported browser language (default: "en"). Inlined at build time, so it must be set when the client is built.
-   - `DEFAULT_LANGUAGE`: present in the compose files but currently read by no server code.
 
 ## 🗺️ Roadmap
 

@@ -77,9 +77,6 @@ services:
       # Logging level: DEBUG, INFO, WARN, ERROR
       - LOG_LEVEL=INFO
 
-      # Default language for new users: en, de
-      - DEFAULT_LANGUAGE=en
-
       # Where automated SQLite backup snapshots are saved.
       # Defaults to /data/backups (inside the persistent ./data volume above).
       # - BACKUP_DIR=/data/backups

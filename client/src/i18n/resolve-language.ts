@@ -3,11 +3,11 @@ export type { Language };
 export { SUPPORTED_LANGUAGES, isSupportedLanguage };
 
 export interface ClientLanguageSources {
-  localStorage?: string | null;
-  cookie?: string | null;
-  browserLanguages?: readonly string[] | null;
-  defaultLanguage?: string | null;
-  documentLang?: string | null;
+  localStorage: string | null;
+  cookie: string | null;
+  browserLanguages: readonly string[] | null;
+  defaultLanguage: string | null;
+  documentLang: string | null;
 }
 
 /**
@@ -49,11 +49,11 @@ export function resolveClientLanguage(sources: ClientLanguageSources): Language 
 }
 
 /**
- * Reads cookie value by name in browser context.
+ * Reads the `language` cookie in browser context.
  */
-export function getCookie(name: string): string | null {
+export function getLanguageCookie(): string | null {
   if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  const match = document.cookie.match(/(?:^|;\s*)language=([^;]+)/);
   return match ? decodeURIComponent(match[1]) : null;
 }
 
@@ -86,8 +86,8 @@ export function getInitialClientLanguage(): Language {
   if (typeof window === "undefined") return "en";
 
   const storageLang = getStorageLanguage();
-  const cookieLang = getCookie("language");
-  const docLang = typeof document !== "undefined" ? document.documentElement?.lang : null;
+  const cookieLang = getLanguageCookie();
+  const docLang = typeof document !== "undefined" ? document.documentElement?.lang ?? null : null;
   const envLang = typeof import.meta !== "undefined" && import.meta.env?.VITE_DEFAULT_LANGUAGE
     ? String(import.meta.env.VITE_DEFAULT_LANGUAGE)
     : null;

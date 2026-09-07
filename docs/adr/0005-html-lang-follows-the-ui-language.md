@@ -110,12 +110,22 @@ in one file; `authenticate` is left untouched.
 - Holding `index.html` in memory from boot-time `readFileSync` means a
   rebuild-in-place of the client requires a server process restart for the new HTML
   to take effect.
+- `DEFAULT_LANGUAGE` is gone from the compose files and the docs. It was never
+  read by any server code, and this ADR is why it can't be revived as-is: the
+  language of the initial HTML now comes from `resolveLanguage(req)`, and a new
+  user's stored language is whatever that resolved at registration. A
+  server-side default would have to insert itself into that order, ahead of
+  `Accept-Language` but behind the cookie and the stored preference, and it is
+  not clear that an operator-set default should outrank the visitor's own
+  browser. The client keeps the build-time `VITE_DEFAULT_LANGUAGE`, which sits
+  at position 5 and is genuinely reachable.
 
 ## Tests
 
 - `tests/utils/resolve-language.test.ts` covers user preference precedence over
   cookies, cookie fallback, `Accept-Language` header parsing, `en` default, and `setHtmlLang`.
 - `tests/i18n/resolve-client-language.test.ts` covers client resolution order:
-  `localStorage` → `cookie` → `browserLanguage` → `defaultLanguage` → `documentLang` → `en`.
+  `localStorage` → `cookie` → `browserLanguages` → `defaultLanguage` → `documentLang` → `en`,
+  plus `getBrowserLanguages`, `getLanguageCookie` and `getStorageLanguage` against a stubbed browser global.
 - `tests/server/serve-static.test.ts` covers the production catch-all serving stamped HTML
   and forwarding errors to `next()` on rejection.

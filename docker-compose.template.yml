@@ -39,7 +39,6 @@ services:
       # lines, so touching it at all trips the URI-credential detector.
       - DATABASE_URL=postgres://${POSTGRES_USER:-filadex}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-filadex} # ggignore
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-en}
       - INIT_SAMPLE_DATA=${INIT_SAMPLE_DATA:-false}
       # Set to a long random string (e.g. `openssl rand -hex 32`) so login sessions
       # survive restarts. If unset, a random secret is generated on each startup.

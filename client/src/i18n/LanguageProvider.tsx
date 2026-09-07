@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LanguageContext, Language, getTranslation, interpolate } from './index';
-import { getInitialClientLanguage, resolveClientLanguage, isSupportedLanguage, getCookie, getStorageLanguage, getBrowserLanguages } from './resolve-language';
+import { getInitialClientLanguage, resolveClientLanguage, isSupportedLanguage, getLanguageCookie, getStorageLanguage, getBrowserLanguages } from './resolve-language';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -88,10 +88,10 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
 
     const resolved = resolveClientLanguage({
       localStorage: getStorageLanguage(),
-      cookie: getCookie('language'),
+      cookie: getLanguageCookie(),
       browserLanguages: getBrowserLanguages(),
-      defaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE,
-      documentLang: typeof document !== 'undefined' ? document.documentElement?.lang : null,
+      defaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE ?? null,
+      documentLang: typeof document !== 'undefined' ? document.documentElement?.lang ?? null : null,
     });
 
     setLanguageState(resolved);
