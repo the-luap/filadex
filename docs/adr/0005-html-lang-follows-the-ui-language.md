@@ -188,6 +188,13 @@ in one file; `authenticate` is left untouched.
   session cookie is present does not inherit that account's language.
 - `tests/utils/email-templates.test.ts` covers every supported language and the
   escaping of user-supplied filament names, entity labels and review notes.
+- `tests/e2e/register-language.spec.ts` drives the real bundle in a browser:
+  signing in as the seeded `bob` (stored `language: "de"`), opening `/register`
+  with that session live, choosing Polish, and registering. It asserts through
+  the admin user list that the new account is `pl` - not `de` inherited from the
+  session - and that `bob` is still `de`, so the selector on an auth screen did
+  not rewrite the signed-in account. Both assertions fail against the code
+  before this change, each against its own half of the fix.
 - `tests/e2e/login-language.spec.ts` drives the real bundle in a browser:
   choosing Polish on `/login`, signing in as the seeded `alice` (stored
   `language: "en"`), and asserting both that the account ends up on `pl` and
