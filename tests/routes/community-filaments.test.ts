@@ -12,14 +12,13 @@ import request from "supertest";
 import type { Express } from "express";
 import { registerAuthRoutes } from "../../server/routes/auth";
 import { registerCommunityFilamentRoutes } from "../../server/routes/community-filaments";
-import { initializeAdminUser } from "../../server/auth";
 import {
   refreshCommunityFilamentCache,
   searchCommunityFilaments,
 } from "../../server/utils/spoolmandb-sync";
 import { db } from "../helpers/db";
 import { communityFilamentCache } from "../../shared/schema";
-import { createApp, loginAs, registerAndVerify } from "../helpers/app";
+import { createApp, loginAs, registerAndVerify, bootstrapAdmin } from "../helpers/app";
 
 let app: Express;
 let adminCookie: string;
@@ -27,7 +26,7 @@ let userCookie: string;
 
 beforeEach(async () => {
   app = createApp(registerAuthRoutes, registerCommunityFilamentRoutes);
-  await initializeAdminUser();
+  await bootstrapAdmin();
   adminCookie = await loginAs(app, "admin", "admin");
   userCookie = await registerAndVerify(app, {
     username: "alice",

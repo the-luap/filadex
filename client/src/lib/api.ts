@@ -1,6 +1,7 @@
 /**
  * API request utility function
  */
+import { redirectIfPasswordChangeRequired } from "./queryClient";
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -45,6 +46,7 @@ export async function apiRequest<T = any>(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      redirectIfPasswordChangeRequired(response.status, errorData);
 
       // Special handling for 401 errors on auth endpoints or public endpoints
       if (response.status === 401 && (isAuthEndpoint || isPublicEndpoint)) {

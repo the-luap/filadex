@@ -6,6 +6,7 @@ import { sendMail, getEmailSettings } from "../utils/mailer";
 import { logger as appLogger } from "../utils/logger";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
+import { getAppUrl } from "../utils/app-url";
 
 export function registerEmailSettingsRoutes(app: Express): void {
   // Get current email settings (admin only). Never returns the SMTP password.
@@ -16,7 +17,9 @@ export function registerEmailSettingsRoutes(app: Express): void {
         return res.status(404).json({ message: "Email settings not found" });
       }
       const { smtpPassword, ...safeSettings } = settings;
-      res.json({ ...safeSettings, hasPassword: !!smtpPassword });
+      // Verification and reset mails carry a link, and the link needs APP_URL;
+      // the settings screen warns when it is missing.
+      res.json({ ...safeSettings, hasPassword: !!smtpPassword, appUrlConfigured: getAppUrl() !== null });
     } catch (error) {
       appLogger.error("Error fetching email settings:", error);
       res.status(500).json({ message: "Failed to fetch email settings" });

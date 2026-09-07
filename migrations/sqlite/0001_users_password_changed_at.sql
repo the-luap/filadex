@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `password_changed_at` integer;

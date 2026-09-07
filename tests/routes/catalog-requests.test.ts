@@ -10,11 +10,10 @@ import request from "supertest";
 import type { Express } from "express";
 import { registerAuthRoutes } from "../../server/routes/auth";
 import { registerCatalogRequestRoutes } from "../../server/routes/catalog-requests";
-import { initializeAdminUser } from "../../server/auth";
 import { storage } from "../../server/storage";
 import { catalogRequests } from "../../shared/schema";
 import { db } from "../helpers/db";
-import { createApp, loginAs, registerAndVerify } from "../helpers/app";
+import { createApp, loginAs, registerAndVerify, bootstrapAdmin } from "../helpers/app";
 import { lastMailTo, mailbox } from "../helpers/mailbox";
 
 let app: Express;
@@ -28,7 +27,7 @@ const alice = { username: "alice", email: "alice@example.com", password: "correc
 
 beforeEach(async () => {
   app = createApp(registerAuthRoutes, registerCatalogRequestRoutes);
-  await initializeAdminUser();
+  await bootstrapAdmin();
   adminCookie = await loginAs(app, "admin", "admin");
   aliceCookie = await registerAndVerify(app, alice);
   aliceId = (await request(app).get("/api/auth/me").set("Cookie", aliceCookie)).body.id;

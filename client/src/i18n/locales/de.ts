@@ -325,6 +325,7 @@ const translations = {
       smtpUser: 'SMTP-Benutzername',
       smtpPassword: 'SMTP-Passwort',
       passwordUnchanged: 'Leer lassen, um das aktuelle Passwort beizubehalten',
+      appUrlMissing: 'APP_URL ist auf dem Server nicht gesetzt, daher werden Bestätigungs- und Passwort-Zurücksetzen-E-Mails nicht versendet. Setze es auf die Adresse, unter der Filadex erreichbar ist, zum Beispiel https://filadex.example.com.',
       smtpSecure: 'TLS verwenden',
       fromEmail: 'Absenderadresse',
       fromName: 'Absendername',

@@ -19,6 +19,7 @@ interface EmailSettingsResponse {
   fromEmail: string | null;
   fromName: string | null;
   hasPassword: boolean;
+  appUrlConfigured: boolean;
 }
 
 const EMPTY_FORM = {
@@ -91,6 +92,11 @@ export function EmailSettingsCard() {
         <CardDescription>{t("settings.email.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {data && !data.appUrlConfigured && (
+          <p className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+            {t("settings.email.appUrlMissing")}
+          </p>
+        )}
         <div className="flex items-center justify-between">
           <Label htmlFor="email-enabled">{t("settings.email.enable")}</Label>
           <Switch

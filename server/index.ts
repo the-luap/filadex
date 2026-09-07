@@ -15,6 +15,22 @@ const app = express();
 // client spoof its IP via that header and bypass the rate limiters below.
 if (process.env.TRUST_PROXY === "true") {
   app.set("trust proxy", 1);
+} else {
+  // Behind a proxy without the flag every visitor shares the proxy's address,
+  // so the rate limiters treat them as one client: fifteen failed logins from
+  // anyone lock everyone out. Say so, once, the first time a forwarded
+  // request arrives.
+  let warned = false;
+  app.use((req, _res, next) => {
+    if (!warned && req.headers["x-forwarded-for"]) {
+      warned = true;
+      logger.warn(
+        "Requests carry X-Forwarded-For but TRUST_PROXY is not set. Rate limiting is keyed on the proxy's " +
+        "address, so all users share one login limit. Set TRUST_PROXY=true if a trusted reverse proxy is in front."
+      );
+    }
+    next();
+  });
 }
 
 // contentSecurityPolicy is disabled: a correct CSP for the Vite dev server's

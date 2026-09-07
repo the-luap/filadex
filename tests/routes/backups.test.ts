@@ -5,9 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { registerAuthRoutes } from "../../server/routes/auth";
 import { registerBackupRoutes } from "../../server/routes/backups";
-import { initializeAdminUser } from "../../server/auth";
 import { storage } from "../../server/storage";
-import { createApp, loginAs, registerAndVerify } from "../helpers/app";
+import { createApp, loginAs, registerAndVerify, bootstrapAdmin } from "../helpers/app";
 import { useTempBackupDir } from "../helpers/backup-dir";
 
 let app: Express;
@@ -18,7 +17,7 @@ const backupDir = useTempBackupDir();
 
 beforeEach(async () => {
   app = createApp(registerAuthRoutes, registerBackupRoutes);
-  await initializeAdminUser();
+  await bootstrapAdmin();
   adminCookie = await loginAs(app, "admin", "admin");
   userCookie = await registerAndVerify(app, {
     username: "bob",

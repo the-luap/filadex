@@ -27,7 +27,9 @@ export default defineConfig({
     include: ["tests/**/*.test.{ts,tsx}"],
     // A fixed secret keeps issued JWTs valid for the whole run and silences the
     // random-secret warning server/auth.ts logs on import.
-    env: { JWT_SECRET: "filadex-test-secret", NODE_ENV: "test" },
+    // APP_URL because emailed links are built from it and not sent without it;
+    // the tests read tokens out of those links.
+    env: { JWT_SECRET: "filadex-test-secret", NODE_ENV: "test", APP_URL: "http://filadex.test" },
     globalSetup: ["tests/global-setup.ts"],
     setupFiles: ["tests/setup.ts"],
     // Every test file talks to the same database server, and each rebuilds the

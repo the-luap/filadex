@@ -344,6 +344,7 @@ const translations = {
       smtpUser: 'SMTP Username',
       smtpPassword: 'SMTP Password',
       passwordUnchanged: 'Leave blank to keep the current password',
+      appUrlMissing: 'APP_URL is not set on the server, so verification and password reset emails are not sent. Set it to the address users open Filadex at, for example https://filadex.example.com.',
       smtpSecure: 'Use TLS',
       fromEmail: 'From Address',
       fromName: 'From Name',

@@ -32,6 +32,8 @@ export type AuthContext = {
   username: string;
   isAdmin: boolean | null;
   role: string;
+  forceChangePassword: boolean | null;
+  passwordChangedAt: Date | null;
 };
 
 /**
@@ -414,6 +416,8 @@ export class DatabaseStorage implements IStorage {
       username: users.username,
       isAdmin: users.isAdmin,
       role: users.role,
+      forceChangePassword: users.forceChangePassword,
+      passwordChangedAt: users.passwordChangedAt,
     }).from(users).where(eq(users.id, id));
     return user || undefined;
   }
@@ -471,15 +475,22 @@ export class DatabaseStorage implements IStorage {
         passwordResetToken: null,
         passwordResetExpires: null,
         forceChangePassword: false,
+        passwordChangedAt: new Date(),
       })
       .where(eq(users.id, userId));
   }
 
-  // Unlike resetPassword this leaves any pending reset token alone, which is
-  // the behaviour the change-password endpoint has always had.
+  // Setting a new password also retires any reset link still out there for the
+  // old one, and stamps the moment so sessions issued before it are refused.
   async changePassword(userId: number, hashedPassword: string): Promise<void> {
     await db.update(users)
-      .set({ password: hashedPassword, forceChangePassword: false })
+      .set({
+        password: hashedPassword,
+        forceChangePassword: false,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        passwordChangedAt: new Date(),
+      })
       .where(eq(users.id, userId));
   }
 
@@ -511,9 +522,18 @@ export class DatabaseStorage implements IStorage {
 
     // A rename has to carry the folded form with it, or the account keeps
     // answering to its old name and the unique index guards the wrong value.
-    const columns = changes.username === undefined
-      ? changes
+    const columns: Partial<typeof users.$inferInsert> = changes.username === undefined
+      ? { ...changes }
       : { ...changes, usernameFolded: foldUsername(changes.username) };
+
+    // An admin setting a password is a password change like any other: it
+    // retires a pending reset link and invalidates the sessions that came
+    // before it.
+    if (changes.password !== undefined) {
+      columns.passwordResetToken = null;
+      columns.passwordResetExpires = null;
+      columns.passwordChangedAt = new Date();
+    }
 
     const [updated] = await db.update(users).set(columns).where(eq(users.id, id)).returning();
     return updated || undefined;

@@ -2,6 +2,8 @@ import express, { type Express } from "express";
 import cookieParser from "cookie-parser";
 import request from "supertest";
 import { lastMailTo, tokenFromMail } from "./mailbox";
+import { initializeAdminUser } from "../../server/auth";
+import { storage } from "../../server/storage";
 
 /**
  * The seam these tests work at: a real express app with the real route
@@ -55,4 +57,17 @@ export async function registerAndVerify(
   await request(app).get("/api/auth/verify-email").query({ token }).expect(200);
 
   return loginAs(app, user.username, user.password);
+}
+
+/**
+ * The default admin/admin account, ready to use. initializeAdminUser creates it
+ * with forceChangePassword set, and the server refuses every route but
+ * change-password to such an account - so a test that wants an admin to drive
+ * the API has to clear the flag first, the way a real first login would.
+ */
+export async function bootstrapAdmin(): Promise<void> {
+  await initializeAdminUser();
+  const admin = await storage.getUserByUsername("admin");
+  if (!admin) throw new Error("initializeAdminUser did not create the admin account");
+  await storage.updateUser(admin.id, { forceChangePassword: false });
 }

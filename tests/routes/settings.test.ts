@@ -13,11 +13,10 @@ import { eq } from "drizzle-orm";
 import type { Express } from "express";
 import { registerAuthRoutes } from "../../server/routes/auth";
 import { registerSettingsRoutes } from "../../server/routes/settings";
-import { initializeAdminUser } from "../../server/auth";
 import { storage } from "../../server/storage";
 import { db } from "../helpers/db";
 import { materials, users } from "../../shared/schema";
-import { createApp, loginAs, registerAndVerify } from "../helpers/app";
+import { createApp, loginAs, registerAndVerify, bootstrapAdmin } from "../helpers/app";
 
 let app: Express;
 let adminCookie: string;
@@ -41,7 +40,7 @@ const allMaterialRows = () => db.select().from(materials);
 
 beforeEach(async () => {
   app = createApp(registerAuthRoutes, registerSettingsRoutes);
-  await initializeAdminUser();
+  await bootstrapAdmin();
   adminCookie = await loginAs(app, "admin", "admin");
 });
 

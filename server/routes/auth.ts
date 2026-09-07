@@ -1,7 +1,7 @@
-import type { Express, Request } from "express";
+import type { Express } from "express";
 import crypto from "crypto";
-import rateLimit from "express-rate-limit";
 import {
+  type User,
   changePasswordSchema,
   registerSchema,
   forgotPasswordSchema,
@@ -9,10 +9,12 @@ import {
   resendVerificationSchema,
   usernameSchema,
 } from "../../shared/schema";
-import { authenticate, hashPassword, verifyPassword, generateToken } from "../auth";
+import { authenticate, hashPassword, verifyPassword, verifyPasswordOrBurnTime, generateToken, hashSecretToken, setSessionCookie } from "../auth";
 import { storage } from "../storage";
 import { sendMail } from "../utils/mailer";
 import { verificationEmail, passwordResetEmail } from "../utils/email-templates";
+import { getAppUrl } from "../utils/app-url";
+import { publicAuthLimiter, loginLimiter } from "../utils/rate-limits";
 import { resolveAnonymousLanguage } from "../utils/resolve-language";
 import { isSupportedLanguage } from "@shared/languages";
 import { logger as appLogger } from "../utils/logger";
@@ -21,31 +23,39 @@ import { ZodError } from "zod";
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1h
 
-// Generic limiter for the public, enumeration-sensitive endpoints (register,
-// forgot-password, resend-verification, check-username).
-const publicAuthLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: "Too many requests, please try again later" },
-});
-
-// Slightly tighter limiter for login specifically, to slow down brute force.
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 15,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: "Too many login attempts, please try again later" },
-});
-
 function generateToken32(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
-function baseUrl(req: Request): string {
-  return `${req.protocol}://${req.get("host")}`;
+// A link that leaves the browser is built from APP_URL, never from the request:
+// the Host header is whatever the sender says it is, and a forged one turned
+// forgot-password into a genuine email pointing at the attacker's host with the
+// victim's live token. With APP_URL unset the mail is not sent at all, and the
+// log says why, rather than guessing at an origin.
+function emailedLink(path: string, token: string, purpose: string, to: string): string | null {
+  const appUrl = getAppUrl();
+  if (!appUrl) {
+    appLogger.warn(`APP_URL is not set, so the ${purpose} email for ${to} was not sent. Set APP_URL to the address users reach this install at.`);
+    return null;
+  }
+  return `${appUrl}${path}?token=${token}`;
+}
+
+// What the account's owner gets to see of their own row. The hash goes
+// without saying; the pending reset and verification tokens matter too - with
+// them, a stolen session could request a reset and read the token straight
+// back, turning a seven-day cookie into a permanent takeover.
+function sessionUser(user: User) {
+  const {
+    password: _password,
+    passwordResetToken: _resetToken,
+    passwordResetExpires: _resetExpires,
+    emailVerificationToken: _verificationToken,
+    emailVerificationExpires: _verificationExpires,
+    usernameFolded: _folded,
+    ...safe
+  } = user;
+  return safe;
 }
 
 export function registerAuthRoutes(app: Express): void {
@@ -59,9 +69,20 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(400).json({ message: "Username already exists" });
       }
 
+      const created = { message: "Account created. Please check your email to verify your account." };
+
       const existingByEmail = await storage.getUserByEmail(email);
       if (existingByEmail) {
-        return res.status(400).json({ message: "An account with this email already exists" });
+        if (existingByEmail.emailVerified) {
+          // Same answer as for a new address, so the form cannot be used to
+          // find out which emails have accounts. forgot-password and
+          // resend-verification already behave this way.
+          return res.status(201).json(created);
+        }
+        // An unverified row is a claim on the address, not an account: whoever
+        // controls the mailbox gets to complete it. Letting it be replaced means
+        // registering with someone else's email cannot squat on it.
+        await storage.deleteUser(existingByEmail.id);
       }
 
       const hashedPassword = await hashPassword(password);
@@ -78,16 +99,18 @@ export function registerAuthRoutes(app: Express): void {
         role: "user",
         isAdmin: false,
         emailVerified: false,
-        emailVerificationToken: verificationToken,
+        emailVerificationToken: hashSecretToken(verificationToken),
         emailVerificationExpires: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
         forceChangePassword: false,
         language: lang,
       });
 
-      const verifyUrl = `${baseUrl(req)}/verify-email?token=${verificationToken}`;
-      await sendMail({ to: email, ...verificationEmail(lang, verifyUrl) });
+      const verifyUrl = emailedLink("/verify-email", verificationToken, "verification", email);
+      if (verifyUrl) {
+        await sendMail({ to: email, ...verificationEmail(lang, verifyUrl) });
+      }
 
-      res.status(201).json({ message: "Account created. Please check your email to verify your account." });
+      res.status(201).json(created);
     } catch (error) {
       if (error instanceof ZodError) {
         return res.status(400).json({ message: error.errors[0]?.message || "Invalid input" });
@@ -121,7 +144,7 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(400).json({ message: "Invalid verification link" });
       }
 
-      const user = await storage.getUserByEmailVerificationToken(token);
+      const user = await storage.getUserByEmailVerificationToken(hashSecretToken(token));
 
       if (!user || !user.emailVerificationExpires || user.emailVerificationExpires < new Date()) {
         return res.status(400).json({ message: "This verification link is invalid or has expired" });
@@ -147,13 +170,15 @@ export function registerAuthRoutes(app: Express): void {
         const verificationToken = generateToken32();
         await storage.setEmailVerificationToken(
           user.id,
-          verificationToken,
+          hashSecretToken(verificationToken),
           new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
         );
 
-        const verifyUrl = `${baseUrl(req)}/verify-email?token=${verificationToken}`;
-        const lang = isSupportedLanguage(user.language) ? user.language : resolveAnonymousLanguage(req);
-        await sendMail({ to: email, ...verificationEmail(lang, verifyUrl) });
+        const verifyUrl = emailedLink("/verify-email", verificationToken, "verification", email);
+        if (verifyUrl) {
+          const lang = isSupportedLanguage(user.language) ? user.language : resolveAnonymousLanguage(req);
+          await sendMail({ to: email, ...verificationEmail(lang, verifyUrl) });
+        }
       }
 
       res.json(genericResponse);
@@ -178,13 +203,15 @@ export function registerAuthRoutes(app: Express): void {
         const resetToken = generateToken32();
         await storage.setPasswordResetToken(
           user.id,
-          resetToken,
+          hashSecretToken(resetToken),
           new Date(Date.now() + RESET_TOKEN_TTL_MS),
         );
 
-        const resetUrl = `${baseUrl(req)}/reset-password?token=${resetToken}`;
-        const lang = isSupportedLanguage(user.language) ? user.language : resolveAnonymousLanguage(req);
-        await sendMail({ to: email, ...passwordResetEmail(lang, resetUrl) });
+        const resetUrl = emailedLink("/reset-password", resetToken, "password reset", email);
+        if (resetUrl) {
+          const lang = isSupportedLanguage(user.language) ? user.language : resolveAnonymousLanguage(req);
+          await sendMail({ to: email, ...passwordResetEmail(lang, resetUrl) });
+        }
       }
 
       res.json(genericResponse);
@@ -202,7 +229,7 @@ export function registerAuthRoutes(app: Express): void {
     try {
       const { token, newPassword } = resetPasswordSchema.parse(req.body);
 
-      const user = await storage.getUserByPasswordResetToken(token);
+      const user = await storage.getUserByPasswordResetToken(hashSecretToken(token));
 
       if (!user || !user.passwordResetExpires || user.passwordResetExpires < new Date()) {
         return res.status(400).json({ message: "This reset link is invalid or has expired" });
@@ -224,13 +251,18 @@ export function registerAuthRoutes(app: Express): void {
   app.post("/api/auth/login", loginLimiter, async (req, res) => {
     try {
       const { username, password } = req.body;
+      if (typeof username !== "string" || typeof password !== "string") {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
 
       // Matched case-insensitively, the same way registration and admin user
       // creation check for a duplicate: if "ALICE" cannot be registered while
       // "alice" exists, then "ALICE" has to be a way to log in as "alice".
       const user = await storage.getUserByUsername(username);
 
-      if (!user || !(await verifyPassword(password, user.password))) {
+      // The compare runs whether or not the account exists, so the two
+      // failures take the same time.
+      if (!(await verifyPasswordOrBurnTime(password, user?.password)) || !user) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
@@ -241,22 +273,10 @@ export function registerAuthRoutes(app: Express): void {
       // Update last login
       await storage.recordLogin(user.id);
 
-      // Generate token
-      const token = generateToken(user.id);
-
-      // Set cookie
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
-
-      // Return user info (without password)
-      const { password: _, ...userWithoutPassword } = user;
+      setSessionCookie(res, generateToken(user.id));
 
       res.json({
-        user: userWithoutPassword,
+        user: sessionUser(user),
         forceChangePassword: user.forceChangePassword
       });
     } catch (error) {
@@ -280,8 +300,7 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const { password, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      res.json(sessionUser(user));
     } catch (error) {
       appLogger.error("Get user error:", error);
       res.status(500).json({ message: "Server error" });
@@ -289,7 +308,7 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // Change password
-  app.post("/api/auth/change-password", authenticate, async (req, res) => {
+  app.post("/api/auth/change-password", authenticate, loginLimiter, async (req, res) => {
     try {
       const result = changePasswordSchema.safeParse(req.body);
 
@@ -306,6 +325,12 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       await storage.changePassword(req.userId, await hashPassword(newPassword));
+
+      // The change invalidates every session issued before it - including, a
+      // second or more after logging in, the one making this request. Hand
+      // that session a fresh cookie so the user carries on; the others stay
+      // locked out, which is the point.
+      setSessionCookie(res, generateToken(req.userId));
 
       res.json({ message: "Password updated successfully" });
     } catch (error) {

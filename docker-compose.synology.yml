@@ -63,6 +63,9 @@ services:
       # unedited. Left unset, the application generates a random secret per
       # process instead - safe, but sessions do not survive a restart.
       # - JWT_SECRET=
+      # The public address of this install, e.g. https://filadex.your-nas.synology.me.
+      # Verification and password-reset emails link to it and are not sent while unset.
+      # - APP_URL=
 
       # Enable trusted reverse proxy headers.
       # Must be "true" behind DSM Reverse Proxy so Express rate limiters and loggers

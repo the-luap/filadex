@@ -13,7 +13,7 @@ import { registerAuthRoutes } from "../../server/routes/auth";
 import { registerUserRoutes } from "../../server/routes/users";
 import { hashPassword, initializeAdminUser } from "../../server/auth";
 import { storage } from "../../server/storage";
-import { createApp, loginAs, registerAndVerify } from "../helpers/app";
+import { createApp, loginAs, registerAndVerify, bootstrapAdmin } from "../helpers/app";
 
 let app: Express;
 let adminCookie: string;
@@ -25,7 +25,7 @@ const alice = { username: "alice", email: "alice@example.com", password: "correc
 beforeEach(async () => {
   app = createApp(registerAuthRoutes, registerUserRoutes);
   // The only way an installation gets its first admin; password is hard-coded.
-  await initializeAdminUser();
+  await bootstrapAdmin();
   adminCookie = await loginAs(app, "admin", "admin");
 });
 
@@ -62,10 +62,90 @@ describe("the default admin bootstrap", () => {
       .send({ username: "Admin" })
       .expect(200);
 
-    await initializeAdminUser();
+    await bootstrapAdmin();
 
     const after = await request(app).get("/api/users").set("Cookie", adminCookie);
     expect(after.body.map((user: { username: string }) => user.username)).toEqual(["Admin"]);
+  });
+});
+
+describe("an account that must still change its password", () => {
+  // The flag used to be enforced only by a redirect in the login page, so a
+  // session for admin/admin could drive every route while the password was
+  // still admin.
+  it("is refused every route but the password change, then admitted", async () => {
+    await createUserAsAdmin({ username: "bob", password: "bobs-password" });
+    const cookie = await loginAs(app, "bob", "bobs-password");
+
+    const refused = await request(app).post("/api/users/language").set("Cookie", cookie).send({ language: "de" });
+    expect(refused.status).toBe(403);
+    expect(refused.body).toEqual({
+      message: "You must change your password before continuing",
+      code: "PASSWORD_CHANGE_REQUIRED",
+    });
+
+    // What the change-password page itself needs still works.
+    await request(app).get("/api/auth/me").set("Cookie", cookie).expect(200);
+
+    const changed = await request(app)
+      .post("/api/auth/change-password")
+      .set("Cookie", cookie)
+      .send({ currentPassword: "bobs-password", newPassword: "bobs-own-password" })
+      .expect(200);
+
+    // The change invalidates the sessions issued before it, this one included,
+    // and answers with a fresh cookie so the page can carry straight on.
+    const fresh = changed.headers["set-cookie"][0];
+    expect(fresh).toMatch(/^token=/);
+    await request(app).post("/api/users/language").set("Cookie", fresh).send({ language: "de" }).expect(200);
+  });
+});
+
+describe("initializeAdminUser", () => {
+  it("does not bring admin/admin back once the bootstrap account has been renamed", async () => {
+    const admins = await request(app).get("/api/users").set("Cookie", adminCookie);
+    const admin = admins.body.find((user: { role: string }) => user.role === "admin");
+
+    await request(app).put(`/api/users/${admin.id}`).set("Cookie", adminCookie).send({ username: "paul" }).expect(200);
+
+    // What every startup runs. It used to look for an account *named* admin.
+    await initializeAdminUser();
+
+    const after = await request(app).get("/api/users").set("Cookie", adminCookie);
+    expect(after.body.map((user: { username: string }) => user.username)).toEqual(["paul"]);
+    await request(app).post("/api/auth/login").send({ username: "admin", password: "admin" }).expect(401);
+  });
+
+  it("still creates the default admin on an install with no admin at all", async () => {
+    const admins = await request(app).get("/api/users").set("Cookie", adminCookie);
+    const admin = admins.body.find((user: { role: string }) => user.role === "admin");
+    await storage.deleteUser(admin.id);
+
+    await initializeAdminUser();
+
+    const created = await storage.getUserByUsername("admin");
+    expect(created).toMatchObject({ role: "admin", forceChangePassword: true });
+  });
+});
+
+describe("a session issued before an admin set a new password", () => {
+  it("is refused", async () => {
+    const bob = await createUserAsAdmin({ username: "bob", password: "bobs-password", forceChangePassword: false });
+    const cookie = await loginAs(app, "bob", "bobs-password");
+
+    // Two seconds on, so the token's whole-second iat is unambiguously earlier.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.now() + 2_000);
+    try {
+      // Throwaway test-database credential, not a real login anywhere (hence the ggignore tag).
+      await request(app).put(`/api/users/${bob.id}`).set("Cookie", adminCookie).send({ password: "set-by-admin-1" }).expect(200); // ggignore
+
+      const response = await request(app).get("/api/auth/me").set("Cookie", cookie);
+      expect(response.status).toBe(401);
+      expect(response.body.message).toBe("Session expired because the password was changed");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -285,6 +365,7 @@ describe("POST /api/users", () => {
       username: "root",
       password: "roots-password",
       isAdmin: true,
+      forceChangePassword: false,
     });
 
     expect(created).toMatchObject({ isAdmin: true, role: "admin" });
@@ -419,7 +500,7 @@ describe("PUT /api/users/:id", () => {
   });
 
   it("promotes a user to admin", async () => {
-    const bob = await createUserAsAdmin({ username: "bob", password: "bobs-password" });
+    const bob = await createUserAsAdmin({ username: "bob", password: "bobs-password", forceChangePassword: false });
 
     const response = await request(app)
       .put(`/api/users/${bob.id}`)
