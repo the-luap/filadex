@@ -63,7 +63,6 @@ The application will be available at http://localhost:8080 with default credenti
 ### Application Configuration
 - `PORT`: Port the application will run on (default: 8080)
 - `LOG_LEVEL`: Logging level (DEBUG, INFO, WARN, ERROR)
-- `DEFAULT_LANGUAGE`: Default language for new users (default: en)
 
 ## Docker Compose Example
 

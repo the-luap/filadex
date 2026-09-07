@@ -171,7 +171,6 @@ services:
       - TRUST_PROXY=true
       - INIT_SAMPLE_DATA=true
       - LOG_LEVEL=INFO
-      - DEFAULT_LANGUAGE=en
     # pull_policy: never
 ```
 

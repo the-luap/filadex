@@ -12,7 +12,6 @@ services:
       - PORT=8080
       - DATABASE_URL=file:/data/filadex.db
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-en}
       - INIT_SAMPLE_DATA=${INIT_SAMPLE_DATA:-false}
       # Where scheduled snapshots are written. Defaults to /data/backups, which
       # is inside the volume below; set it only to move them elsewhere, and give

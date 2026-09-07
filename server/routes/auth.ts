@@ -13,6 +13,8 @@ import { authenticate, hashPassword, verifyPassword, generateToken } from "../au
 import { storage } from "../storage";
 import { sendMail } from "../utils/mailer";
 import { verificationEmail, passwordResetEmail } from "../utils/email-templates";
+import { resolveAnonymousLanguage } from "../utils/resolve-language";
+import { isSupportedLanguage } from "@shared/languages";
 import { logger as appLogger } from "../utils/logger";
 import { ZodError } from "zod";
 
@@ -64,6 +66,10 @@ export function registerAuthRoutes(app: Express): void {
 
       const hashedPassword = await hashPassword(password);
       const verificationToken = generateToken32();
+      // Only the cookie and Accept-Language: /register is reachable with a
+      // session already in the browser, and the new account's language must
+      // not be inherited from whoever that `token` cookie belongs to.
+      const lang = resolveAnonymousLanguage(req);
 
       await storage.createUser({
         username,
@@ -75,10 +81,11 @@ export function registerAuthRoutes(app: Express): void {
         emailVerificationToken: verificationToken,
         emailVerificationExpires: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
         forceChangePassword: false,
+        language: lang,
       });
 
       const verifyUrl = `${baseUrl(req)}/verify-email?token=${verificationToken}`;
-      await sendMail({ to: email, ...verificationEmail("en", verifyUrl) });
+      await sendMail({ to: email, ...verificationEmail(lang, verifyUrl) });
 
       res.status(201).json({ message: "Account created. Please check your email to verify your account." });
     } catch (error) {
@@ -145,7 +152,8 @@ export function registerAuthRoutes(app: Express): void {
         );
 
         const verifyUrl = `${baseUrl(req)}/verify-email?token=${verificationToken}`;
-        await sendMail({ to: email, ...verificationEmail("en", verifyUrl) });
+        const lang = isSupportedLanguage(user.language) ? user.language : resolveAnonymousLanguage(req);
+        await sendMail({ to: email, ...verificationEmail(lang, verifyUrl) });
       }
 
       res.json(genericResponse);
@@ -175,7 +183,8 @@ export function registerAuthRoutes(app: Express): void {
         );
 
         const resetUrl = `${baseUrl(req)}/reset-password?token=${resetToken}`;
-        await sendMail({ to: email, ...passwordResetEmail((user.language as "en" | "de") || "en", resetUrl) });
+        const lang = isSupportedLanguage(user.language) ? user.language : resolveAnonymousLanguage(req);
+        await sendMail({ to: email, ...passwordResetEmail(lang, resetUrl) });
       }
 
       res.json(genericResponse);

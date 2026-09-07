@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
+import { resolveLanguage, setHtmlLang } from "./utils/resolve-language";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -13,6 +14,22 @@ export function log(message: string, source = "express") {
   });
 
   console.log(`${formattedTime} [${source}] ${message}`);
+}
+
+// The shell is per-visitor: its <html lang> depends on the `language` cookie,
+// the session and Accept-Language. Vary keeps a shared cache from handing one
+// visitor's `lang="pl"` to everyone, no-cache makes each load revalidate, and
+// res.send (rather than res.end) restores the ETag and 304 handling that
+// res.sendFile used to give this response.
+function sendHtmlDocument(res: express.Response, html: string) {
+  res
+    .status(200)
+    .set({
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache",
+      Vary: "Cookie, Accept-Language",
+    })
+    .send(html);
 }
 
 export async function setupVite(app: Express, server: Server) {
@@ -61,8 +78,9 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      let page = await vite.transformIndexHtml(url, template);
+      page = setHtmlLang(page, await resolveLanguage(req));
+      sendHtmlDocument(res, page);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);
@@ -79,10 +97,27 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  const indexPath = path.resolve(distPath, "index.html");
+
+  const sendIndex: express.RequestHandler = async (req, res, next) => {
+    try {
+      // Read per request rather than once at boot: a missing index.html then
+      // fails the request it belongs to instead of taking the whole server —
+      // API included — down at startup, and a rebuild in place takes effect
+      // without a restart.
+      const indexHtml = await fs.promises.readFile(indexPath, "utf-8");
+      sendHtmlDocument(res, setHtmlLang(indexHtml, await resolveLanguage(req)));
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  // index: false so a request for `/` reaches the catch-all below, which stamps
+  // the correct <html lang>. That only covers directory requests, so the one
+  // path that names the file has to be routed to the same handler explicitly.
+  app.get("/index.html", sendIndex);
+  app.use(express.static(distPath, { index: false }));
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
-  });
+  app.use("*", sendIndex);
 }

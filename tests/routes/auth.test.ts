@@ -48,6 +48,72 @@ describe("POST /api/auth/register", () => {
     const mail = lastMailTo(alice.email);
     expect(mail).toBeDefined();
     expect(tokenFromMail(mail)).toMatch(/^[0-9a-f]{64}$/);
+    expect(mail?.subject).toBe("Verify your email address");
+  });
+
+  it("emails the verification link in the language chosen during registration", async () => {
+    const polishUser = {
+      username: "pawel",
+      email: "pawel@example.com",
+      password: "some-strong-password-123",
+    };
+    await request(app)
+      .post("/api/auth/register")
+      .set("Cookie", ["language=pl"])
+      .send(polishUser)
+      .expect(201);
+
+    const mail = lastMailTo(polishUser.email);
+    expect(mail).toBeDefined();
+    expect(mail?.subject).toBe("Potwierdź swój adres e-mail");
+    expect(mail?.html).toContain("Witamy w Filadex!");
+
+    // Resend also respects the user's stored language
+    mailbox.length = 0;
+    await request(app)
+      .post("/api/auth/resend-verification")
+      .send({ email: polishUser.email })
+      .expect(200);
+
+    const resendMail = lastMailTo(polishUser.email);
+    expect(resendMail).toBeDefined();
+    expect(resendMail?.subject).toBe("Potwierdź swój adres e-mail");
+  });
+
+  // /register is reachable with a session already in the browser, so the new
+  // account's language must come from the request, not from whoever that
+  // `token` cookie belongs to.
+  it("does not inherit the language of an account that is still signed in", async () => {
+    const german = {
+      username: "gerd",
+      email: "gerd@example.com",
+      password: "some-strong-password-123",
+    };
+    await request(app)
+      .post("/api/auth/register")
+      .set("Cookie", ["language=de"])
+      .send(german)
+      .expect(201);
+    const germanSession = await (async () => {
+      const token = tokenFromMail(lastMailTo(german.email));
+      await request(app).get("/api/auth/verify-email").query({ token }).expect(200);
+      return loginAs(app, german.username, german.password);
+    })();
+
+    mailbox.length = 0;
+    const newcomer = {
+      username: "nowicjusz",
+      email: "nowicjusz@example.com",
+      password: "some-strong-password-123",
+    };
+    await request(app)
+      .post("/api/auth/register")
+      .set("Cookie", [germanSession, "language=pl"])
+      .send(newcomer)
+      .expect(201);
+
+    const mail = lastMailTo(newcomer.email);
+    expect(mail?.subject).toBe("Potwierdź swój adres e-mail");
   });
 
   it("leaves the new account unable to log in until the email is verified", async () => {

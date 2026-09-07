@@ -4,6 +4,8 @@ import { lowStockEmail, dryingReminderEmail } from "./email-templates";
 import { logger } from "./logger";
 import { isOneOfMaterials } from "./materials";
 
+import { isSupportedLanguage } from "@shared/languages";
+
 const DRYING_REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000; // at most one reminder/day per spool
 
 function daysAgo(dateStr: string | Date): number {
@@ -28,7 +30,7 @@ export async function runScheduledChecks(): Promise<void> {
     // directly (see IMPLEMENTATION_PLAN.md #9) - storage.getFilaments joins it
     // back in from filamentTypes.
     const userFilaments = await storage.getFilaments(user.id);
-    const language = user.language === "de" ? "de" : "en";
+    const language = isSupportedLanguage(user.language) ? user.language : "en";
 
     if (user.notifyLowStock) {
       const threshold = user.lowStockThresholdPercent ?? 15;

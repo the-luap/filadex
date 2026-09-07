@@ -19,6 +19,7 @@ Filadex uses a simple translation system based on TypeScript files. Each languag
 
 - English (en)
 - German (de)
+- Polish (pl)
 
 We welcome contributions for additional languages!
 
@@ -62,40 +63,72 @@ Translation files are located in the `client/src/i18n/locales/` directory. Each 
 
 - `en.ts` - English (base language)
 - `de.ts` - German
+- `pl.ts` - Polish
 - Add your language file here, e.g., `fr.ts` for French
 
 The translation files follow a nested object structure where keys are organized by feature or component.
 
 ## Adding a New Language
 
-To add a new language:
+To add a new language, every touchpoint in the application must be updated:
 
-1. Copy the English translation file (`en.ts`) to a new file named with your language code (e.g., `fr.ts` for French).
+1. **Add to supported languages**:
+   In `shared/languages.ts`, add the language code to `SUPPORTED_LANGUAGES`:
+   ```typescript
+   export const SUPPORTED_LANGUAGES = ["en", "de", "pl", "fr"] as const;
+   ```
 
-2. Translate all the values in the file, keeping the keys and structure exactly the same.
+2. **Create translation file**:
+   Copy `client/src/i18n/locales/en.ts` to `client/src/i18n/locales/[code].ts` (e.g., `fr.ts`).
+   Translate all values, preserving all keys and placeholder tokens (e.g. `{{count}}`).
 
-3. Add your language to the language list in `client/src/i18n/index.ts`:
+3. **Register translations in LanguageProvider**:
+   In `client/src/i18n/LanguageProvider.tsx`, import your translation file and add it to the `translations` object:
+   ```typescript
+   import frTranslations from './locales/fr';
 
-```typescript
-// Add your language import
-import frTranslations from './locales/fr';
+   const translations = {
+     en: enTranslations,
+     de: deTranslations,
+     pl: plTranslations,
+     fr: frTranslations,
+   };
+   ```
 
-// Add to the resources object
-const resources = {
-  en: {
-    translation: enTranslations
-  },
-  de: {
-    translation: deTranslations
-  },
-  fr: {
-    translation: frTranslations
-  }
-  // Add more languages here
-};
-```
+4. **Add to language selector**:
+   In `client/src/components/language-selector.tsx`, add the option to `LANGUAGE_OPTIONS`:
+   ```typescript
+   const LANGUAGE_OPTIONS: { code: Language; label: string }[] = [
+     { code: 'en', label: 'English' },
+     { code: 'de', label: 'Deutsch' },
+     { code: 'pl', label: 'Polski' },
+     { code: 'fr', label: 'Français' },
+   ];
+   ```
 
-4. Add your language to the language options in the settings component.
+5. **Register date-fns locale**:
+   In `client/src/components/filament-modal.tsx`, import the locale from `date-fns/locale` and add to `DATE_LOCALES`:
+   ```typescript
+   import { de, enUS, pl, fr } from "date-fns/locale";
+
+   const DATE_LOCALES: Record<Language, Locale> = {
+     en: enUS,
+     de,
+     pl,
+     fr,
+   };
+   ```
+
+6. **Add email templates**:
+   In `server/utils/email-templates.ts`, add an entry for the new language to each of the five `Record<Language, …>` maps: `VERIFICATION`, `PASSWORD_RESET`, `LOW_STOCK`, `DRYING_REMINDER`, and `CATALOG_REQUEST_REVIEWED`.
+   - The maps are keyed by `Language`, so `npx tsc` fails until all five are filled in - a missing locale cannot quietly fall through to English.
+   - Scheduled notification checks (`server/utils/notification-checks.ts`) automatically route low-stock and drying-reminder emails using the user's stored language preference via `isSupportedLanguage`.
+
+7. **Verify parity with tests**:
+   Run the locale parity test suite:
+   ```bash
+   npx vitest run tests/i18n/locale-parity.test.ts
+   ```
 
 ## Translation Guidelines
 
@@ -129,16 +162,18 @@ To maintain consistency across translations, please use the following terminolog
 
 | English Term | Description | Example Translations |
 |--------------|-------------|----------------------|
-| Filament | The 3D printing material | German: "Filament" |
-| Spool | The container holding the filament | German: "Spule" |
-| Material | The type of filament (PLA, PETG, etc.) | German: "Material" |
-| Manufacturer | The company that made the filament | German: "Hersteller" |
-| Color | The color of the filament | German: "Farbe" |
-| Diameter | The thickness of the filament | German: "Durchmesser" |
-| Storage Location | Where the filament is stored | German: "Lagerort" |
-| Remaining Percentage | How much filament is left | German: "Verbleibender Prozentsatz" |
-| Print Temperature | Temperature for printing | German: "Drucktemperatur" |
-| Total Weight | The total weight of the filament | German: "Gesamtgewicht" |
+| Filament | The 3D printing material | German: "Filament"; Polish: "filament" |
+| Spool | The container holding the filament | German: "Spule"; Polish: "szpula" |
+| Material | The type of filament (PLA, PETG, etc.) | German: "Material"; Polish: "materiał" |
+| Manufacturer | The company that made the filament | German: "Hersteller"; Polish: "producent" |
+| Color | The color of the filament | German: "Farbe"; Polish: "kolor" |
+| Diameter | The thickness of the filament | German: "Durchmesser"; Polish: "średnica" |
+| Storage Location | Where the filament is stored | German: "Lagerort"; Polish: "miejsce przechowywania" |
+| Remaining Percentage | How much filament is left | German: "Verbleibender Prozentsatz"; Polish: "pozostały procent" |
+| Print Temperature | Temperature for printing | German: "Drucktemperatur"; Polish: "temperatura druku" |
+| Total Weight | The total weight of the filament | German: "Gesamtgewicht"; Polish: "waga całkowita" |
+| Public Collection | The publicly shared view of a collection | German: "Öffentliche Sammlung"; Polish: "kolekcja publiczna" |
+| Catalog Request | A proposal to add an entry to the shared catalog | German: "Kataloganfrage"; Polish: "wniosek katalogowy" |
 
 ### Technical Terms
 
@@ -148,14 +183,14 @@ For technical terms related to 3D printing, it's often best to use the establish
 
 | English Term | Description | Example Translations |
 |--------------|-------------|----------------------|
-| Settings | Application settings | German: "Einstellungen" |
-| Dashboard | Main overview page | German: "Dashboard" |
-| Add | Add a new item | German: "Hinzufügen" |
-| Edit | Edit an existing item | German: "Bearbeiten" |
-| Delete | Remove an item | German: "Löschen" |
-| Save | Save changes | German: "Speichern" |
-| Cancel | Cancel an action | German: "Abbrechen" |
-| Search | Search for items | German: "Suchen" |
+| Settings | Application settings | German: "Einstellungen"; Polish: "Ustawienia" |
+| Dashboard | Main overview page | German: "Dashboard"; Polish: "Panel" |
+| Add | Add a new item | German: "Hinzufügen"; Polish: "Dodaj" |
+| Edit | Edit an existing item | German: "Bearbeiten"; Polish: "Edytuj" |
+| Delete | Remove an item | German: "Löschen"; Polish: "Usuń" |
+| Save | Save changes | German: "Speichern"; Polish: "Zapisz" |
+| Cancel | Cancel an action | German: "Abbrechen"; Polish: "Anuluj" |
+| Search | Search for items | German: "Suchen"; Polish: "Szukaj" |
 
 ## Testing Your Translations
 

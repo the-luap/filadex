@@ -12,6 +12,8 @@ import { storage } from "../../server/storage";
 import { db } from "../helpers/db";
 import { filaments, materials, users } from "../../shared/schema";
 import { mailbox, lastMailTo } from "../helpers/mailbox";
+import { SUPPORTED_LANGUAGES } from "../../shared/languages";
+import { lowStockEmail } from "../../server/utils/email-templates";
 
 let aliceId: number;
 
@@ -324,5 +326,39 @@ describe("per-user hygroscopy", () => {
     await runScheduledChecks();
 
     expect(lastMailTo(alice!.email!)?.html).toContain("Alice CF");
+  });
+});
+
+describe("notification language localization", () => {
+  // Driven by SUPPORTED_LANGUAGES rather than a fixed list, so a locale added
+  // to shared/languages.ts is covered here the moment it exists. That is the
+  // case that would catch notification-checks regressing to a hardcoded set:
+  // today's three locales route identically either way.
+  it.each(SUPPORTED_LANGUAGES)("sends low-stock notifications in %s", async (language) => {
+    const user = await createUser({ language });
+    const name = `Low spool ${language}`;
+    await giveSpool(user.id, { name, remainingPercentage: "5" });
+
+    await runScheduledChecks();
+
+    const expected = lowStockEmail(language, [name]);
+    const mail = lastMailTo(user.email!);
+    expect(mail).toBeDefined();
+    expect(mail?.subject).toBe(expected.subject);
+    expect(mail?.html).toBe(expected.html);
+  });
+
+  it("falls back to English when the user's language is unsupported", async () => {
+    const user = await createUser({ language: "fr" });
+    const name = "Low spool fr";
+    await giveSpool(user.id, { name, remainingPercentage: "5" });
+
+    await runScheduledChecks();
+
+    const expected = lowStockEmail("en", [name]);
+    const mail = lastMailTo(user.email!);
+    expect(mail).toBeDefined();
+    expect(mail?.subject).toBe(expected.subject);
+    expect(mail?.html).toBe(expected.html);
   });
 });

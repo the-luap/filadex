@@ -162,7 +162,10 @@ LOG_LEVEL=INFO                # Logging level (DEBUG, INFO, WARN, ERROR)
 JWT_SECRET=your_secret_key    # Secret key for JWT token generation
 
 # Localization
-DEFAULT_LANGUAGE=en           # Default language for new users (en, de)
+# Build-time last resort for the UI language (en, de, pl). Reached only when a
+# visitor has no stored choice, no language cookie, no <html lang> from the
+# server, and no supported browser language - see the note below.
+VITE_DEFAULT_LANGUAGE=en
 
 # Data Initialization
 INIT_SAMPLE_DATA=false        # Set to 'true' to initialize with sample data
@@ -249,22 +252,32 @@ Filadex supports multiple languages:
 1. **Available Languages**
    - English (en)
    - German (de)
+   - Polish (pl)
 
 2. **Language Selection**
-   - Users can select their preferred language from the language selector in the header
+   - Users can select their preferred language from the language selector in the header, and from the login, register, forgot-password, reset-password and verify-email screens
    - Language preference is stored in user settings and persists across sessions
-   - The application will automatically detect the browser language on first visit
+   - The application detects the browser language on first visit, taking the first supported entry from the browser's ranked language list
+   - The server picks the same language for the initial HTML, so `<html lang>` matches the UI from the first render (see [ADR 0005](docs/adr/0005-html-lang-follows-the-ui-language.md))
 
 3. **Adding New Languages**
    - Language files are located in `client/src/i18n/locales/`
    - To add a new language, create a new file following the same structure as the existing ones
    - See our [Translation Guide](docs/TRANSLATION_GUIDE.md) for detailed instructions
-   - Check the [Translation Glossary](docs/TRANSLATION_GLOSSARY.md) for terminology consistency
-   - For developers, see the [Technical Translation Guide](docs/TRANSLATION_TECHNICAL.md)
    - Submit a pull request to contribute translations
 
 4. **Environment Variables**
-   - `DEFAULT_LANGUAGE`: Set the default language for new users (default: "en")
+   - `VITE_DEFAULT_LANGUAGE`: last-resort UI language (default: "en"). Inlined at build time, so it must be set when the client is built.
+
+     **This ranks lower than it used to.** The server now resolves the language
+     for the initial HTML and stamps it into `<html lang>`, and the client
+     prefers that stamp - which already accounts for the stored account
+     preference, the `language` cookie and `Accept-Language` - over this
+     build-time value. Before, a build with `VITE_DEFAULT_LANGUAGE=de` showed
+     German to every browser that did not ask for German; now such a browser
+     gets its own language. If you relied on this variable to pin the UI for a
+     deployment, set each account's language instead. Docker images are
+     unaffected: the Dockerfile has never had a build arg for it.
 
 ## 🗺️ Roadmap
 

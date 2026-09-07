@@ -12,6 +12,7 @@ import { authenticate, isAdmin } from "../auth";
 import { storage } from "../storage";
 import { sendMail } from "../utils/mailer";
 import { catalogRequestReviewedEmail } from "../utils/email-templates";
+import { isSupportedLanguage } from "@shared/languages";
 import { logger as appLogger } from "../utils/logger";
 import { ZodError } from "zod";
 
@@ -83,9 +84,11 @@ export function registerCatalogRequestRoutes(app: Express): void {
     const config = ENTITY_CONFIG[request.entityType as keyof typeof ENTITY_CONFIG];
     const entityLabel = config ? config.label(request.payload as any) : request.entityType;
 
+    const lang = isSupportedLanguage(requester.language) ? requester.language : "en";
+
     await sendMail({
       to: requester.email,
-      ...catalogRequestReviewedEmail((requester.language as "en" | "de") || "en", approved, entityLabel, reviewNote),
+      ...catalogRequestReviewedEmail(lang, approved, entityLabel, reviewNote),
     });
   }
 
