@@ -7,6 +7,7 @@ import { nanoid } from "nanoid";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { authenticate, isAdmin } from "../auth";
+import { sensitiveActionLimiter } from "../utils/rate-limits";
 import { storage } from "../storage";
 import { updateBackupSettingsSchema } from "@shared/schema";
 import { logger } from "../utils/logger";
@@ -207,7 +208,7 @@ export function registerBackupRoutes(app: Express): void {
   });
 
   // Trigger immediate backup snapshot to disk (admin only, SQLite only)
-  app.post("/api/admin/backups", authenticate, isAdmin, requireSqliteDialect, async (_req: Request, res: Response) => {
+  app.post("/api/admin/backups", authenticate, isAdmin, requireSqliteDialect, sensitiveActionLimiter, async (_req: Request, res: Response) => {
     try {
       const result = await createBackupFile();
       res.status(201).json(result);
@@ -218,7 +219,7 @@ export function registerBackupRoutes(app: Express): void {
   });
 
   // Stream a fresh snapshot directly without leaving a persistent file behind (admin only, SQLite only)
-  app.post("/api/admin/backups/stream", authenticate, isAdmin, requireSqliteDialect, async (_req: Request, res: Response) => {
+  app.post("/api/admin/backups/stream", authenticate, isAdmin, requireSqliteDialect, sensitiveActionLimiter, async (_req: Request, res: Response) => {
     const tempFile = path.join(os.tmpdir(), `filadex-snapshot-${nanoid()}.db`);
     const cleanup = () => {
       try {

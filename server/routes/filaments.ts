@@ -1,12 +1,16 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { authenticate } from "../auth";
-import { InsertFilament } from "@shared/schema";
-import { ZodError } from "zod";
+import { InsertFilament, filamentWriteSchema, filamentPatchSchema } from "@shared/schema";
+import { ZodError, z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { logger as appLogger } from "../utils/logger";
 import { validateId } from "../utils/validation";
 import { parseCSVLine, detectCSVFormat, escapeCsvField } from "../utils/csv-parser";
+
+// Each imported row costs several queries, and the only bound used to be the
+// 100 kB body limit - some fifteen thousand minimal rows in one request.
+const MAX_IMPORT_ROWS = 2000;
 
 export function registerFilamentRoutes(app: Express): void {
   // GET all filaments with optional export
@@ -93,6 +97,9 @@ export function registerFilamentRoutes(app: Express): void {
 
         // Parse CSV data
         const csvLines = req.body.csvData.split('\n').filter((line: string) => line.trim().length > 0);
+        if (csvLines.length > MAX_IMPORT_ROWS) {
+          return res.status(400).json({ message: `Import at most ${MAX_IMPORT_ROWS} rows at a time` });
+        }
 
         // Expected columns in the CSV
         const expectedColumns = [
@@ -205,6 +212,9 @@ export function registerFilamentRoutes(app: Express): void {
           if (!Array.isArray(filaments)) {
             return res.status(400).json({ message: "Invalid JSON format. Expected an array of filaments." });
           }
+          if (filaments.length > MAX_IMPORT_ROWS) {
+            return res.status(400).json({ message: `Import at most ${MAX_IMPORT_ROWS} rows at a time` });
+          }
 
           // Get existing filaments to check for duplicates
           const existingFilaments = await storage.getFilaments(req.userId);
@@ -271,7 +281,7 @@ export function registerFilamentRoutes(app: Express): void {
       // Regular single filament creation
       appLogger.debug("Creating filament", { userId: req.userId });
 
-      const data = req.body;
+      const data = filamentWriteSchema.parse(req.body);
       const insertData: InsertFilament = {
         userId: req.userId,
         name: data.name,
@@ -280,11 +290,11 @@ export function registerFilamentRoutes(app: Express): void {
         colorName: data.colorName,
         colorCode: data.colorCode,
         printTemp: data.printTemp,
-        diameter: data.diameter ? data.diameter.toString() : undefined,
-        totalWeight: data.totalWeight.toString(),
-        remainingPercentage: data.remainingPercentage.toString(),
+        diameter: data.diameter !== undefined && data.diameter !== null ? data.diameter.toString() : undefined,
+        totalWeight: data.totalWeight,
+        remainingPercentage: data.remainingPercentage,
         purchaseDate: data.purchaseDate,
-        purchasePrice: data.purchasePrice ? data.purchasePrice.toString() : undefined,
+        purchasePrice: data.purchasePrice ?? undefined,
         status: data.status,
         spoolType: data.spoolType,
         dryerCount: data.dryerCount,
@@ -342,7 +352,9 @@ export function registerFilamentRoutes(app: Express): void {
         return res.status(404).json({ message: "Filament not found" });
       }
 
-      const data = req.body;
+      // `note` is not a column: it annotates the usage-log entry a change in
+      // remaining percentage writes below.
+      const data = filamentPatchSchema.extend({ note: z.string().max(500).optional() }).parse(req.body);
       const updateData: Partial<InsertFilament> = {};
 
       if (data.name !== undefined) updateData.name = data.name;
@@ -353,13 +365,13 @@ export function registerFilamentRoutes(app: Express): void {
       if (data.printTemp !== undefined) updateData.printTemp = data.printTemp;
 
       // Numeric values stored as strings
-      if (data.diameter !== undefined) updateData.diameter = data.diameter.toString();
-      if (data.totalWeight !== undefined) updateData.totalWeight = data.totalWeight.toString();
-      if (data.remainingPercentage !== undefined) updateData.remainingPercentage = data.remainingPercentage.toString();
+      if (data.diameter !== undefined) updateData.diameter = data.diameter === null ? null : data.diameter.toString();
+      if (data.totalWeight !== undefined) updateData.totalWeight = data.totalWeight;
+      if (data.remainingPercentage !== undefined) updateData.remainingPercentage = data.remainingPercentage;
 
       // Additional fields
       if (data.purchaseDate !== undefined) updateData.purchaseDate = data.purchaseDate;
-      if (data.purchasePrice !== undefined) updateData.purchasePrice = data.purchasePrice.toString();
+      if (data.purchasePrice !== undefined) updateData.purchasePrice = data.purchasePrice;
       if (data.status !== undefined) updateData.status = data.status;
       if (data.spoolType !== undefined) updateData.spoolType = data.spoolType;
       if (data.dryerCount !== undefined) updateData.dryerCount = data.dryerCount;

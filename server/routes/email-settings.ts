@@ -7,6 +7,7 @@ import { logger as appLogger } from "../utils/logger";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { getAppUrl } from "../utils/app-url";
+import { sensitiveActionLimiter } from "../utils/rate-limits";
 
 export function registerEmailSettingsRoutes(app: Express): void {
   // Get current email settings (admin only). Never returns the SMTP password.
@@ -49,7 +50,7 @@ export function registerEmailSettingsRoutes(app: Express): void {
   });
 
   // Send a test email to confirm the configured SMTP settings actually work (admin only).
-  app.post("/api/settings/email/test", authenticate, isAdmin, async (req, res) => {
+  app.post("/api/settings/email/test", authenticate, isAdmin, sensitiveActionLimiter, async (req, res) => {
     try {
       const to = req.body?.to || req.user?.username;
       if (!to || typeof to !== "string" || !to.includes("@")) {

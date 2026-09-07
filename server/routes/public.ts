@@ -3,10 +3,34 @@ import { storage } from "../storage";
 import { logger as appLogger } from "../utils/logger";
 import { validateId } from "../utils/validation";
 import { isOneOfMaterials } from "../utils/materials";
+import { publicReadLimiter } from "../utils/rate-limits";
+import type { Filament } from "@shared/schema";
+
+// What a share shows: the product, not the purchase. The row also carries the
+// price, the purchase date, the storage location, the custom-field values and
+// the notification timestamps, none of which the public page renders - so the
+// owner had no way to know they were public.
+function publicFilament(filament: Filament) {
+  return {
+    id: filament.id,
+    name: filament.name,
+    manufacturer: filament.manufacturer,
+    material: filament.material,
+    colorName: filament.colorName,
+    colorCode: filament.colorCode,
+    diameter: filament.diameter,
+    printTemp: filament.printTemp,
+    remainingPercentage: filament.remainingPercentage,
+  };
+}
+
+// One answer for "no such user" and "shares nothing", so the endpoint cannot be
+// used to list which ids are accounts.
+const NOTHING_SHARED = { message: "No public filaments found" };
 
 export function registerPublicRoutes(app: Express): void {
   // Get public filaments for a specific user by ID
-  app.get("/api/public/filaments/:userId", async (req, res) => {
+  app.get("/api/public/filaments/:userId", publicReadLimiter, async (req, res) => {
     try {
       const userId = validateId(req.params.userId);
       if (userId === null) {
@@ -17,7 +41,7 @@ export function registerPublicRoutes(app: Express): void {
       const user = await storage.getUser(userId);
 
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        return res.status(404).json(NOTHING_SHARED);
       }
 
       // Get user's sharing settings
@@ -25,7 +49,7 @@ export function registerPublicRoutes(app: Express): void {
 
       // Check if user has any public filaments
       if (sharingSettings.length === 0) {
-        return res.status(404).json({ message: "No public filaments found" });
+        return res.status(404).json(NOTHING_SHARED);
       }
 
       // Check if user has global sharing enabled
@@ -51,7 +75,7 @@ export function registerPublicRoutes(app: Express): void {
 
       // Return filaments with user information
       res.json({
-        filaments: publicFilaments,
+        filaments: publicFilaments.map(publicFilament),
         user: {
           id: user.id,
           username: user.username

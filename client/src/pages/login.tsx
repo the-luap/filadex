@@ -48,7 +48,6 @@ export default function LoginPage() {
       });
     },
     onSuccess: (data) => {
-      console.log("Login successful:", data);
       login(data.user);
 
       // Add a small delay to ensure the auth state is updated

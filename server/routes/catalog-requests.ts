@@ -41,9 +41,11 @@ export function registerCatalogRequestRoutes(app: Express): void {
 
       // Validate the payload matches the shape expected for this entity type
       // before it ever reaches an admin's review queue.
-      ENTITY_CONFIG[entityType].schema.parse(payload);
+      // Stored as parsed, so only the fields the entity knows reach the review
+      // queue and the row, not whatever else came with the request.
+      const validatedPayload = ENTITY_CONFIG[entityType].schema.parse(payload);
 
-      const created = await storage.createCatalogRequest(req.userId, entityType, payload);
+      const created = await storage.createCatalogRequest(req.userId, entityType, validatedPayload);
 
       res.status(201).json(created);
     } catch (error) {

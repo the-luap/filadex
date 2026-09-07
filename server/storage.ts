@@ -329,6 +329,8 @@ export interface IStorage {
 
   // Filament operations
   getFilaments(userId: number): Promise<Filament[]>;
+  /** Every user's spools - for deciding whether a Global Catalog row is in use. */
+  getFilamentsOfAllUsers(): Promise<Filament[]>;
   getFilament(id: number, userId: number): Promise<Filament | undefined>;
   createFilament(filament: InsertFilament): Promise<Filament>;
   updateFilament(id: number, filament: Partial<InsertFilament>, userId: number): Promise<Filament | undefined>;
@@ -783,6 +785,11 @@ export class DatabaseStorage implements IStorage {
     return await db.select(FILAMENT_SELECT_COLUMNS).from(filaments)
       .innerJoin(filamentTypes, eq(filaments.filamentTypeId, filamentTypes.id))
       .where(eq(filaments.userId, userId));
+  }
+
+  async getFilamentsOfAllUsers(): Promise<Filament[]> {
+    return await db.select(FILAMENT_SELECT_COLUMNS).from(filaments)
+      .innerJoin(filamentTypes, eq(filaments.filamentTypeId, filamentTypes.id));
   }
 
   async getFilament(id: number, userId: number): Promise<Filament | undefined> {

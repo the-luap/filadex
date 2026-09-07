@@ -212,7 +212,15 @@ export function registerCrudSettingsRoutes<T extends { id: number; userId?: numb
         return res.status(403).json({ message: `Cannot delete a ${entityName} you do not own` });
       }
 
-      const filaments = await storage.getFilaments(req.userId);
+      // A Global Catalog row - every row of a non-scoped entity, and a
+      // materials row nobody owns - is shared by every user, so every user's
+      // spools decide whether it is in use. Checking only the admin's own let
+      // a material other people's spools referenced be deleted, and its
+      // cascade took their per-material sharing rows with it.
+      const isGlobalRow = !userScoped || (item as { userId?: number | null }).userId == null;
+      const filaments = isGlobalRow
+        ? await storage.getFilamentsOfAllUsers()
+        : await storage.getFilaments(req.userId);
       if (filaments.some((f) => isInUse(f, item))) {
         return res.status(400).json({
           message: `Cannot delete ${entityName} that is in use by filaments`,

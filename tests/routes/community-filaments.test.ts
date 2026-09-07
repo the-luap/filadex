@@ -20,6 +20,10 @@ import { db } from "../helpers/db";
 import { communityFilamentCache } from "../../shared/schema";
 import { createApp, loginAs, registerAndVerify, bootstrapAdmin } from "../helpers/app";
 
+// The sync reads the body as text - so it can refuse an oversized one before
+// parsing - and then parses it itself. What a stubbed fetch has to answer with.
+const jsonResponse = (body: unknown) => ({ ok: true, json: async () => body, text: async () => JSON.stringify(body) });
+
 let app: Express;
 let adminCookie: string;
 let userCookie: string;
@@ -137,11 +141,11 @@ describe("refreshCommunityFilamentCache", () => {
       "fetch",
       vi.fn(async (url: string) => {
         if (url.includes("api.github.com")) {
-          return { ok: true, json: async () => ({ tree }) };
+          return jsonResponse(({ tree }));
         }
         const path = Object.keys(vendorFiles).find((p) => url.endsWith(p));
         if (!path) return { ok: false, status: 404, statusText: "Not Found" };
-        return { ok: true, json: async () => vendorFiles[path] };
+        return jsonResponse(vendorFiles[path]);
       }),
     );
   }
@@ -262,6 +266,17 @@ describe("refreshCommunityFilamentCache", () => {
     expect(stored).toHaveLength(1200);
   });
 
+  it("skips a vendor file whose shape is not what SpoolmanDB publishes", async () => {
+    stubSpoolmanDb({
+      "filaments/good.json": { manufacturer: "Good", filaments: [{ name: "Fine", material: "PLA", colors: [{ name: "Black", hex: "000000" }] }] },
+      "filaments/odd.json": { vendor: "Odd", items: "nope" },
+    });
+
+    const count = await refreshCommunityFilamentCache();
+
+    expect(count).toBe(1);
+  });
+
   it("skips a vendor file it cannot fetch, keeping the rest", async () => {
     const tree = [
       { path: "filaments/good.json", type: "blob" },
@@ -270,15 +285,12 @@ describe("refreshCommunityFilamentCache", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
-        if (url.includes("api.github.com")) return { ok: true, json: async () => ({ tree }) };
+        if (url.includes("api.github.com")) return jsonResponse(({ tree }));
         if (url.endsWith("good.json")) {
-          return {
-            ok: true,
-            json: async () => ({
+          return jsonResponse(({
               manufacturer: "Good",
               filaments: [{ name: "Fine", material: "PLA", colors: [{ name: "Black", hex: "000000" }] }],
-            }),
-          };
+            }));
         }
         return { ok: false, status: 404, statusText: "Not Found" };
       }),
@@ -307,14 +319,11 @@ describe("refreshCommunityFilamentCache", () => {
       { path: "filaments", type: "tree" },
     ];
     const fetchMock = vi.fn(async (url: string) => {
-      if (url.includes("api.github.com")) return { ok: true, json: async () => ({ tree }) };
-      return {
-        ok: true,
-        json: async () => ({
+      if (url.includes("api.github.com")) return jsonResponse(({ tree }));
+      return jsonResponse(({
           manufacturer: "Good",
           filaments: [{ name: "Fine", material: "PLA", colors: [{ name: "Black", hex: "000000" }] }],
-        }),
-      };
+        }));
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -411,15 +420,12 @@ describe("POST /api/community-filaments/refresh", () => {
       "fetch",
       vi.fn(async (url: string) => {
         if (url.includes("api.github.com")) {
-          return { ok: true, json: async () => ({ tree: [{ path: "filaments/x.json", type: "blob" }] }) };
+          return jsonResponse(({ tree: [{ path: "filaments/x.json", type: "blob" }] }));
         }
-        return {
-          ok: true,
-          json: async () => ({
+        return jsonResponse(({
             manufacturer: "X",
             filaments: [{ name: "N", material: "PLA", colors: [{ name: "Black", hex: "000000" }] }],
-          }),
-        };
+          }));
       }),
     );
 

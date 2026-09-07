@@ -172,14 +172,14 @@ export function hashApiToken(plaintext: string): string {
 
 // Authenticates requests via an API token instead of the session cookie, for
 // callers that can't hold a browser session (print servers). Accepts the
-// token as `Authorization: Bearer <token>`, `X-Api-Key: <token>`, or
-// `?token=<token>` - print-server HTTP clients vary in which they support.
+// token as `Authorization: Bearer <token>` or `X-Api-Key: <token>`. It used to
+// take `?token=` as well; a token in the URL ends up in proxy access logs and
+// print-server histories, where a header does not.
 export async function requireApiToken(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   const token =
     (authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : undefined) ||
-    (typeof req.headers["x-api-key"] === "string" ? req.headers["x-api-key"] : undefined) ||
-    (typeof req.query.token === "string" ? req.query.token : undefined);
+    (typeof req.headers["x-api-key"] === "string" ? req.headers["x-api-key"] : undefined);
 
   if (!token) {
     return res.status(401).json({ message: "API token required" });
