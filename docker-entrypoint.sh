@@ -1,6 +1,26 @@
 #!/bin/sh
 set -e
 
+# The image runs the server as the unprivileged `node` user. Mounted volumes
+# arrive owned by root, so when started as root take ownership of the data
+# paths first, then re-run this script as `node`. Started as any other user -
+# `docker run --user`, or a compose `user:` line - this block is skipped and
+# the paths are assumed to be writable already.
+if [ "$(id -u)" = "0" ]; then
+  DATA_PATHS="/data ${BACKUP_DIR:-/data/backups}"
+  case "${DATABASE_URL}" in
+    file:*)
+      DB_FILE="${DATABASE_URL#file:}"
+      DATA_PATHS="${DATA_PATHS} $(dirname "${DB_FILE%%\?*}")"
+      ;;
+  esac
+  for p in ${DATA_PATHS}; do
+    mkdir -p "${p}"
+    chown -R node:node "${p}"
+  done
+  exec su-exec node:node "$0" "$@"
+fi
+
 # Decide dialect from DATABASE_URL scheme.
 #
 # The scheme selects which of the two bundles runs, so an unrecognised one must
