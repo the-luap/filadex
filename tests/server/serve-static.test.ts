@@ -6,6 +6,7 @@ import request from "supertest";
 import cookieParser from "cookie-parser";
 import * as resolveLanguageModule from "../../server/utils/resolve-language";
 import { serveStatic } from "../../server/vite";
+import { registerApiNotFound } from "../../server/routes/not-found";
 
 const publicDir = path.resolve(import.meta.dirname, "../../server/public");
 const indexFile = path.resolve(publicDir, "index.html");
@@ -73,6 +74,21 @@ describe("serveStatic", () => {
       .set("Cookie", ["language=pl"])
       .set("If-None-Match", res.headers["etag"]);
     expect(revalidated.status).toBe(304);
+  });
+
+  it("does not serve the shell to an /api path once the API 404 is mounted ahead of it", async () => {
+    const app: Express = express();
+    app.use(cookieParser());
+    registerApiNotFound(app);
+    serveStatic(app);
+
+    const typo = await request(app).get("/api/auth/mee");
+    expect(typo.status).toBe(404);
+    expect(typo.body).toEqual({ message: "Not found" });
+
+    const page = await request(app).get("/some-page");
+    expect(page.status).toBe(200);
+    expect(page.text).toContain("<html lang=");
   });
 
   it("forwards errors to next() when resolveLanguage rejects", async () => {
