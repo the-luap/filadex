@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { LanguageContext, Language, getTranslation, interpolate } from './index';
 import { getInitialClientLanguage, isSupportedLanguage } from './resolve-language';
@@ -22,6 +22,17 @@ interface LanguageProviderProps {
   children: React.ReactNode;
 }
 
+// A language chosen with no account to write it to, held until a session
+// appears so the choice can be pushed to the account instead of being reverted
+// by the stored preference on the very next render.
+//
+// Module scope, not a ref: AuthProvider renders a loading placeholder instead
+// of its children while it re-checks the session, which it does on every route
+// change, so navigating from /login to / unmounts this provider and takes any
+// ref with it. Module scope outlives that and still dies on a real page load —
+// by which point the cookie and the server's stamp carry the choice anyway.
+let pendingAccountLanguage: Language | null = null;
+
 export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(getInitialClientLanguage);
   const { toast } = useToast();
@@ -33,10 +44,6 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   // session cached in this browser.
   const isAnonymousRoute = isPublicRoute(location);
 
-  // A language chosen with no account to write it to. Held so the choice can be
-  // pushed to the account once a session appears, instead of being silently
-  // reverted by the stored preference the very next render.
-  const pendingAccountLanguage = useRef<Language | null>(null);
   
   // Temporary translation function for error messages before language is initialized
   const tempT = (key: string): string => {
@@ -93,9 +100,9 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     //    languages, VITE_DEFAULT_LANGUAGE, then English
 
     if (account?.id) {
-      const pending = pendingAccountLanguage.current;
+      const pending = pendingAccountLanguage;
       if (pending) {
-        pendingAccountLanguage.current = null;
+        pendingAccountLanguage = null;
         if (pending !== account.language) {
           updateLanguageMutation.mutate(pending);
         }
@@ -133,7 +140,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     if (account?.id) {
       updateLanguageMutation.mutate(newLanguage);
     } else {
-      pendingAccountLanguage.current = newLanguage;
+      pendingAccountLanguage = newLanguage;
     }
   };
 

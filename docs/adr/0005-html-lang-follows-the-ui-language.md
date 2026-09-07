@@ -59,10 +59,17 @@ write to: `setLanguage` can only reach `localStorage` and the cookie. The next
 render undid that — `/api/auth/me` returned the account's stored `language`
 (`en` by schema default) and the effect overwrote the fresh choice with it.
 
-`LanguageProvider` holds a choice made with no session in a ref and flushes it
-to `POST /api/users/language` the first time account data appears, so the
-language the visitor picked to read the login form in is the one their new
-session keeps.
+`LanguageProvider` holds a choice made with no session and flushes it to
+`POST /api/users/language` the first time account data appears, so the language
+the visitor picked to read the login form in is the one their new session keeps.
+
+That pending choice lives in module scope rather than a `useRef`. `AuthProvider`
+renders a loading placeholder instead of its children while it re-checks the
+session, and it does so on every route change, so the `/login` → `/` navigation
+unmounts `LanguageProvider` and would take a ref with it. Module scope outlives
+the remount and still resets on a real page load, by which point the cookie and
+the server's stamp carry the choice anyway. `tests/e2e/login-language.spec.ts`
+is what caught this; it fails against a ref.
 
 Conversely, a pick made *on* those screens while some other session is still
 cached in the browser stays device-local: `LanguageProvider` treats every route
@@ -181,3 +188,9 @@ in one file; `authenticate` is left untouched.
   session cookie is present does not inherit that account's language.
 - `tests/utils/email-templates.test.ts` covers every supported language and the
   escaping of user-supplied filament names, entity labels and review notes.
+- `tests/e2e/login-language.spec.ts` drives the real bundle in a browser:
+  choosing Polish on `/login`, signing in as the seeded `alice` (stored
+  `language: "en"`), and asserting both that the account ends up on `pl` and
+  that `<html lang>` survives a reload. The ordering of two React effects against
+  a real session query is not observable in the `renderToString` component tests,
+  which run no effects at all.

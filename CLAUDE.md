@@ -64,4 +64,35 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ---
 
+## 5. Know Which Test Suite Fits
+
+**This project has two. Check both before concluding something is untestable.**
+
+- **`npx vitest run`** — unit and HTTP-level tests (`tests/`), against a real
+  database. `tests/routes/*` mount the real route modules through
+  `tests/helpers/app.ts`. This is the default and the fast one.
+- **`npm run build && npm run test:e2e`** — Playwright (`tests/e2e/`), driving
+  the real bundle in Chromium against a temp-file SQLite database seeded by
+  `scripts/seed.ts --demo`. The build is deliberately not implicit; the config
+  fails loudly if `dist/` is stale. `npx playwright install chromium` once.
+
+Reach for Playwright when the behaviour only exists in a real browser: effect
+ordering and remounts, navigation, cookies and `<html lang>`, browser input
+quirks. `tests/components/*` use `renderToString`, which runs **no effects** —
+a passing component test proves nothing about `useEffect` behaviour, and there
+is no jsdom or `@testing-library` here.
+
+Notes for writing e2e specs:
+- `workers: 1` and one shared database, so specs are not isolated from each
+  other. The materials specs sign in as `admin`; if a spec mutates account
+  state, use a different seeded user (`alice`, `bob`, `carol`) so it does not
+  leak sideways.
+- Sign in through the form (`tests/e2e/helpers.ts`), never by minting a cookie.
+- Anything asserted right after a client-side navigation can be observed
+  mid-transition. `AuthProvider` unmounts its children while it re-checks the
+  session on every route change, so wait for the settled fact (the API's view)
+  before asserting the DOM's.
+
+---
+
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
