@@ -137,7 +137,7 @@ Using File Station, create the following directory structure inside the shared `
   * `backups/` — automated snapshots created by the built-in backup scheduler
 
 ### Permissions Note
-Filadex runs as `root` inside the container (standard in `node:20-alpine` without user remapping). File Station administrators can inspect, copy, or download files from `/docker/filadex/data/` without encountering permission conflicts.
+Filadex runs as the unprivileged `node` user (uid 1000) inside the container. On startup the entrypoint takes ownership of `/data` for that user and then drops root, so the database, its write-ahead log and the backup snapshots under `/docker/filadex/data/` are owned by uid 1000 on the NAS. Snapshots are written with mode `0600`, since each holds every password hash. A File Station administrator can still copy or download them; a non-admin DSM user cannot read them by browsing the share.
 
 ---
 

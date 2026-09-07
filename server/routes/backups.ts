@@ -97,7 +97,7 @@ export function pruneBackups(backupDir: string, retentionCount: number): void {
 export async function createBackupFile(): Promise<{ filename: string; size: number; createdAt: string }> {
   const backupDir = getBackupDir();
   if (!fs.existsSync(backupDir)) {
-    fs.mkdirSync(backupDir, { recursive: true });
+    fs.mkdirSync(backupDir, { recursive: true, mode: 0o700 });
   }
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -105,6 +105,9 @@ export async function createBackupFile(): Promise<{ filename: string; size: numb
   const fullPath = path.join(backupDir, filename);
 
   await storage.createBackup(fullPath);
+  // A snapshot holds every password hash and pending token. On a bind mount it
+  // is otherwise created world-readable on the host.
+  await fs.promises.chmod(fullPath, 0o600);
 
   const stat = fs.statSync(fullPath);
   await storage.updateBackupSettings({ lastBackupAt: new Date() });
