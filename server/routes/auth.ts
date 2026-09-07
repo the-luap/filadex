@@ -13,7 +13,7 @@ import { authenticate, hashPassword, verifyPassword, generateToken } from "../au
 import { storage } from "../storage";
 import { sendMail } from "../utils/mailer";
 import { verificationEmail, passwordResetEmail } from "../utils/email-templates";
-import { resolveLanguage } from "../utils/resolve-language";
+import { resolveAnonymousLanguage } from "../utils/resolve-language";
 import { isSupportedLanguage } from "@shared/languages";
 import { logger as appLogger } from "../utils/logger";
 import { ZodError } from "zod";
@@ -66,7 +66,10 @@ export function registerAuthRoutes(app: Express): void {
 
       const hashedPassword = await hashPassword(password);
       const verificationToken = generateToken32();
-      const lang = await resolveLanguage(req);
+      // Only the cookie and Accept-Language: /register is reachable with a
+      // session already in the browser, and the new account's language must
+      // not be inherited from whoever that `token` cookie belongs to.
+      const lang = resolveAnonymousLanguage(req);
 
       await storage.createUser({
         username,
@@ -149,7 +152,7 @@ export function registerAuthRoutes(app: Express): void {
         );
 
         const verifyUrl = `${baseUrl(req)}/verify-email?token=${verificationToken}`;
-        const lang = isSupportedLanguage(user.language) ? user.language : await resolveLanguage(req);
+        const lang = isSupportedLanguage(user.language) ? user.language : resolveAnonymousLanguage(req);
         await sendMail({ to: email, ...verificationEmail(lang, verifyUrl) });
       }
 
@@ -180,7 +183,7 @@ export function registerAuthRoutes(app: Express): void {
         );
 
         const resetUrl = `${baseUrl(req)}/reset-password?token=${resetToken}`;
-        const lang = isSupportedLanguage(user.language) ? user.language : await resolveLanguage(req);
+        const lang = isSupportedLanguage(user.language) ? user.language : resolveAnonymousLanguage(req);
         await sendMail({ to: email, ...passwordResetEmail(lang, resetUrl) });
       }
 

@@ -10,23 +10,30 @@ import { serveStatic } from "../../server/vite";
 const publicDir = path.resolve(import.meta.dirname, "../../server/public");
 const indexFile = path.resolve(publicDir, "index.html");
 
+// serveStatic resolves its directory relative to the server source, so the
+// fixture has to live at the real build path. Anything already there is a real
+// build: put it back rather than deleting it out from under the developer.
 describe("serveStatic", () => {
   let createdDir = false;
+  let previousIndex: string | null = null;
 
   beforeAll(() => {
     if (!fs.existsSync(publicDir)) {
       fs.mkdirSync(publicDir, { recursive: true });
       createdDir = true;
     }
+    previousIndex = fs.existsSync(indexFile) ? fs.readFileSync(indexFile, "utf-8") : null;
     fs.writeFileSync(indexFile, '<!DOCTYPE html><html lang="en"><body>Test</body></html>');
   });
 
   afterAll(() => {
-    if (fs.existsSync(indexFile)) {
+    if (previousIndex !== null) {
+      fs.writeFileSync(indexFile, previousIndex);
+    } else if (fs.existsSync(indexFile)) {
       fs.unlinkSync(indexFile);
     }
     if (createdDir && fs.existsSync(publicDir)) {
-      fs.rmdirSync(publicDir);
+      fs.rmSync(publicDir, { recursive: true, force: true });
     }
   });
 
@@ -38,6 +45,34 @@ describe("serveStatic", () => {
     const res = await request(app).get("/some-page").set("Cookie", ["language=pl"]);
     expect(res.status).toBe(200);
     expect(res.text).toContain('<html lang="pl">');
+  });
+
+  it("stamps the language on an explicit /index.html request too", async () => {
+    const app: Express = express();
+    app.use(cookieParser());
+    serveStatic(app);
+
+    const res = await request(app).get("/index.html").set("Cookie", ["language=pl"]);
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('<html lang="pl">');
+  });
+
+  it("marks the shell as per-visitor and revalidated, and answers If-None-Match", async () => {
+    const app: Express = express();
+    app.use(cookieParser());
+    serveStatic(app);
+
+    const res = await request(app).get("/some-page").set("Cookie", ["language=pl"]);
+    expect(res.headers["vary"]).toContain("Cookie");
+    expect(res.headers["vary"]).toContain("Accept-Language");
+    expect(res.headers["cache-control"]).toBe("no-cache");
+    expect(res.headers["etag"]).toBeDefined();
+
+    const revalidated = await request(app)
+      .get("/some-page")
+      .set("Cookie", ["language=pl"])
+      .set("If-None-Match", res.headers["etag"]);
+    expect(revalidated.status).toBe(304);
   });
 
   it("forwards errors to next() when resolveLanguage rejects", async () => {

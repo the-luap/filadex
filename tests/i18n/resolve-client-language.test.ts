@@ -39,11 +39,24 @@ describe("resolveClientLanguage", () => {
     expect(lang).toBe("de");
   });
 
-  it("uses browser languages if localStorage and cookie are empty", () => {
+  it("uses the server's <html lang> stamp if localStorage and cookie are empty", () => {
+    // The stamp is the only source that has seen the logged-in user's stored
+    // preference. A fresh profile asking for German must not drag an account
+    // set to Polish over to German — on /public/* routes, where the account is
+    // never fetched, that would be permanent.
+    const lang = resolveClientLanguage({
+      ...noSources,
+      documentLang: "pl",
+      browserLanguages: ["de-DE", "de"],
+      defaultLanguage: "de",
+    });
+    expect(lang).toBe("pl");
+  });
+
+  it("uses browser languages if storage, cookie and the stamp are empty", () => {
     const lang = resolveClientLanguage({
       ...noSources,
       browserLanguages: ["de"],
-      documentLang: "en",
     });
     expect(lang).toBe("de");
   });
@@ -53,16 +66,6 @@ describe("resolveClientLanguage", () => {
       ...noSources,
       browserLanguages: ["fr"],
       defaultLanguage: "pl",
-      documentLang: "en",
-    });
-    expect(lang).toBe("pl");
-  });
-
-  it("uses document.documentElement.lang if storage, cookie, browser and defaultLanguage are empty", () => {
-    const lang = resolveClientLanguage({
-      ...noSources,
-      browserLanguages: ["fr"],
-      documentLang: "pl",
     });
     expect(lang).toBe("pl");
   });
@@ -86,7 +89,6 @@ describe("resolveClientLanguage", () => {
       ...noSources,
       browserLanguages: ["fr-FR", "fr", "de-AT"],
       defaultLanguage: "en",
-      documentLang: "de",
     });
     expect(lang).toBe("de");
   });
@@ -95,7 +97,6 @@ describe("resolveClientLanguage", () => {
     const lang = resolveClientLanguage({
       ...noSources,
       browserLanguages: ["de-DE"],
-      documentLang: "en",
     });
     expect(lang).toBe("de");
   });
@@ -161,6 +162,15 @@ describe("getLanguageCookie", () => {
     vi.stubGlobal("document", { cookie: "fallback_language=de" });
     expect(getLanguageCookie()).toBeNull();
   });
+
+  it("does not throw on a value that is not valid percent-encoding", () => {
+    // This runs inside LanguageProvider's useState initializer and there is no
+    // error boundary in the tree: throwing here blanks every route, /login
+    // included, until the user clears their cookies.
+    vi.stubGlobal("document", { cookie: "language=%E0" });
+    expect(() => getLanguageCookie()).not.toThrow();
+    expect(getLanguageCookie()).toBe("%E0");
+  });
 });
 
 describe("getStorageLanguage", () => {
@@ -170,14 +180,7 @@ describe("getStorageLanguage", () => {
 });
 
 describe("formatSupportedLanguages", () => {
-  it("formats default supported languages", () => {
+  it("formats the supported languages for the validation message", () => {
     expect(formatSupportedLanguages()).toBe("'en', 'de' and 'pl'");
-  });
-
-  it("handles empty, single, pair, and multiple language arrays", () => {
-    expect(formatSupportedLanguages([])).toBe("");
-    expect(formatSupportedLanguages(["en"])).toBe("'en'");
-    expect(formatSupportedLanguages(["en", "de"])).toBe("'en' and 'de'");
-    expect(formatSupportedLanguages(["en", "de", "pl", "fr"])).toBe("'en', 'de', 'pl' and 'fr'");
   });
 });

@@ -162,8 +162,9 @@ LOG_LEVEL=INFO                # Logging level (DEBUG, INFO, WARN, ERROR)
 JWT_SECRET=your_secret_key    # Secret key for JWT token generation
 
 # Localization
-# Build-time fallback for the UI when a visitor has no stored choice, no
-# language cookie, and no supported browser language (en, de, pl).
+# Build-time last resort for the UI language (en, de, pl). Reached only when a
+# visitor has no stored choice, no language cookie, no <html lang> from the
+# server, and no supported browser language - see the note below.
 VITE_DEFAULT_LANGUAGE=en
 
 # Data Initialization
@@ -266,7 +267,17 @@ Filadex supports multiple languages:
    - Submit a pull request to contribute translations
 
 4. **Environment Variables**
-   - `VITE_DEFAULT_LANGUAGE`: UI fallback when a visitor has no stored choice, no language cookie, and no supported browser language (default: "en"). Inlined at build time, so it must be set when the client is built.
+   - `VITE_DEFAULT_LANGUAGE`: last-resort UI language (default: "en"). Inlined at build time, so it must be set when the client is built.
+
+     **This ranks lower than it used to.** The server now resolves the language
+     for the initial HTML and stamps it into `<html lang>`, and the client
+     prefers that stamp - which already accounts for the stored account
+     preference, the `language` cookie and `Accept-Language` - over this
+     build-time value. Before, a build with `VITE_DEFAULT_LANGUAGE=de` showed
+     German to every browser that did not ask for German; now such a browser
+     gets its own language. If you relied on this variable to pin the UI for a
+     deployment, set each account's language instead. Docker images are
+     unaffected: the Dockerfile has never had a build arg for it.
 
 ## 🗺️ Roadmap
 

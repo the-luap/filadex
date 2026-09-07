@@ -2,10 +2,21 @@ import { describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
 import { generateToken } from "../../server/auth";
 import { storage } from "../../server/storage";
-import { resolveLanguage, setHtmlLang } from "../../server/utils/resolve-language";
+import {
+  resolveAnonymousLanguage,
+  resolveLanguage,
+  setHtmlLang,
+} from "../../server/utils/resolve-language";
 
+/** A GET that accepts HTML: the shape that actually gets a stamped shell. */
 function req(overrides: Partial<Request> = {}): Request {
-  return { cookies: {}, headers: {}, ...overrides } as unknown as Request;
+  return {
+    cookies: {},
+    headers: {},
+    method: "GET",
+    accepts: (type: string) => (type === "html" ? "html" : false),
+    ...overrides,
+  } as unknown as Request;
 }
 
 async function createUser(language: string) {
@@ -61,6 +72,59 @@ describe("resolveLanguage", () => {
     const token = generateToken(user.id);
     vi.spyOn(storage, "getUser").mockRejectedValueOnce(new Error("db down"));
     expect(await resolveLanguage(req({ cookies: { token, language: "pl" } }))).toBe("pl");
+  });
+
+  // Both SPA catch-alls run for every method and every unmatched path. Only a
+  // request that will actually be read as an HTML document is worth a JWT
+  // verify plus a full user-row read.
+  it("skips the session lookup for a request that is not a GET", async () => {
+    const user = await createUser("de");
+    const token = generateToken(user.id);
+    const getUser = vi.spyOn(storage, "getUser");
+
+    const r = req({ method: "POST", cookies: { token, language: "pl" } });
+    expect(await resolveLanguage(r)).toBe("pl");
+    expect(getUser).not.toHaveBeenCalled();
+    getUser.mockRestore();
+  });
+
+  it("skips the session lookup for a GET that does not accept HTML", async () => {
+    const user = await createUser("de");
+    const token = generateToken(user.id);
+    const getUser = vi.spyOn(storage, "getUser");
+
+    const r = req({
+      cookies: { token },
+      headers: { "accept-language": "pl" },
+      accepts: () => false,
+    } as unknown as Partial<Request>);
+    expect(await resolveLanguage(r)).toBe("pl");
+    expect(getUser).not.toHaveBeenCalled();
+    getUser.mockRestore();
+  });
+});
+
+describe("resolveAnonymousLanguage", () => {
+  // Registration and the account-recovery mails must not inherit the language
+  // of whichever account still holds the browser's `token` cookie.
+  it("ignores the session even when the token belongs to a real user", async () => {
+    const user = await createUser("de");
+    const token = generateToken(user.id);
+    const getUser = vi.spyOn(storage, "getUser");
+
+    const r = req({ cookies: { token }, headers: { "accept-language": "pl" } });
+    expect(resolveAnonymousLanguage(r)).toBe("pl");
+    expect(getUser).not.toHaveBeenCalled();
+    getUser.mockRestore();
+  });
+
+  it("prefers the language cookie over Accept-Language", () => {
+    const r = req({ cookies: { language: "pl" }, headers: { "accept-language": "de" } });
+    expect(resolveAnonymousLanguage(r)).toBe("pl");
+  });
+
+  it("defaults to English", () => {
+    expect(resolveAnonymousLanguage(req())).toBe("en");
   });
 });
 

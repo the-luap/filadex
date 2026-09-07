@@ -80,6 +80,42 @@ describe("POST /api/auth/register", () => {
     expect(resendMail?.subject).toBe("Potwierdź swój adres e-mail");
   });
 
+  // /register is reachable with a session already in the browser, so the new
+  // account's language must come from the request, not from whoever that
+  // `token` cookie belongs to.
+  it("does not inherit the language of an account that is still signed in", async () => {
+    const german = {
+      username: "gerd",
+      email: "gerd@example.com",
+      password: "some-strong-password-123",
+    };
+    await request(app)
+      .post("/api/auth/register")
+      .set("Cookie", ["language=de"])
+      .send(german)
+      .expect(201);
+    const germanSession = await (async () => {
+      const token = tokenFromMail(lastMailTo(german.email));
+      await request(app).get("/api/auth/verify-email").query({ token }).expect(200);
+      return loginAs(app, german.username, german.password);
+    })();
+
+    mailbox.length = 0;
+    const newcomer = {
+      username: "nowicjusz",
+      email: "nowicjusz@example.com",
+      password: "some-strong-password-123",
+    };
+    await request(app)
+      .post("/api/auth/register")
+      .set("Cookie", [germanSession, "language=pl"])
+      .send(newcomer)
+      .expect(201);
+
+    const mail = lastMailTo(newcomer.email);
+    expect(mail?.subject).toBe("Potwierdź swój adres e-mail");
+  });
+
   it("leaves the new account unable to log in until the email is verified", async () => {
     await request(app).post("/api/auth/register").send(alice).expect(201);
 

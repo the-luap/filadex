@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'wouter';
 import { LanguageContext, Language, getTranslation, interpolate } from './index';
-import { getInitialClientLanguage, resolveClientLanguage, isSupportedLanguage, getLanguageCookie, getStorageLanguage, getBrowserLanguages } from './resolve-language';
+import { getInitialClientLanguage, isSupportedLanguage } from './resolve-language';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 
 // Import language files
@@ -23,6 +25,18 @@ interface LanguageProviderProps {
 export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(getInitialClientLanguage);
   const { toast } = useToast();
+  const [location] = useLocation();
+  const { isPublicRoute } = useAuth();
+
+  // The pre-login screens have no account context: a visitor there is picking
+  // a language to read the form in, not editing whichever account still has a
+  // session cached in this browser.
+  const isAnonymousRoute = isPublicRoute(location);
+
+  // A language chosen with no account to write it to. Held so the choice can be
+  // pushed to the account once a session appears, instead of being silently
+  // reverted by the stored preference the very next render.
+  const pendingAccountLanguage = useRef<Language | null>(null);
   
   // Temporary translation function for error messages before language is initialized
   const tempT = (key: string): string => {
@@ -35,21 +49,19 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     return typeof result === 'string' ? result : key;
   };
 
-  // Check if we're on a public route
-  const isPublicRoute = () => {
-    const path = window.location.pathname;
-    return path.startsWith('/public/');
-  };
-
-  // Fetch user settings from API if available and not on a public route
-  // If this errors (not logged in, etc.), userData stays undefined and the
-  // effect below falls through to localStorage/browser language.
+  // Fetch user settings from API if available and not on an unauthenticated
+  // route. If this errors (not logged in, etc.), userData stays undefined and
+  // the effect below falls through to localStorage/browser language.
   const { data: userData } = useQuery({
     queryKey: ['/api/auth/me'],
     queryFn: () => apiRequest('/api/auth/me'),
     retry: false,
-    enabled: !isPublicRoute(), // Skip this query for public routes
+    enabled: !isAnonymousRoute,
   });
+
+  // A disabled query still hands back whatever it cached earlier, so the route
+  // — not the query — decides whether there is an account in play.
+  const account = isAnonymousRoute ? undefined : userData;
 
   // Update language preference mutation
   const updateLanguageMutation = useMutation({
@@ -73,29 +85,35 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   // Initialize language from various sources
   useEffect(() => {
     // Priority:
-    // 1. User settings from API (if logged in)
-    // 2. localStorage
-    // 3. language cookie
-    // 4. Browser languages (navigator.languages, first supported wins)
-    // 5. Environment variable DEFAULT_LANGUAGE
-    // 6. document.documentElement.lang (server-rendered)
-    // 7. Default to English
+    // 1. A choice made before the session existed, which the account has not
+    //    heard about yet
+    // 2. User settings from API (if logged in)
+    // 3. Everything getInitialClientLanguage() weighs: localStorage, the
+    //    language cookie, the server's <html lang> stamp, the browser
+    //    languages, VITE_DEFAULT_LANGUAGE, then English
 
-    if (userData?.language && isSupportedLanguage(userData.language)) {
-      setLanguageState(userData.language);
-      return;
+    if (account?.id) {
+      const pending = pendingAccountLanguage.current;
+      if (pending) {
+        pendingAccountLanguage.current = null;
+        if (pending !== account.language) {
+          updateLanguageMutation.mutate(pending);
+        }
+        setLanguageState(pending);
+        return;
+      }
+
+      if (isSupportedLanguage(account.language)) {
+        setLanguageState(account.language);
+        return;
+      }
     }
 
-    const resolved = resolveClientLanguage({
-      localStorage: getStorageLanguage(),
-      cookie: getLanguageCookie(),
-      browserLanguages: getBrowserLanguages(),
-      defaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE ?? null,
-      documentLang: typeof document !== 'undefined' ? document.documentElement?.lang ?? null : null,
-    });
-
-    setLanguageState(resolved);
-  }, [userData]);
+    setLanguageState(getInitialClientLanguage());
+    // updateLanguageMutation is recreated every render; only the account data
+    // should retrigger this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account]);
 
   // Keep the <html lang> attribute and the language cookie (read by the server
   // to server-render the correct lang on the next load) in sync with the
@@ -110,9 +128,12 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     setLanguageState(newLanguage);
     localStorage.setItem('language', newLanguage);
 
-    // If user is logged in, update preference in database
-    if (userData?.id) {
+    // If user is logged in, update preference in database. Otherwise remember
+    // it: a language picked on the login screen has to survive logging in.
+    if (account?.id) {
       updateLanguageMutation.mutate(newLanguage);
+    } else {
+      pendingAccountLanguage.current = newLanguage;
     }
   };
 

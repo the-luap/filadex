@@ -25,13 +25,21 @@ The fix has two halves, because neither covers the other's case:
 `LanguageProvider` resolves the active language synchronously at mount via
 `getInitialClientLanguage()` and then in `useEffect` once user settings load,
 following the precedence:
-1. User settings from API (if logged in)
-2. `localStorage` (explicit client-side choice)
-3. `language` cookie
-4. browser languages (`navigator.languages`, first supported entry wins)
-5. `VITE_DEFAULT_LANGUAGE`
-6. `document.documentElement.lang` (server-rendered initial shell)
-7. English fallback (`en`)
+1. a language chosen before the session existed, which the account has not heard
+   about yet (see below)
+2. User settings from API (if logged in)
+3. `localStorage` (explicit client-side choice)
+4. `language` cookie
+5. `document.documentElement.lang` (server-rendered initial shell)
+6. browser languages (`navigator.languages`, first supported entry wins)
+7. `VITE_DEFAULT_LANGUAGE`
+8. English fallback (`en`)
+
+The server's stamp sits above the browser list because it is the only source
+that has seen the logged-in user's stored preference. Ranking it below meant a
+user whose account says `pl`, arriving on a fresh profile whose browser asks for
+`de`, was dragged to German — permanently on `/public/*` routes, where the
+account is never fetched.
 
 It writes the active language to the DOM and cookie:
 
@@ -43,6 +51,23 @@ useEffect(() => {
 ```
 
 This runs on the initial resolved language and on every subsequent switch.
+
+### A language chosen before login is pushed to the account after login
+
+The selector now renders on the pre-login screens, where there is no account to
+write to: `setLanguage` can only reach `localStorage` and the cookie. The next
+render undid that — `/api/auth/me` returned the account's stored `language`
+(`en` by schema default) and the effect overwrote the fresh choice with it.
+
+`LanguageProvider` holds a choice made with no session in a ref and flushes it
+to `POST /api/users/language` the first time account data appears, so the
+language the visitor picked to read the login form in is the one their new
+session keeps.
+
+Conversely, a pick made *on* those screens while some other session is still
+cached in the browser stays device-local: `LanguageProvider` treats every route
+in `PUBLIC_ROUTES` as having no account context, so the selector there never
+rewrites a signed-in user's stored preference.
 
 ### The client writes a `language` cookie for the server to read
 
@@ -63,16 +88,34 @@ the client's order as closely as the server can:
 3. the `Accept-Language` header, first supported tag wins
 4. `en`
 
-and `setHtmlLang(html, lang)`, a single-line regex replace of the one
-`<html lang="…">` tag.
+Step 1 is skipped unless the request is a `GET` that accepts HTML. Both SPA
+catch-alls run for every method and every unmatched path, so without that guard
+a mistyped API path or an asset probe cost a JWT verify plus a full user-row
+read to pick between three two-letter strings.
+
+Steps 2–4 are also exported on their own as `resolveAnonymousLanguage(req)`,
+which is what `POST /api/auth/register` and the account-recovery mails use.
+`/register` is an unguarded route: a user with a session can open it and create
+a second account, and the new account's language must come from the request,
+not from whoever the `token` cookie belongs to.
+
+The module also exposes `setHtmlLang(html, lang)`, a single-line regex replace
+of the one `<html lang="…">` tag.
 
 Both serving paths in `server/vite.ts` apply it:
 
 - **dev**: after `vite.transformIndexHtml`.
 - **prod**: `express.static` is now mounted with `{ index: false }` so a request
-  for `/` falls through to the catch-all instead of being served the raw file;
-  the catch-all holds `index.html` in memory and rewrites the attribute per
-  request, forwarding any unexpected rejection to Express `next(e)`.
+  for `/` falls through to the catch-all instead of being served the raw file.
+  `{ index: false }` only covers directory requests, so `/index.html` is routed
+  to the same handler explicitly. The handler reads `index.html` per request and
+  rewrites the attribute, forwarding any unexpected rejection to `next(e)`.
+
+Both paths send the shell with `Vary: Cookie, Accept-Language` and
+`Cache-Control: no-cache`, via `res.send` so Express still computes an ETag and
+answers `If-None-Match` with a 304. The response now depends on the request's
+cookies and headers; without `Vary`, a proxy or CDN that caches `text/html`
+would serve the first visitor's `lang="pl"` to everyone.
 
 `client/index.html`'s static default changed from `de` to `en` to match
 `LanguageProvider`'s fallback default.
@@ -105,27 +148,36 @@ in one file; `authenticate` is left untouched.
   made the client give up at the first entry and fall to
   `VITE_DEFAULT_LANGUAGE`, disagreeing with the stamp the server had just sent.
 - The logged-in branch adds one `getUser` query per HTML document request when
-  a JWT session token is present. Unauthenticated requests skip the database query
-  and resolve from the `language` cookie or `Accept-Language`.
-- Holding `index.html` in memory from boot-time `readFileSync` means a
-  rebuild-in-place of the client requires a server process restart for the new HTML
-  to take effect.
+  a JWT session token is present. Unauthenticated requests, non-`GET` requests
+  and requests that do not accept HTML skip the database query and resolve from
+  the `language` cookie or `Accept-Language`.
+- `VITE_DEFAULT_LANGUAGE` is now effectively unreachable wherever the app is
+  served by its own server, because the stamp always carries a supported value
+  and outranks it. It still applies if the built client is served by something
+  that does not stamp the tag. This is a behaviour change for self-built
+  deployments that set it — a build with `VITE_DEFAULT_LANGUAGE=de` used to show
+  German to an `en-US` browser and no longer does — and is called out in the
+  README. Docker images never had a build arg for it, so they are unaffected.
 - `DEFAULT_LANGUAGE` is gone from the compose files and the docs. It was never
   read by any server code, and this ADR is why it can't be revived as-is: the
   language of the initial HTML now comes from `resolveLanguage(req)`, and a new
-  user's stored language is whatever that resolved at registration. A
-  server-side default would have to insert itself into that order, ahead of
-  `Accept-Language` but behind the cookie and the stored preference, and it is
-  not clear that an operator-set default should outrank the visitor's own
-  browser. The client keeps the build-time `VITE_DEFAULT_LANGUAGE`, which sits
-  at position 5 and is genuinely reachable.
+  user's stored language is whatever `resolveAnonymousLanguage(req)` resolved at
+  registration. A server-side default would have to insert itself into that
+  order, ahead of `Accept-Language` but behind the cookie, and it is not clear
+  that an operator-set default should outrank the visitor's own browser.
 
 ## Tests
 
 - `tests/utils/resolve-language.test.ts` covers user preference precedence over
   cookies, cookie fallback, `Accept-Language` header parsing, `en` default, and `setHtmlLang`.
 - `tests/i18n/resolve-client-language.test.ts` covers client resolution order:
-  `localStorage` → `cookie` → `browserLanguages` → `defaultLanguage` → `documentLang` → `en`,
-  plus `getBrowserLanguages`, `getLanguageCookie` and `getStorageLanguage` against a stubbed browser global.
-- `tests/server/serve-static.test.ts` covers the production catch-all serving stamped HTML
-  and forwarding errors to `next()` on rejection.
+  `localStorage` → `cookie` → `documentLang` → `browserLanguages` → `defaultLanguage` → `en`,
+  plus `getBrowserLanguages`, `getLanguageCookie` (including a cookie value that
+  is not valid percent-encoding) and `getStorageLanguage` against a stubbed browser global.
+- `tests/server/serve-static.test.ts` covers the production catch-all serving stamped HTML,
+  the explicit `/index.html` path, the cache headers and 304 revalidation, and
+  forwarding errors to `next()` on rejection.
+- `tests/routes/auth.test.ts` pins that registering while another account's
+  session cookie is present does not inherit that account's language.
+- `tests/utils/email-templates.test.ts` covers every supported language and the
+  escaping of user-supplied filament names, entity labels and review notes.

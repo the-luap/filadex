@@ -1,6 +1,5 @@
-import { type Language, SUPPORTED_LANGUAGES, isSupportedLanguage } from "@shared/languages";
-export type { Language };
-export { SUPPORTED_LANGUAGES, isSupportedLanguage };
+import { type Language, isSupportedLanguage } from "@shared/languages";
+export { isSupportedLanguage };
 
 export interface ClientLanguageSources {
   localStorage: string | null;
@@ -14,10 +13,16 @@ export interface ClientLanguageSources {
  * Resolves the client's language according to:
  * 1. localStorage (user's explicit client preference)
  * 2. language cookie (set by client, recognized by server)
- * 3. browser languages (navigator.languages, first supported wins)
- * 4. defaultLanguage (e.g. VITE_DEFAULT_LANGUAGE)
- * 5. document.documentElement.lang (stamped by server via resolveLanguage)
+ * 3. document.documentElement.lang (stamped by the server, which has already
+ *    weighed the stored account preference, the cookie and Accept-Language)
+ * 4. browser languages (navigator.languages, first supported wins)
+ * 5. defaultLanguage (e.g. VITE_DEFAULT_LANGUAGE)
  * 6. 'en' (default fallback)
+ *
+ * The stamp outranks the browser list because it is the only source that can
+ * see the logged-in user's stored preference: a user whose account says `pl`,
+ * on a fresh profile whose browser asks for `de`, must not be dragged to `de`
+ * — on /public/* routes, where the account is never fetched, that would stick.
  */
 export function resolveClientLanguage(sources: ClientLanguageSources): Language {
   if (isSupportedLanguage(sources.localStorage)) {
@@ -26,6 +31,10 @@ export function resolveClientLanguage(sources: ClientLanguageSources): Language 
 
   if (isSupportedLanguage(sources.cookie)) {
     return sources.cookie;
+  }
+
+  if (isSupportedLanguage(sources.documentLang)) {
+    return sources.documentLang;
   }
 
   // Scan the whole ranked list, like the server does with Accept-Language: a
@@ -41,20 +50,22 @@ export function resolveClientLanguage(sources: ClientLanguageSources): Language 
     return sources.defaultLanguage;
   }
 
-  if (isSupportedLanguage(sources.documentLang)) {
-    return sources.documentLang;
-  }
-
   return "en";
 }
 
 /**
  * Reads the `language` cookie in browser context.
+ *
+ * The value is used raw: this cookie only ever holds a bare language code,
+ * written by us and read undecoded by the server. Running decodeURIComponent
+ * over it would throw on a hand-edited value like `language=%E0`, and this
+ * runs in LanguageProvider's useState initializer — with no error boundary in
+ * the tree, that would blank every route, /login included.
  */
 export function getLanguageCookie(): string | null {
   if (typeof document === "undefined") return null;
   const match = document.cookie.match(/(?:^|;\s*)language=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
+  return match ? match[1] : null;
 }
 
 /**
