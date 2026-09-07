@@ -3,13 +3,20 @@ import { Filament } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
+import { format, type Locale } from "date-fns";
 import { de, enUS, pl } from "date-fns/locale";
 import { CalendarIcon, Scan, ScanFace } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "@/i18n";
+import type { Language } from "@shared/languages";
+
+const DATE_LOCALES: Record<Language, Locale> = {
+  en: enUS,
+  de,
+  pl,
+};
 
 // Material types will be created with translations in the component
 const createMaterialTypes = (t: (key: string) => string) => [
@@ -1050,7 +1057,7 @@ export function FilamentModal({
                                 }
                               >
                                 {field.value ? (
-                                  format(field.value, "dd.MM.yyyy", { locale: language === 'de' ? de : language === 'pl' ? pl : enUS })
+                                  format(field.value, "dd.MM.yyyy", { locale: DATE_LOCALES[language] })
                                 ) : (
                                   <span className="dark:text-neutral-400 text-gray-500">{t('common.selectDate')}</span>
                                 )}
@@ -1066,7 +1073,7 @@ export function FilamentModal({
                               disabled={(date) =>
                                 date > new Date() || date < new Date("1900-01-01")
                               }
-                              locale={language === 'de' ? de : language === 'pl' ? pl : enUS}
+                              locale={DATE_LOCALES[language]}
                               initialFocus
                             />
                           </PopoverContent>
@@ -1278,7 +1285,7 @@ export function FilamentModal({
                                 )}
                               >
                                 {field.value ? (
-                                  format(field.value, "dd.MM.yyyy", { locale: language === 'de' ? de : language === 'pl' ? pl : enUS })
+                                  format(field.value, "dd.MM.yyyy", { locale: DATE_LOCALES[language] })
                                 ) : (
                                   <span>{t('common.noDate')}</span>
                                 )}
@@ -1291,7 +1298,7 @@ export function FilamentModal({
                               mode="single"
                               selected={field.value}
                               onSelect={field.onChange}
-                              locale={language === 'de' ? de : language === 'pl' ? pl : enUS}
+                              locale={DATE_LOCALES[language]}
                               initialFocus
                             />
                           </PopoverContent>

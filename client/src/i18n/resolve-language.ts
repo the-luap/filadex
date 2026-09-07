@@ -1,26 +1,22 @@
-import type { Language } from "./index";
-
-export const SUPPORTED_LANGUAGES: readonly Language[] = ["en", "de", "pl"] as const;
-
-export function isSupportedLanguage(lang: unknown): lang is Language {
-  return typeof lang === "string" && (SUPPORTED_LANGUAGES as readonly string[]).includes(lang);
-}
+import { type Language, SUPPORTED_LANGUAGES, isSupportedLanguage } from "@shared/languages";
+export type { Language };
+export { SUPPORTED_LANGUAGES, isSupportedLanguage };
 
 export interface ClientLanguageSources {
   localStorage?: string | null;
   cookie?: string | null;
-  documentLang?: string | null;
   browserLanguage?: string | null;
   defaultLanguage?: string | null;
+  documentLang?: string | null;
 }
 
 /**
  * Resolves the client's language according to:
  * 1. localStorage (user's explicit client preference)
  * 2. language cookie (set by client, recognized by server)
- * 3. document.documentElement.lang (stamped by server via resolveLanguage)
- * 4. browser language (navigator.language)
- * 5. defaultLanguage (e.g. VITE_DEFAULT_LANGUAGE)
+ * 3. browser language (navigator.language)
+ * 4. defaultLanguage (e.g. VITE_DEFAULT_LANGUAGE)
+ * 5. document.documentElement.lang (stamped by server via resolveLanguage)
  * 6. 'en' (default fallback)
  */
 export function resolveClientLanguage(sources: ClientLanguageSources): Language {
@@ -32,10 +28,6 @@ export function resolveClientLanguage(sources: ClientLanguageSources): Language 
     return sources.cookie;
   }
 
-  if (isSupportedLanguage(sources.documentLang)) {
-    return sources.documentLang;
-  }
-
   if (sources.browserLanguage) {
     const code = sources.browserLanguage.split("-")[0].toLowerCase();
     if (isSupportedLanguage(code)) {
@@ -45,6 +37,10 @@ export function resolveClientLanguage(sources: ClientLanguageSources): Language 
 
   if (isSupportedLanguage(sources.defaultLanguage)) {
     return sources.defaultLanguage;
+  }
+
+  if (isSupportedLanguage(sources.documentLang)) {
+    return sources.documentLang;
   }
 
   return "en";
@@ -60,19 +56,24 @@ export function getCookie(name: string): string | null {
 }
 
 /**
+ * Safely reads the language from localStorage.
+ */
+export function getStorageLanguage(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem("language");
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Reads the initial language in browser context synchronously.
  */
 export function getInitialClientLanguage(): Language {
   if (typeof window === "undefined") return "en";
 
-  const storageLang = (() => {
-    try {
-      return localStorage.getItem("language");
-    } catch {
-      return null;
-    }
-  })();
-
+  const storageLang = getStorageLanguage();
   const cookieLang = getCookie("language");
   const docLang = typeof document !== "undefined" ? document.documentElement?.lang : null;
   const browserLang = typeof navigator !== "undefined" ? navigator.language : null;
@@ -83,8 +84,8 @@ export function getInitialClientLanguage(): Language {
   return resolveClientLanguage({
     localStorage: storageLang,
     cookie: cookieLang,
-    documentLang: docLang,
     browserLanguage: browserLang,
     defaultLanguage: envLang,
+    documentLang: docLang,
   });
 }

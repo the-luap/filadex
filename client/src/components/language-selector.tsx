@@ -8,6 +8,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import type { Language } from "@shared/languages";
+
+const LANGUAGE_OPTIONS: { code: Language; label: string }[] = [
+  { code: 'en', label: 'English' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'pl', label: 'Polski' },
+];
 
 export interface LanguageSelectorProps {
   className?: string;
@@ -41,37 +48,31 @@ export function LanguageSelector({ className, showLabel = false }: LanguageSelec
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[140px]">
-        <DropdownMenuItem 
-          onClick={() => setLanguage('en')}
-          className={cn(
-            "min-h-[44px] sm:min-h-0 py-2.5 px-3 flex items-center justify-between cursor-pointer",
-            language === 'en' && 'bg-accent font-medium'
-          )}
-        >
-          <span>English</span>
-          {language === 'en' && <Check className="h-4 w-4 ml-2 shrink-0" />}
-        </DropdownMenuItem>
-        <DropdownMenuItem 
-          onClick={() => setLanguage('de')}
-          className={cn(
-            "min-h-[44px] sm:min-h-0 py-2.5 px-3 flex items-center justify-between cursor-pointer",
-            language === 'de' && 'bg-accent font-medium'
-          )}
-        >
-          <span>Deutsch</span>
-          {language === 'de' && <Check className="h-4 w-4 ml-2 shrink-0" />}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setLanguage('pl')}
-          className={cn(
-            "min-h-[44px] sm:min-h-0 py-2.5 px-3 flex items-center justify-between cursor-pointer",
-            language === 'pl' && 'bg-accent font-medium'
-          )}
-        >
-          <span>Polski</span>
-          {language === 'pl' && <Check className="h-4 w-4 ml-2 shrink-0" />}
-        </DropdownMenuItem>
+        {LANGUAGE_OPTIONS.map(({ code, label }) => (
+          <DropdownMenuItem
+            key={code}
+            onClick={() => setLanguage(code)}
+            className={cn(
+              "min-h-[44px] sm:min-h-0 py-2.5 px-3 flex items-center justify-between cursor-pointer",
+              language === code && 'bg-accent font-medium'
+            )}
+          >
+            <span>{label}</span>
+            {language === code && <Check className="h-4 w-4 ml-2 shrink-0" />}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+export function AuthLanguageSelector() {
+  return (
+    <div className="absolute right-2 top-2 sm:right-3 sm:top-3">
+      <LanguageSelector
+        showLabel
+        className="text-white hover:bg-white/20 hover:text-white active:bg-white/30 focus-visible:ring-2 focus-visible:ring-white/50"
+      />
+    </div>
   );
 }

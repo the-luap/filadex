@@ -49,6 +49,7 @@ export type NewUser = {
   forceChangePassword: boolean;
   emailVerificationToken?: string | null;
   emailVerificationExpires?: Date | null;
+  language?: string | null;
 };
 
 /** The columns the admin user list exposes - notably not the password hash. */

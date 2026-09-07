@@ -1,25 +1,37 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
-
-const verifyToken = vi.fn();
-const getUser = vi.fn();
-
-vi.mock("../../server/auth", () => ({ verifyToken: (t: unknown) => verifyToken(t) }));
-vi.mock("../../server/storage", () => ({ storage: { getUser: (id: unknown) => getUser(id) } }));
-
+import { generateToken } from "../../server/auth";
+import { storage } from "../../server/storage";
 import { resolveLanguage, setHtmlLang } from "../../server/utils/resolve-language";
 
 function req(overrides: Partial<Request> = {}): Request {
   return { cookies: {}, headers: {}, ...overrides } as unknown as Request;
 }
 
-beforeEach(() => {
-  verifyToken.mockReset().mockReturnValue(null);
-  getUser.mockReset();
-});
+async function createUser(language: string) {
+  return await storage.createUser({
+    username: `user-${Math.random().toString(36).slice(2, 8)}`,
+    password: "hashedpassword",
+    email: `${Math.random().toString(36).slice(2, 8)}@example.com`,
+    role: "user",
+    isAdmin: false,
+    emailVerified: true,
+    forceChangePassword: false,
+    language,
+  });
+}
 
 describe("resolveLanguage", () => {
-  it("prefers a supported language cookie", async () => {
+  it("prefers the logged-in user's stored preference over a cookie", async () => {
+    const user = await createUser("de");
+    const token = generateToken(user.id);
+    const r = req({
+      cookies: { token, language: "pl" },
+    });
+    expect(await resolveLanguage(r)).toBe("de");
+  });
+
+  it("prefers a supported language cookie when there is no authenticated user", async () => {
     expect(await resolveLanguage(req({ cookies: { language: "pl" } }))).toBe("pl");
   });
 
@@ -28,10 +40,11 @@ describe("resolveLanguage", () => {
     expect(await resolveLanguage(r)).toBe("de");
   });
 
-  it("falls back to the logged-in user's stored preference", async () => {
-    verifyToken.mockReturnValue(7);
-    getUser.mockResolvedValue({ language: "de" });
-    expect(await resolveLanguage(req({ cookies: { token: "jwt" } }))).toBe("de");
+  it("falls back to cookie if the user has an unsupported language stored", async () => {
+    const user = await createUser("fr");
+    const token = generateToken(user.id);
+    const r = req({ cookies: { token, language: "pl" } });
+    expect(await resolveLanguage(r)).toBe("pl");
   });
 
   it("uses Accept-Language when there is no cookie or user preference", async () => {
@@ -44,9 +57,10 @@ describe("resolveLanguage", () => {
   });
 
   it("does not fail if the user lookup throws", async () => {
-    verifyToken.mockReturnValue(7);
-    getUser.mockRejectedValue(new Error("db down"));
-    expect(await resolveLanguage(req({ cookies: { token: "jwt" } }))).toBe("en");
+    const user = await createUser("de");
+    const token = generateToken(user.id);
+    vi.spyOn(storage, "getUser").mockRejectedValueOnce(new Error("db down"));
+    expect(await resolveLanguage(req({ cookies: { token, language: "pl" } }))).toBe("pl");
   });
 });
 

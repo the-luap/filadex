@@ -1,4 +1,6 @@
-type Language = "en" | "de" | "pl";
+import type { Language } from "@shared/languages";
+
+export type { Language };
 
 interface EmailTemplate {
   subject: string;
@@ -155,8 +157,8 @@ export function catalogRequestReviewedEmail(
       subject: approved ? "Twój wniosek został zatwierdzony" : "Twój wniosek został odrzucony",
       html: wrapper(
         approved
-          ? `<p>Twój wniosek dotyczący „${entityLabel}" został zatwierdzony i jest już dostępny.</p>`
-          : `<p>Twój wniosek dotyczący „${entityLabel}" został niestety odrzucony.</p>${reviewNote ? `<p>Uwaga: ${reviewNote}</p>` : ""}`
+          ? `<p>Twój wniosek dotyczący "${entityLabel}" został zatwierdzony i jest już dostępny.</p>`
+          : `<p>Twój wniosek dotyczący "${entityLabel}" został niestety odrzucony.</p>${reviewNote ? `<p>Uwaga: ${reviewNote}</p>` : ""}`
       ),
     };
   }

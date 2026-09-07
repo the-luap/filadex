@@ -48,6 +48,36 @@ describe("POST /api/auth/register", () => {
     const mail = lastMailTo(alice.email);
     expect(mail).toBeDefined();
     expect(tokenFromMail(mail)).toMatch(/^[0-9a-f]{64}$/);
+    expect(mail?.subject).toBe("Verify your email address");
+  });
+
+  it("emails the verification link in the language chosen during registration", async () => {
+    const polishUser = {
+      username: "pawel",
+      email: "pawel@example.com",
+      password: "some-strong-password-123",
+    };
+    await request(app)
+      .post("/api/auth/register")
+      .set("Cookie", ["language=pl"])
+      .send(polishUser)
+      .expect(201);
+
+    const mail = lastMailTo(polishUser.email);
+    expect(mail).toBeDefined();
+    expect(mail?.subject).toBe("Potwierdź swój adres e-mail");
+    expect(mail?.html).toContain("Witamy w Filadex!");
+
+    // Resend also respects the user's stored language
+    mailbox.length = 0;
+    await request(app)
+      .post("/api/auth/resend-verification")
+      .send({ email: polishUser.email })
+      .expect(200);
+
+    const resendMail = lastMailTo(polishUser.email);
+    expect(resendMail).toBeDefined();
+    expect(resendMail?.subject).toBe("Potwierdź swój adres e-mail");
   });
 
   it("leaves the new account unable to log in until the email is verified", async () => {

@@ -88,9 +88,13 @@ export function serveStatic(app: Express) {
   const indexHtml = fs.readFileSync(path.resolve(distPath, "index.html"), "utf-8");
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", async (req, res) => {
-    res.status(200).set({ "Content-Type": "text/html" }).end(
-      setHtmlLang(indexHtml, await resolveLanguage(req)),
-    );
+  app.use("*", async (req, res, next) => {
+    try {
+      res.status(200).set({ "Content-Type": "text/html" }).end(
+        setHtmlLang(indexHtml, await resolveLanguage(req)),
+      );
+    } catch (e) {
+      next(e);
+    }
   });
 }

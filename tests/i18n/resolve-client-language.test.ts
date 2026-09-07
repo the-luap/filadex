@@ -22,33 +22,34 @@ describe("resolveClientLanguage", () => {
     expect(lang).toBe("de");
   });
 
-  it("uses document.documentElement.lang if localStorage and cookie are empty", () => {
+  it("uses browserLanguage if localStorage and cookie are empty", () => {
     const lang = resolveClientLanguage({
       localStorage: null,
       cookie: null,
-      documentLang: "pl",
-      browserLanguage: "en",
-    });
-    expect(lang).toBe("pl");
-  });
-
-  it("uses browserLanguage if storage, cookie, and docLang are empty", () => {
-    const lang = resolveClientLanguage({
-      localStorage: null,
-      cookie: null,
-      documentLang: null,
       browserLanguage: "de",
+      documentLang: "en",
     });
     expect(lang).toBe("de");
   });
 
-  it("uses defaultLanguage if provided when other sources are empty", () => {
+  it("uses defaultLanguage if browserLanguage is unsupported or empty", () => {
     const lang = resolveClientLanguage({
       localStorage: null,
       cookie: null,
-      documentLang: null,
-      browserLanguage: null,
+      browserLanguage: "fr",
       defaultLanguage: "pl",
+      documentLang: "en",
+    });
+    expect(lang).toBe("pl");
+  });
+
+  it("uses document.documentElement.lang if storage, cookie, browser and defaultLanguage are empty", () => {
+    const lang = resolveClientLanguage({
+      localStorage: null,
+      cookie: null,
+      browserLanguage: "fr",
+      defaultLanguage: null,
+      documentLang: "pl",
     });
     expect(lang).toBe("pl");
   });
@@ -57,8 +58,8 @@ describe("resolveClientLanguage", () => {
     const lang = resolveClientLanguage({
       localStorage: "fr",
       cookie: "es",
-      documentLang: "it",
       browserLanguage: "ja",
+      documentLang: "it",
     });
     expect(lang).toBe("en");
   });
@@ -67,5 +68,10 @@ describe("resolveClientLanguage", () => {
     const { getCookie } = await import("../../client/src/i18n/resolve-language");
     // in Node environment without document
     expect(getCookie("language")).toBeNull();
+  });
+
+  it("safely handles getStorageLanguage when window/localStorage is missing", async () => {
+    const { getStorageLanguage } = await import("../../client/src/i18n/resolve-language");
+    expect(getStorageLanguage()).toBeNull();
   });
 });

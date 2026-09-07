@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { type User, adminCreateUserSchema, adminUpdateUserSchema, usernameSchema } from "../../shared/schema";
+import { isSupportedLanguage } from "@shared/languages";
 import { authenticate, isAdmin, hashPassword } from "../auth";
 import { storage, type UserChanges, type UserPreferences } from "../storage";
 import { logger as appLogger } from "../utils/logger";
@@ -25,7 +26,7 @@ export function registerUserRoutes(app: Express): void {
       const { language } = req.body;
 
       // Validate language
-      if (language !== 'en' && language !== 'de' && language !== 'pl') {
+      if (!isSupportedLanguage(language)) {
         return res.status(400).json({ message: "Invalid language. Supported languages are 'en', 'de' and 'pl'." });
       }
 

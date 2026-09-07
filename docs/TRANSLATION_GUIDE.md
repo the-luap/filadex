@@ -70,34 +70,63 @@ The translation files follow a nested object structure where keys are organized 
 
 ## Adding a New Language
 
-To add a new language:
+To add a new language, every touchpoint in the application must be updated:
 
-1. Copy the English translation file (`en.ts`) to a new file named with your language code (e.g., `fr.ts` for French).
+1. **Add to supported languages**:
+   In `shared/languages.ts`, add the language code to `SUPPORTED_LANGUAGES`:
+   ```typescript
+   export const SUPPORTED_LANGUAGES = ["en", "de", "pl", "fr"] as const;
+   ```
 
-2. Translate all the values in the file, keeping the keys and structure exactly the same.
+2. **Create translation file**:
+   Copy `client/src/i18n/locales/en.ts` to `client/src/i18n/locales/[code].ts` (e.g., `fr.ts`).
+   Translate all values, preserving all keys and placeholder tokens (e.g. `{{count}}`).
 
-3. Add your language to the language list in `client/src/i18n/index.ts`:
+3. **Register translations in LanguageProvider**:
+   In `client/src/i18n/LanguageProvider.tsx`, import your translation file and add it to the `translations` object:
+   ```typescript
+   import frTranslations from './locales/fr';
 
-```typescript
-// Add your language import
-import frTranslations from './locales/fr';
+   const translations = {
+     en: enTranslations,
+     de: deTranslations,
+     pl: plTranslations,
+     fr: frTranslations,
+   };
+   ```
 
-// Add to the resources object
-const resources = {
-  en: {
-    translation: enTranslations
-  },
-  de: {
-    translation: deTranslations
-  },
-  fr: {
-    translation: frTranslations
-  }
-  // Add more languages here
-};
-```
+4. **Add to language selector**:
+   In `client/src/components/language-selector.tsx`, add the option to `LANGUAGE_OPTIONS`:
+   ```typescript
+   const LANGUAGE_OPTIONS: { code: Language; label: string }[] = [
+     { code: 'en', label: 'English' },
+     { code: 'de', label: 'Deutsch' },
+     { code: 'pl', label: 'Polski' },
+     { code: 'fr', label: 'Français' },
+   ];
+   ```
 
-4. Add your language to the language options in the settings component.
+5. **Register date-fns locale**:
+   In `client/src/components/filament-modal.tsx`, import the locale from `date-fns/locale` and add to `DATE_LOCALES`:
+   ```typescript
+   import { de, enUS, pl, fr } from "date-fns/locale";
+
+   const DATE_LOCALES: Record<Language, Locale> = {
+     en: enUS,
+     de,
+     pl,
+     fr,
+   };
+   ```
+
+6. **Add email templates**:
+   In `server/utils/email-templates.ts`, add localized branches for the new language in `verificationEmail`, `passwordResetEmail`, `catalogRequestReviewedEmail`, `lowStockEmail`, and `dryingReminderEmail`.
+
+7. **Verify parity with tests**:
+   Run the locale parity test suite:
+   ```bash
+   npx vitest run tests/i18n/locale-parity.test.ts
+   ```
 
 ## Translation Guidelines
 

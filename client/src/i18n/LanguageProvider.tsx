@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LanguageContext, Language, getTranslation, interpolate } from './index';
-import { getInitialClientLanguage, resolveClientLanguage, isSupportedLanguage, getCookie } from './resolve-language';
+import { getInitialClientLanguage, resolveClientLanguage, isSupportedLanguage, getCookie, getStorageLanguage } from './resolve-language';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -76,9 +76,9 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     // 1. User settings from API (if logged in)
     // 2. localStorage
     // 3. language cookie
-    // 4. document.documentElement.lang (server-rendered in commit 9b8abeb)
-    // 5. Browser language
-    // 6. Environment variable DEFAULT_LANGUAGE
+    // 4. Browser language
+    // 5. Environment variable DEFAULT_LANGUAGE
+    // 6. document.documentElement.lang (server-rendered)
     // 7. Default to English
 
     if (userData?.language && isSupportedLanguage(userData.language)) {
@@ -87,17 +87,11 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     }
 
     const resolved = resolveClientLanguage({
-      localStorage: (() => {
-        try {
-          return localStorage.getItem('language');
-        } catch {
-          return null;
-        }
-      })(),
+      localStorage: getStorageLanguage(),
       cookie: getCookie('language'),
-      documentLang: typeof document !== 'undefined' ? document.documentElement?.lang : null,
       browserLanguage: typeof navigator !== 'undefined' ? navigator.language : null,
       defaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE,
+      documentLang: typeof document !== 'undefined' ? document.documentElement?.lang : null,
     });
 
     setLanguageState(resolved);

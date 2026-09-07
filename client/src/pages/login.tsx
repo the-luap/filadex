@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/components/ui/use-toast";
 import { Logo } from "@/components/logo";
-import { LanguageSelector } from "@/components/language-selector";
+import { AuthLanguageSelector } from "@/components/language-selector";
 
 // Create a function to generate the schema with translations
 const createLoginSchema = (t: (key: string) => string) => z.object({
@@ -90,12 +90,7 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
       <Card className="w-full max-w-[350px]">
         <CardHeader className="relative text-center bg-primary dark:bg-primary text-white rounded-t-lg">
-          <div className="absolute right-2 top-2 sm:right-3 sm:top-3">
-            <LanguageSelector
-              showLabel
-              className="text-white hover:bg-white/20 hover:text-white active:bg-white/30 focus-visible:ring-2 focus-visible:ring-white/50"
-            />
-          </div>
+          <AuthLanguageSelector />
           <div className="flex flex-col items-center">
             <Logo size={60} color="white" />
             <CardTitle className="mt-2">Filadex</CardTitle>

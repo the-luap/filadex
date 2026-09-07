@@ -1,8 +1,8 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { LanguageContext } from "../../client/src/i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { LanguageContext } from "../../client/src/i18n";
 
 // Mock wouter
 vi.mock("wouter", () => ({

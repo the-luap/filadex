@@ -1,7 +1,8 @@
 import { createContext, useContext } from 'react';
 
-// Define available languages
-export type Language = 'en' | 'de' | 'pl';
+import type { Language } from '@shared/languages';
+export type { Language };
+export { SUPPORTED_LANGUAGES, isSupportedLanguage } from '@shared/languages';
 
 // Define the structure of our translations
 export interface Translations {
