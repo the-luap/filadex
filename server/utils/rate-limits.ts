@@ -1,0 +1,34 @@
+import rateLimit from "express-rate-limit";
+
+// Per-IP limiters, shared by the routes that need them. All key on req.ip,
+// which is the proxy's address unless TRUST_PROXY is set - see server/index.ts.
+
+// Public, enumeration-sensitive endpoints: register, forgot-password,
+// resend-verification, check-username.
+export const publicAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests, please try again later" },
+});
+
+// Anything that verifies a password: login, and change-password, which with a
+// stolen session would otherwise be an unthrottled oracle for the current one.
+export const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many login attempts, please try again later" },
+});
+
+// Authenticated actions that mint credentials or do expensive work per call:
+// API token creation, backups, cache refresh, test mail.
+export const sensitiveActionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests, please try again later" },
+});

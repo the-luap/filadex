@@ -1,5 +1,16 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// The server refuses every route but change-password to an account whose
+// password must still be changed, and says so with this code. Send the user
+// there rather than surface a wall of failed requests.
+export function redirectIfPasswordChangeRequired(status: number, body: unknown): void {
+  if (status !== 403 || typeof body !== "object" || body === null) return;
+  if ((body as { code?: string }).code !== "PASSWORD_CHANGE_REQUIRED") return;
+  if (typeof window !== "undefined" && window.location.pathname !== "/change-password") {
+    window.location.assign("/change-password");
+  }
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     try {
@@ -7,6 +18,7 @@ async function throwIfResNotOk(res: Response) {
       // Try to parse the response as JSON
       try {
         const jsonData = JSON.parse(textResponse);
+        redirectIfPasswordChangeRequired(res.status, jsonData);
         // If 'message' or 'detail' is present, return it
         if (jsonData.message || jsonData.detail) {
           // Add status code to the error object for better error handling

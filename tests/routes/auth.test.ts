@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
 import { registerAuthRoutes } from "../../server/routes/auth";
-import { hashPassword } from "../../server/auth";
+import { hashPassword, hashSecretToken } from "../../server/auth";
 import { storage } from "../../server/storage";
 import { createApp, loginAs, registerAndVerify } from "../helpers/app";
 import { lastMailTo, mailbox, tokenFromMail } from "../helpers/mailbox";
@@ -138,15 +138,68 @@ describe("POST /api/auth/register", () => {
     expect(response.body.message).toBe("Username already exists");
   });
 
-  it("rejects an email that already exists, ignoring case", async () => {
-    await request(app).post("/api/auth/register").send(alice).expect(201);
+  it("answers the same way for an email that already has a verified account, and creates nothing", async () => {
+    await registerAndVerify(app, alice);
+    mailbox.length = 0;
 
     const response = await request(app)
       .post("/api/auth/register")
       .send({ ...alice, username: "someone-else", email: "ALICE@EXAMPLE.COM" });
 
-    expect(response.status).toBe(400);
-    expect(response.body.message).toBe("An account with this email already exists");
+    // Saying "already exists" here told anyone which addresses have accounts;
+    // forgot-password and resend-verification never did.
+    expect(response.status).toBe(201);
+    expect(response.body.message).toBe("Account created. Please check your email to verify your account.");
+    expect(await storage.getUserByUsername("someone-else")).toBeUndefined();
+    expect(mailbox).toEqual([]);
+  });
+
+  it("lets a new registration replace an unverified claim on the same email", async () => {
+    // Someone registers with an address they do not control...
+    await request(app).post("/api/auth/register").send({ ...alice, username: "squatter" }).expect(201);
+
+    // ...and the address's owner registers later. They, not the squatter, get
+    // the verification mail, and the squatter's row is gone.
+    await request(app).post("/api/auth/register").send(alice).expect(201);
+    const token = tokenFromMail(lastMailTo(alice.email));
+    await request(app).get("/api/auth/verify-email").query({ token }).expect(200);
+
+    expect(await storage.getUserByUsername("squatter")).toBeUndefined();
+    await expect(loginAs(app, alice.username, alice.password)).resolves.toBeTruthy();
+  });
+
+  it("stores the verification token hashed, so the row does not hold the link", async () => {
+    await request(app).post("/api/auth/register").send(alice).expect(201);
+    const token = tokenFromMail(lastMailTo(alice.email))!;
+
+    const row = await storage.getUserByUsername(alice.username);
+    expect(row?.emailVerificationToken).not.toBe(token);
+    expect(row?.emailVerificationToken).toBe(hashSecretToken(token));
+  });
+
+  it("builds the emailed link from APP_URL, not from the request's Host header", async () => {
+    await request(app)
+      .post("/api/auth/register")
+      .set("Host", "evil.example")
+      .set("X-Forwarded-Host", "evil.example")
+      .send(alice)
+      .expect(201);
+
+    const link = lastMailTo(alice.email)?.html.match(/https?:\/\/[^"'\s]+/)?.[0];
+    expect(link).toMatch(/^http:\/\/filadex\.test\/verify-email\?token=/);
+  });
+
+  it("sends no mail at all when APP_URL is unset, rather than guessing an origin", async () => {
+    vi.stubEnv("APP_URL", "");
+    try {
+      await request(app).post("/api/auth/register").send(alice).expect(201);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    expect(mailbox).toEqual([]);
+    // The account exists; a resend once APP_URL is set will deliver the link.
+    expect(await storage.getUserByUsername(alice.username)).toBeDefined();
   });
 
   it("stores the username with the capitalisation it was given", async () => {
@@ -540,6 +593,97 @@ describe("POST /api/auth/reset-password", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.message).toBe(message);
+  });
+});
+
+describe("the reset token at rest", () => {
+  it("is stored hashed, and still completes the reset", async () => {
+    await registerAndVerify(app, alice);
+    await request(app).post("/api/auth/forgot-password").send({ email: alice.email }).expect(200);
+    const token = tokenFromMail(lastMailTo(alice.email))!;
+
+    const row = await storage.getUserByUsername(alice.username);
+    expect(row?.passwordResetToken).toBe(hashSecretToken(token));
+
+    await request(app).post("/api/auth/reset-password").send({ token, newPassword: "after-reset-pw" }).expect(200);
+    await expect(loginAs(app, alice.username, "after-reset-pw")).resolves.toBeTruthy();
+  });
+
+  it("is never shown to the account itself", async () => {
+    const cookie = await registerAndVerify(app, alice);
+    await request(app).post("/api/auth/forgot-password").send({ email: alice.email }).expect(200);
+
+    // With the token in /me, a stolen session could request a reset, read the
+    // token back and set a new password without knowing the current one.
+    const me = await request(app).get("/api/auth/me").set("Cookie", cookie);
+    expect(me.body).not.toHaveProperty("passwordResetToken");
+    expect(me.body).not.toHaveProperty("passwordResetExpires");
+    expect(me.body).not.toHaveProperty("emailVerificationToken");
+    expect(me.body).not.toHaveProperty("usernameFolded");
+
+    const login = await request(app).post("/api/auth/login").send({ username: alice.username, password: alice.password });
+    expect(login.body.user).not.toHaveProperty("passwordResetToken");
+    expect(login.body.user).not.toHaveProperty("emailVerificationToken");
+  });
+
+  it("is retired when the password is changed the ordinary way", async () => {
+    const cookie = await registerAndVerify(app, alice);
+    await request(app).post("/api/auth/forgot-password").send({ email: alice.email }).expect(200);
+    const token = tokenFromMail(lastMailTo(alice.email))!;
+
+    await request(app)
+      .post("/api/auth/change-password")
+      .set("Cookie", cookie)
+      .send({ currentPassword: alice.password, newPassword: "changed-by-hand" })
+      .expect(200);
+
+    const response = await request(app).post("/api/auth/reset-password").send({ token, newPassword: "via-old-link" });
+    expect(response.status).toBe(400);
+  });
+});
+
+describe("a session issued before the password was set", () => {
+  async function twoSecondsLater(body: () => Promise<void>) {
+    // The token's iat is in whole seconds; moving the clock on makes "before"
+    // unambiguous, the way it is for any real reset.
+    await atTime(new Date(Date.now() + 2_000), body);
+  }
+
+  it("is refused after a reset through the emailed link", async () => {
+    const cookie = await registerAndVerify(app, alice);
+    await request(app).post("/api/auth/forgot-password").send({ email: alice.email }).expect(200);
+    const token = tokenFromMail(lastMailTo(alice.email))!;
+
+    await twoSecondsLater(async () => {
+      await request(app).post("/api/auth/reset-password").send({ token, newPassword: "after-reset-pw" }).expect(200);
+
+      const response = await request(app).get("/api/auth/me").set("Cookie", cookie);
+      expect(response.status).toBe(401);
+      expect(response.body.message).toBe("Session expired because the password was changed");
+
+      // The login that follows the reset gets a fresh session.
+      const fresh = await loginAs(app, alice.username, "after-reset-pw");
+      await request(app).get("/api/auth/me").set("Cookie", fresh).expect(200);
+    });
+  });
+
+  it("is refused after the user changes it themselves, while the changing session gets a fresh cookie", async () => {
+    const stolen = await registerAndVerify(app, alice);
+    const own = await loginAs(app, alice.username, alice.password);
+
+    await twoSecondsLater(async () => {
+      const changed = await request(app)
+        .post("/api/auth/change-password")
+        .set("Cookie", own)
+        .send({ currentPassword: alice.password, newPassword: "locked-out-now" }) // ggignore: throwaway test credential
+        .expect(200);
+
+      await request(app).get("/api/auth/me").set("Cookie", stolen).expect(401);
+      // The old cookie of the changing session is just as dead...
+      await request(app).get("/api/auth/me").set("Cookie", own).expect(401);
+      // ...but the response carried a replacement.
+      await request(app).get("/api/auth/me").set("Cookie", changed.headers["set-cookie"][0]).expect(200);
+    });
   });
 });
 

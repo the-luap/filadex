@@ -344,6 +344,7 @@ const translations = {
       smtpUser: 'Nazwa użytkownika SMTP',
       smtpPassword: 'Hasło SMTP',
       passwordUnchanged: 'Pozostaw puste, aby zachować bieżące hasło',
+      appUrlMissing: 'APP_URL nie jest ustawiony na serwerze, więc e-maile weryfikacyjne i resetujące hasło nie są wysyłane. Ustaw go na adres, pod którym użytkownicy otwierają Filadex, na przykład https://filadex.example.com.',
       smtpSecure: 'Użyj TLS',
       fromEmail: 'Adres nadawcy',
       fromName: 'Nazwa nadawcy',

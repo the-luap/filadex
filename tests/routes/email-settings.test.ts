@@ -10,10 +10,9 @@ import request from "supertest";
 import type { Express } from "express";
 import { registerAuthRoutes } from "../../server/routes/auth";
 import { registerEmailSettingsRoutes } from "../../server/routes/email-settings";
-import { initializeAdminUser } from "../../server/auth";
 import { db } from "../helpers/db";
 import { emailSettings } from "../../shared/schema";
-import { createApp, loginAs, registerAndVerify } from "../helpers/app";
+import { createApp, loginAs, registerAndVerify, bootstrapAdmin } from "../helpers/app";
 
 // This route reads the settings through the mailer, which tests/setup.ts
 // replaces wholesale. Keep the real getEmailSettings - it is part of what is
@@ -36,7 +35,7 @@ let userCookie: string;
 
 beforeEach(async () => {
   app = createApp(registerAuthRoutes, registerEmailSettingsRoutes);
-  await initializeAdminUser();
+  await bootstrapAdmin();
   adminCookie = await loginAs(app, "admin", "admin");
   userCookie = await registerAndVerify(app, {
     username: "alice",

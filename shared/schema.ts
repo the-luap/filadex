@@ -18,6 +18,10 @@ export const users = table("users", {
   passwordResetToken: t.text("password_reset_token"),
   passwordResetExpires: t.timestamp("password_reset_expires"),
   forceChangePassword: t.bool("force_change_password").default(true),
+  // When the password was last set, by the user, a reset link or an admin.
+  // Sessions issued before this moment are refused (server/auth.ts), which is
+  // what makes changing the password a way to lock a stolen cookie out.
+  passwordChangedAt: t.timestamptz("password_changed_at"),
   language: t.text("language").default("en"),
   currency: t.text("currency").default("EUR"),
   temperatureUnit: t.text("temperature_unit").default("C"),

@@ -42,7 +42,9 @@ On first startup, [`server/auth.ts`](../server/auth.ts) automatically creates th
 * Password: `admin`
 * Force password change: `forceChangePassword: true`
 
-*(Note: The `DEFAULT_ADMIN_PASSWORD` variable in some compose templates is not read by the authentication code; credentials always initialize to `admin`/`admin`).* Upon your first login, the web interface will immediately redirect you to `/change-password`.
+There is no variable that sets this password. The account is created whenever no account has the admin role, so renaming it does not bring a second one back. Until the password has been changed, the server answers every request from that account except the change itself with `403`, and the web interface takes you to `/change-password`.
+
+**4a. `APP_URL`.** Set this to the address users open Filadex at (for example `https://filadex.your-nas.synology.me`). Verification and password-reset emails link to it, and they are not sent while it is unset - the link must not come from the request, whose `Host` header anyone can forge.
 
 **5. `TRUST_PROXY=true` behind Synology Reverse Proxy.**
 Filadex enforces brute-force rate limiting (e.g., 15 login attempts per 15 minutes in [`server/routes/auth.ts`](../server/routes/auth.ts)). When running behind DSM Reverse Proxy (Nginx on the host), setting `TRUST_PROXY=true` in [`server/index.ts`](../server/index.ts) instructs Express to trust the `X-Forwarded-For` header. Without this, all incoming requests appear to come from the NAS host loopback (`127.0.0.1`), causing rate limits to be shared globally across all users and devices.

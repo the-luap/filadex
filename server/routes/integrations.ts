@@ -6,6 +6,7 @@ import { authenticate, requireApiToken, generateApiToken } from "../auth";
 import { insertApiTokenSchema, printerUsageEventSchema } from "@shared/schema";
 import { logger as appLogger } from "../utils/logger";
 import { validateId } from "../utils/validation";
+import { sensitiveActionLimiter } from "../utils/rate-limits";
 
 /**
  * Phase A of the printer integration (see IMPLEMENTATION_PLAN.md #5): a
@@ -25,7 +26,7 @@ export function registerIntegrationRoutes(app: Express): void {
     }
   });
 
-  app.post("/api/api-tokens", authenticate, async (req, res) => {
+  app.post("/api/api-tokens", authenticate, sensitiveActionLimiter, async (req, res) => {
     try {
       const { label } = insertApiTokenSchema.parse(req.body);
       const { plaintext, hash } = generateApiToken();

@@ -43,6 +43,9 @@ services:
       # Set to a long random string (e.g. `openssl rand -hex 32`) so login sessions
       # survive restarts. If unset, a random secret is generated on each startup.
       - JWT_SECRET=${JWT_SECRET:-}
+      # The address users open Filadex at. Emailed links are built from it and
+      # not sent while it is unset - see .env.example.
+      - APP_URL=${APP_URL:-}
       # Only set to "true" if this runs behind a trusted reverse proxy (see .env.example)
       - TRUST_PROXY=${TRUST_PROXY:-false}
     depends_on:

@@ -157,9 +157,14 @@ PORT=8080                     # Port the application will run on
 LOG_LEVEL=INFO                # Logging level (DEBUG, INFO, WARN, ERROR)
 
 # Authentication
-# The first admin is always created as admin/admin and must change the password
-# at first login - there is no variable that sets it.
+# The first admin is created as admin/admin whenever no admin account exists,
+# and every route except changing the password is refused until it has been
+# changed. There is no variable that sets it.
 JWT_SECRET=your_secret_key    # Secret key for JWT token generation
+
+# The address users open Filadex at. Verification and password-reset emails
+# link here and are not sent while it is unset.
+APP_URL=https://filadex.example.com
 
 # Localization
 # Build-time last resort for the UI language (en, de, pl). Reached only when a
@@ -182,7 +187,7 @@ For Docker deployment, you can configure the port in the `docker-compose.yml` fi
 ### Authentication and User Management
 
 1. **First Login**: The system comes with a default admin user (username: `admin`, password: `admin`)
-2. **Password Change**: On first login, you will be required to change the default password
+2. **Password Change**: Until the default password has been changed, the server refuses every other request from that account, and the app takes you to the change-password page
 3. **User Management**: Admin users can access the user management interface by clicking the users icon in the header
 4. **Creating Users**: Admins can create new users, set permissions, and manage existing accounts
 5. **Sharing Filaments**: Users can share their filament collection by clicking the share icon in the header
