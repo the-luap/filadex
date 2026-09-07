@@ -47,6 +47,15 @@ test.describe("a language chosen on the login screen", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "pl");
     await expect(page.getByText("Zaloguj się, aby zarządzać filamentami")).toBeVisible();
 
+    // ...and they reload before logging in, which is ordinary: a failed first
+    // attempt, a password manager, a link opened in a fresh tab. The deferred
+    // choice has to outlive that, not just the client-side remount - the
+    // cookie and the stamp restore the *display* either way, but the effect
+    // below still prefers the account's stored language over both, so a choice
+    // that does not survive here is never written to the account at all.
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("lang", "pl");
+
     // ...so they log in through it.
     await page.getByLabel(/nazwa użytkownika/i).fill(ALICE.username);
     await page.getByLabel(/hasło/i).fill(ALICE.password);

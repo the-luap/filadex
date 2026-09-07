@@ -63,13 +63,25 @@ render undid that — `/api/auth/me` returned the account's stored `language`
 `POST /api/users/language` the first time account data appears, so the language
 the visitor picked to read the login form in is the one their new session keeps.
 
-That pending choice lives in module scope rather than a `useRef`. `AuthProvider`
-renders a loading placeholder instead of its children while it re-checks the
-session, and it does so on every route change, so the `/login` → `/` navigation
-unmounts `LanguageProvider` and would take a ref with it. Module scope outlives
-the remount and still resets on a real page load, by which point the cookie and
-the server's stamp carry the choice anyway. `tests/e2e/login-language.spec.ts`
-is what caught this; it fails against a ref.
+That pending choice lives in `sessionStorage`, not a `useRef` or a module
+variable. Both of the simpler options were tried and both lose it:
+
+- A ref dies on the remount `AuthProvider` forces. It renders a loading
+  placeholder instead of its children while it re-checks the session, and does
+  so on every route change, so `/login` → `/` unmounts `LanguageProvider`.
+- A module variable survives that but not a page load, and reloading before
+  logging in is ordinary — a failed first attempt, a password manager, a mailed
+  link opened in a fresh tab. The cookie and the stamp do restore the *display*
+  across a reload, but the `[account]` effect still prefers the account's stored
+  language over both, so a choice that does not survive here is never written to
+  the account at all.
+
+`sessionStorage` has the lifetime this actually wants: it outlives a reload, is
+scoped to the one tab, and is gone when the tab is. Reads and writes are wrapped
+in `try`/`catch`; a browser that refuses session storage loses only the deferred
+write, since the choice still applies to the tab via `localStorage` and the
+cookie. `tests/e2e/login-language.spec.ts` is what caught each of these; it
+fails against the ref and, with the reload in it, against the module variable.
 
 Conversely, a pick made *on* those screens while some other session is still
 cached in the browser stays device-local: `LanguageProvider` treats every route
@@ -196,8 +208,10 @@ in one file; `authenticate` is left untouched.
   not rewrite the signed-in account. Both assertions fail against the code
   before this change, each against its own half of the fix.
 - `tests/e2e/login-language.spec.ts` drives the real bundle in a browser:
-  choosing Polish on `/login`, signing in as the seeded `alice` (stored
-  `language: "en"`), and asserting both that the account ends up on `pl` and
-  that `<html lang>` survives a reload. The ordering of two React effects against
-  a real session query is not observable in the `renderToString` component tests,
+  choosing Polish on `/login`, reloading, signing in as the seeded `alice`
+  (stored `language: "en"`), and asserting both that the account ends up on `pl`
+  and that `<html lang>` survives a further reload. The reload before login is
+  deliberate — it is what distinguishes a choice that reaches the account from
+  one that only looks like it did. The ordering of two React effects against a
+  real session query is not observable in the `renderToString` component tests,
   which run no effects at all.
