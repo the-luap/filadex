@@ -28,7 +28,7 @@ following the precedence:
 1. User settings from API (if logged in)
 2. `localStorage` (explicit client-side choice)
 3. `language` cookie
-4. browser language (`navigator.language`)
+4. browser languages (`navigator.languages`, first supported entry wins)
 5. `VITE_DEFAULT_LANGUAGE`
 6. `document.documentElement.lang` (server-rendered initial shell)
 7. English fallback (`en`)
@@ -99,6 +99,11 @@ in one file; `authenticate` is left untouched.
   paths — same status as the previous `res.sendFile`, so no change there.
 - Supported languages (`en`, `de`, `pl`) are centralized in `shared/languages.ts`
   and imported across client and server to prevent drift.
+- The client scans `navigator.languages` the way the server scans
+  `Accept-Language`, so both reach the same answer for a visitor whose first
+  choice is unsupported but whose second is. Reading only `navigator.language`
+  made the client give up at the first entry and fall to
+  `VITE_DEFAULT_LANGUAGE`, disagreeing with the stamp the server had just sent.
 - The logged-in branch adds one `getUser` query per HTML document request when
   a JWT session token is present. Unauthenticated requests skip the database query
   and resolve from the `language` cookie or `Accept-Language`.

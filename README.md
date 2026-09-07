@@ -162,7 +162,12 @@ LOG_LEVEL=INFO                # Logging level (DEBUG, INFO, WARN, ERROR)
 JWT_SECRET=your_secret_key    # Secret key for JWT token generation
 
 # Localization
-DEFAULT_LANGUAGE=en           # Default language for new users (en, de, pl)
+# Build-time fallback for the UI when a visitor has no stored choice, no
+# language cookie, and no supported browser language (en, de, pl).
+VITE_DEFAULT_LANGUAGE=en
+# Note: DEFAULT_LANGUAGE appears in the compose files but no server code reads
+# it. A new user's language comes from the request (language cookie, then
+# Accept-Language, then en), not from this variable.
 
 # Data Initialization
 INIT_SAMPLE_DATA=false        # Set to 'true' to initialize with sample data
@@ -252,9 +257,10 @@ Filadex supports multiple languages:
    - Polish (pl)
 
 2. **Language Selection**
-   - Users can select their preferred language from the language selector in the header
+   - Users can select their preferred language from the language selector in the header, and from the login, register, forgot-password, reset-password and verify-email screens
    - Language preference is stored in user settings and persists across sessions
-   - The application will automatically detect the browser language on first visit
+   - The application detects the browser language on first visit, taking the first supported entry from the browser's ranked language list
+   - The server picks the same language for the initial HTML, so `<html lang>` matches the UI from the first render (see [ADR 0005](docs/adr/0005-html-lang-follows-the-ui-language.md))
 
 3. **Adding New Languages**
    - Language files are located in `client/src/i18n/locales/`
@@ -265,7 +271,8 @@ Filadex supports multiple languages:
    - Submit a pull request to contribute translations
 
 4. **Environment Variables**
-   - `DEFAULT_LANGUAGE`: Set the default language for new users (default: "en")
+   - `VITE_DEFAULT_LANGUAGE`: UI fallback when a visitor has no stored choice, no language cookie, and no supported browser language (default: "en"). Inlined at build time, so it must be set when the client is built.
+   - `DEFAULT_LANGUAGE`: present in the compose files but currently read by no server code.
 
 ## 🗺️ Roadmap
 

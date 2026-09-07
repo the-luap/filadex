@@ -5,7 +5,7 @@ export { SUPPORTED_LANGUAGES, isSupportedLanguage };
 export interface ClientLanguageSources {
   localStorage?: string | null;
   cookie?: string | null;
-  browserLanguage?: string | null;
+  browserLanguages?: readonly string[] | null;
   defaultLanguage?: string | null;
   documentLang?: string | null;
 }
@@ -14,7 +14,7 @@ export interface ClientLanguageSources {
  * Resolves the client's language according to:
  * 1. localStorage (user's explicit client preference)
  * 2. language cookie (set by client, recognized by server)
- * 3. browser language (navigator.language)
+ * 3. browser languages (navigator.languages, first supported wins)
  * 4. defaultLanguage (e.g. VITE_DEFAULT_LANGUAGE)
  * 5. document.documentElement.lang (stamped by server via resolveLanguage)
  * 6. 'en' (default fallback)
@@ -28,8 +28,10 @@ export function resolveClientLanguage(sources: ClientLanguageSources): Language 
     return sources.cookie;
   }
 
-  if (sources.browserLanguage) {
-    const code = sources.browserLanguage.split("-")[0].toLowerCase();
+  // Scan the whole ranked list, like the server does with Accept-Language: a
+  // user whose first choice is unsupported still gets their second.
+  for (const tag of sources.browserLanguages ?? []) {
+    const code = tag.split("-")[0].toLowerCase();
     if (isSupportedLanguage(code)) {
       return code;
     }
@@ -68,6 +70,16 @@ export function getStorageLanguage(): string | null {
 }
 
 /**
+ * Reads the browser's ranked language list, falling back to the single
+ * `navigator.language` where `navigator.languages` is unavailable.
+ */
+export function getBrowserLanguages(): readonly string[] {
+  if (typeof navigator === "undefined") return [];
+  if (navigator.languages?.length) return navigator.languages;
+  return navigator.language ? [navigator.language] : [];
+}
+
+/**
  * Reads the initial language in browser context synchronously.
  */
 export function getInitialClientLanguage(): Language {
@@ -76,7 +88,6 @@ export function getInitialClientLanguage(): Language {
   const storageLang = getStorageLanguage();
   const cookieLang = getCookie("language");
   const docLang = typeof document !== "undefined" ? document.documentElement?.lang : null;
-  const browserLang = typeof navigator !== "undefined" ? navigator.language : null;
   const envLang = typeof import.meta !== "undefined" && import.meta.env?.VITE_DEFAULT_LANGUAGE
     ? String(import.meta.env.VITE_DEFAULT_LANGUAGE)
     : null;
@@ -84,7 +95,7 @@ export function getInitialClientLanguage(): Language {
   return resolveClientLanguage({
     localStorage: storageLang,
     cookie: cookieLang,
-    browserLanguage: browserLang,
+    browserLanguages: getBrowserLanguages(),
     defaultLanguage: envLang,
     documentLang: docLang,
   });

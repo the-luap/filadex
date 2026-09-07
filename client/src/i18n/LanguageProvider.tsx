@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LanguageContext, Language, getTranslation, interpolate } from './index';
-import { getInitialClientLanguage, resolveClientLanguage, isSupportedLanguage, getCookie, getStorageLanguage } from './resolve-language';
+import { getInitialClientLanguage, resolveClientLanguage, isSupportedLanguage, getCookie, getStorageLanguage, getBrowserLanguages } from './resolve-language';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -76,7 +76,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     // 1. User settings from API (if logged in)
     // 2. localStorage
     // 3. language cookie
-    // 4. Browser language
+    // 4. Browser languages (navigator.languages, first supported wins)
     // 5. Environment variable DEFAULT_LANGUAGE
     // 6. document.documentElement.lang (server-rendered)
     // 7. Default to English
@@ -89,7 +89,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     const resolved = resolveClientLanguage({
       localStorage: getStorageLanguage(),
       cookie: getCookie('language'),
-      browserLanguage: typeof navigator !== 'undefined' ? navigator.language : null,
+      browserLanguages: getBrowserLanguages(),
       defaultLanguage: import.meta.env.VITE_DEFAULT_LANGUAGE,
       documentLang: typeof document !== 'undefined' ? document.documentElement?.lang : null,
     });

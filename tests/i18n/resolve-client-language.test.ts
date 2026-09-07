@@ -7,7 +7,7 @@ describe("resolveClientLanguage", () => {
       localStorage: "pl",
       cookie: "de",
       documentLang: "de",
-      browserLanguage: "en",
+      browserLanguages: ["en"],
     });
     expect(lang).toBe("pl");
   });
@@ -17,26 +17,26 @@ describe("resolveClientLanguage", () => {
       localStorage: null,
       cookie: "de",
       documentLang: "en",
-      browserLanguage: "en",
+      browserLanguages: ["en"],
     });
     expect(lang).toBe("de");
   });
 
-  it("uses browserLanguage if localStorage and cookie are empty", () => {
+  it("uses browser languages if localStorage and cookie are empty", () => {
     const lang = resolveClientLanguage({
       localStorage: null,
       cookie: null,
-      browserLanguage: "de",
+      browserLanguages: ["de"],
       documentLang: "en",
     });
     expect(lang).toBe("de");
   });
 
-  it("uses defaultLanguage if browserLanguage is unsupported or empty", () => {
+  it("uses defaultLanguage if no browser language is supported", () => {
     const lang = resolveClientLanguage({
       localStorage: null,
       cookie: null,
-      browserLanguage: "fr",
+      browserLanguages: ["fr"],
       defaultLanguage: "pl",
       documentLang: "en",
     });
@@ -47,7 +47,7 @@ describe("resolveClientLanguage", () => {
     const lang = resolveClientLanguage({
       localStorage: null,
       cookie: null,
-      browserLanguage: "fr",
+      browserLanguages: ["fr"],
       defaultLanguage: null,
       documentLang: "pl",
     });
@@ -58,10 +58,50 @@ describe("resolveClientLanguage", () => {
     const lang = resolveClientLanguage({
       localStorage: "fr",
       cookie: "es",
-      browserLanguage: "ja",
+      browserLanguages: ["ja"],
       documentLang: "it",
     });
     expect(lang).toBe("en");
+  });
+
+  it("takes the first supported entry from the ranked browser list", () => {
+    // navigator.languages = fr first, de second. The server scans the whole
+    // Accept-Language header and stamps `de`; the client must agree, rather
+    // than giving up at the unsupported `fr` and falling to defaultLanguage.
+    const lang = resolveClientLanguage({
+      localStorage: null,
+      cookie: null,
+      browserLanguages: ["fr-FR", "fr", "de-AT"],
+      defaultLanguage: "en",
+      documentLang: "de",
+    });
+    expect(lang).toBe("de");
+  });
+
+  it("falls back to navigator.language semantics for a single-entry list", () => {
+    const lang = resolveClientLanguage({
+      localStorage: null,
+      cookie: null,
+      browserLanguages: ["de-DE"],
+      documentLang: "en",
+    });
+    expect(lang).toBe("de");
+  });
+
+  it("ignores an empty or missing browser list", () => {
+    expect(
+      resolveClientLanguage({ browserLanguages: [], defaultLanguage: "pl" }),
+    ).toBe("pl");
+    expect(
+      resolveClientLanguage({ browserLanguages: null, defaultLanguage: "pl" }),
+    ).toBe("pl");
+  });
+
+  it("reads the whole ranked list from navigator with getBrowserLanguages", async () => {
+    const { getBrowserLanguages } = await import("../../client/src/i18n/resolve-language");
+    // Node exposes a global navigator, so this exercises the populated branch:
+    // the full `languages` list, not just the single `language`.
+    expect(getBrowserLanguages()).toEqual(Array.from(navigator.languages));
   });
 
   it("extracts language cookie from cookie string with getCookie", async () => {
