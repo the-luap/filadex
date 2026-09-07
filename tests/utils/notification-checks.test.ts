@@ -326,3 +326,31 @@ describe("per-user hygroscopy", () => {
     expect(lastMailTo(alice!.email!)?.html).toContain("Alice CF");
   });
 });
+
+describe("notification language localization", () => {
+  it("sends notifications in the user's preferred language", async () => {
+    const polishUser = await createUser({ language: "pl" });
+    await giveSpool(polishUser.id, { name: "Koncząca się szpula", remainingPercentage: "5" });
+
+    await runScheduledChecks();
+
+    const mail = lastMailTo(polishUser.email!);
+    expect(mail).toBeDefined();
+    expect(mail?.subject).toBe("Filadex: Niski stan filamentu");
+    expect(mail?.html).toContain("Następujące szpule są prawie puste:");
+    expect(mail?.html).toContain("Koncząca się szpula");
+  });
+
+  it("falls back to English when the user's language is unsupported", async () => {
+    const userWithUnsupportedLang = await createUser({ language: "fr" });
+    await giveSpool(userWithUnsupportedLang.id, { name: "Low spool", remainingPercentage: "5" });
+
+    await runScheduledChecks();
+
+    const mail = lastMailTo(userWithUnsupportedLang.email!);
+    expect(mail).toBeDefined();
+    expect(mail?.subject).toBe("Filadex: Low filament stock");
+    expect(mail?.html).toContain("The following spools are running low:");
+  });
+});
+

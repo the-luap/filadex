@@ -107,6 +107,9 @@ in one file; `authenticate` is left untouched.
 - The logged-in branch adds one `getUser` query per HTML document request when
   a JWT session token is present. Unauthenticated requests skip the database query
   and resolve from the `language` cookie or `Accept-Language`.
+- Holding `index.html` in memory from boot-time `readFileSync` means a
+  rebuild-in-place of the client requires a server process restart for the new HTML
+  to take effect.
 
 ## Tests
 

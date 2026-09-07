@@ -16,8 +16,6 @@ Filadex aims to be accessible to users worldwide. We welcome translations to mak
 
 * Check the existing translations in `client/src/i18n/locales/` to see if your language is already supported
 * Review our [Translation Guide](docs/TRANSLATION_GUIDE.md) for detailed instructions
-* Consult the [Translation Glossary](docs/TRANSLATION_GLOSSARY.md) for terminology consistency
-* For technical details, see the [Technical Translation Guide](docs/TRANSLATION_TECHNICAL.md)
 
 **How to Contribute Translations:**
 

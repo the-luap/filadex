@@ -115,3 +115,18 @@ describe("resolveClientLanguage", () => {
     expect(getStorageLanguage()).toBeNull();
   });
 });
+
+describe("formatSupportedLanguages", () => {
+  it("formats default supported languages", async () => {
+    const { formatSupportedLanguages } = await import("../../shared/languages");
+    expect(formatSupportedLanguages()).toBe("'en', 'de' and 'pl'");
+  });
+
+  it("handles empty, single, pair, and multiple language arrays", async () => {
+    const { formatSupportedLanguages } = await import("../../shared/languages");
+    expect(formatSupportedLanguages([])).toBe("");
+    expect(formatSupportedLanguages(["en"])).toBe("'en'");
+    expect(formatSupportedLanguages(["en", "de"])).toBe("'en' and 'de'");
+    expect(formatSupportedLanguages(["en", "de", "pl", "fr"])).toBe("'en', 'de', 'pl' and 'fr'");
+  });
+});

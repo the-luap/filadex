@@ -121,6 +121,7 @@ To add a new language, every touchpoint in the application must be updated:
 
 6. **Add email templates**:
    In `server/utils/email-templates.ts`, add localized branches for the new language in `verificationEmail`, `passwordResetEmail`, `catalogRequestReviewedEmail`, `lowStockEmail`, and `dryingReminderEmail`.
+   - Scheduled notification checks (`server/utils/notification-checks.ts`) automatically route low-stock and drying-reminder emails using the user's stored language preference via `isSupportedLanguage`.
 
 7. **Verify parity with tests**:
    Run the locale parity test suite:

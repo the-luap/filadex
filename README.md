@@ -266,8 +266,6 @@ Filadex supports multiple languages:
    - Language files are located in `client/src/i18n/locales/`
    - To add a new language, create a new file following the same structure as the existing ones
    - See our [Translation Guide](docs/TRANSLATION_GUIDE.md) for detailed instructions
-   - Check the [Translation Glossary](docs/TRANSLATION_GLOSSARY.md) for terminology consistency
-   - For developers, see the [Technical Translation Guide](docs/TRANSLATION_TECHNICAL.md)
    - Submit a pull request to contribute translations
 
 4. **Environment Variables**
