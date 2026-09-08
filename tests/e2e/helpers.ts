@@ -36,6 +36,17 @@ function settingsButton(page: Page) {
 }
 
 /**
+ * Opens a specific tab in the Settings dialog.
+ */
+export async function openSettingsTab(page: Page, tabName: string | RegExp): Promise<void> {
+  await page.goto("/");
+  await expect(settingsButton(page)).toBeVisible({ timeout: 30_000 });
+  await settingsButton(page).click();
+  await page.getByRole("menuitem", { name: /list management/i }).click();
+  await page.getByRole("tab", { name: tabName }).click();
+}
+
+/**
  * Opens the Materials tab, where both specs act.
  *
  * There is no /settings route - settings is a dialog behind the header's
@@ -43,11 +54,7 @@ function settingsButton(page: Page) {
  * does rather than deep-linking to something that does not exist.
  */
 export async function openMaterialsSettings(page: Page): Promise<void> {
-  await page.goto("/");
-  await expect(settingsButton(page)).toBeVisible({ timeout: 30_000 });
-  await settingsButton(page).click();
-  await page.getByRole("menuitem", { name: /list management/i }).click();
-  await page.getByRole("tab", { name: /^materials$/i }).click();
+  await openSettingsTab(page, /^materials$/i);
   await expect(page.getByRole("table")).toBeVisible();
 }
 

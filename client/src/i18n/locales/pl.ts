@@ -1,3 +1,23 @@
+const scanner = {
+  ready: 'Gotowe do skanowania',
+  holdDevice: 'Przyłóż urządzenie do tagu NFC, aby go zeskanować.',
+  scanHappensAuto: 'Skanowanie nastąpi automatycznie.',
+  positionCode: 'Umieść kod kreskowy lub kod QR na środku okna skanowania.',
+  scannedCode: 'Zeskanowany kod:',
+  close: 'Zamknij',
+  cancel: 'Anuluj',
+  error: 'Błąd',
+  nfcNotSupported: 'Ta przeglądarka nie obsługuje NFC. Użyj Chrome na Androidzie lub Safari na nowszych urządzeniach iOS.',
+  nfcAccessDenied: 'Odmówiono dostępu do NFC. Zezwól na dostęp do NFC w ustawieniach przeglądarki.',
+  nfcNotAvailable: 'NFC nie jest obsługiwane na tym urządzeniu lub jest wyłączone.',
+  nfcSecurityError: 'NFC wymaga bezpiecznego połączenia (HTTPS). Użyj bezpiecznego połączenia.',
+  nfcScanError: 'Błąd podczas skanowania tagów NFC: {{message}}',
+  nfcTagTitle: 'Skanuj tag NFC',
+  notFoundAllSources: 'Kod kreskowy {{code}} nie został rozpoznany (przeszukano Filadex QR, Bambu Lab i Open Filament Database).',
+  foundInOfd: 'Znaleziono w Open Filament Database: {{name}}',
+  scanBarcode: 'Skanuj kod kreskowy',
+};
+
 // Polish translations
 const translations = {
   common: {
@@ -42,25 +62,7 @@ const translations = {
       appDescription: 'Filadex – zarządzanie filamentem do druku 3D',
       copyright: '© {{year}} Copyright by Paul Nothaft'
     },
-    scanner: {
-      ready: 'Gotowe do skanowania',
-      holdDevice: 'Przyłóż urządzenie do tagu NFC, aby go zeskanować.',
-      scanHappensAuto: 'Skanowanie nastąpi automatycznie.',
-      positionCode: 'Umieść kod kreskowy lub kod QR na środku okna skanowania.',
-      scannedCode: 'Zeskanowany kod:',
-      close: 'Zamknij',
-      cancel: 'Anuluj',
-      error: 'Błąd',
-      nfcNotSupported: 'Ta przeglądarka nie obsługuje NFC. Użyj Chrome na Androidzie lub Safari na nowszych urządzeniach iOS.',
-      nfcAccessDenied: 'Odmówiono dostępu do NFC. Zezwól na dostęp do NFC w ustawieniach przeglądarki.',
-      nfcNotAvailable: 'NFC nie jest obsługiwane na tym urządzeniu lub jest wyłączone.',
-      nfcSecurityError: 'NFC wymaga bezpiecznego połączenia (HTTPS). Użyj bezpiecznego połączenia.',
-      nfcScanError: 'Błąd podczas skanowania tagów NFC: {{message}}',
-      nfcTagTitle: 'Skanuj tag NFC',
-      notFoundAllSources: 'Kod kreskowy {{code}} nie został rozpoznany (przeszukano Filadex QR, Bambu Lab i Open Filament Database).',
-      foundInOfd: 'Znaleziono w Open Filament Database: {{name}}',
-      scanBarcode: 'Skanuj kod kreskowy',
-    },
+    scanner,
     importExport: {
       csvFormatTitle: 'Format CSV',
       csvFormatDescription: 'Plik CSV musi mieć następującą strukturę:',
@@ -76,6 +78,7 @@ const translations = {
       processingTitle: 'Przetwarzanie...',
     },
   },
+  scanner,
   auth: {
     login: 'Zaloguj się',
     logout: 'Wyloguj się',

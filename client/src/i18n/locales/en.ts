@@ -1,3 +1,23 @@
+const scanner = {
+  ready: 'Ready to Scan',
+  holdDevice: 'Hold your device to the NFC tag to scan it.',
+  scanHappensAuto: 'The scan will happen automatically.',
+  positionCode: 'Position the barcode or QR code in the center of the scan window.',
+  scannedCode: 'Scanned Code:',
+  close: 'Close',
+  cancel: 'Cancel',
+  error: 'Error',
+  nfcNotSupported: 'Your browser does not support NFC. Use Chrome on Android or Safari on newer iOS devices.',
+  nfcAccessDenied: 'NFC access was denied. Please allow access to NFC in your browser settings.',
+  nfcNotAvailable: 'NFC is not supported on this device or is disabled.',
+  nfcSecurityError: 'NFC requires a secure context (HTTPS). Please use a secure connection.',
+  nfcScanError: 'Error scanning for NFC tags: {{message}}',
+  nfcTagTitle: 'Scan NFC Tag',
+  notFoundAllSources: 'Barcode {{code}} not recognized (searched Filadex QR, Bambu Lab, and Open Filament Database).',
+  foundInOfd: 'Found in Open Filament Database: {{name}}',
+  scanBarcode: 'Scan barcode',
+};
+
 // English translations
 const translations = {
   common: {
@@ -42,25 +62,7 @@ const translations = {
       appDescription: 'Filadex - 3D Printing Filament Management',
       copyright: '© {{year}} Copyright by Paul Nothaft'
     },
-    scanner: {
-      ready: 'Ready to Scan',
-      holdDevice: 'Hold your device to the NFC tag to scan it.',
-      scanHappensAuto: 'The scan will happen automatically.',
-      positionCode: 'Position the barcode or QR code in the center of the scan window.',
-      scannedCode: 'Scanned Code:',
-      close: 'Close',
-      cancel: 'Cancel',
-      error: 'Error',
-      nfcNotSupported: 'Your browser does not support NFC. Use Chrome on Android or Safari on newer iOS devices.',
-      nfcAccessDenied: 'NFC access was denied. Please allow access to NFC in your browser settings.',
-      nfcNotAvailable: 'NFC is not supported on this device or is disabled.',
-      nfcSecurityError: 'NFC requires a secure context (HTTPS). Please use a secure connection.',
-      nfcScanError: 'Error scanning for NFC tags: {{message}}',
-      nfcTagTitle: 'Scan NFC Tag',
-      notFoundAllSources: 'Barcode {{code}} not recognized (searched Filadex QR, Bambu Lab, and Open Filament Database).',
-      foundInOfd: 'Found in Open Filament Database: {{name}}',
-      scanBarcode: 'Scan barcode',
-    },
+    scanner,
     importExport: {
       csvFormatTitle: 'CSV Format',
       csvFormatDescription: 'The CSV file must have the following structure:',
@@ -76,6 +78,7 @@ const translations = {
       processingTitle: 'Processing...',
     },
   },
+  scanner,
   auth: {
     login: 'Login',
     logout: 'Logout',
