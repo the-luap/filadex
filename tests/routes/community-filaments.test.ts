@@ -208,4 +208,17 @@ describe("POST /api/community-filaments/refresh", () => {
     expect(ofdSpy).toHaveBeenCalledTimes(1);
     expect(spoolSpy).toHaveBeenCalledTimes(1);
   });
+
+  it("returns 409 Conflict if catalog synchronization is already in progress", async () => {
+    vi.spyOn(communityCatalog, "isSyncing").mockReturnValue(true);
+
+    const response = await request(app)
+      .post("/api/community-filaments/refresh")
+      .send({})
+      .set("Cookie", adminCookie);
+
+    expect(response.status).toBe(409);
+    expect(response.body.message).toMatch(/already in progress/i);
+  });
 });
+

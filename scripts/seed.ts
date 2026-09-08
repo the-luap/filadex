@@ -24,7 +24,6 @@ import {
   catalogRequests,
   filamentUsageLog,
   customFieldDefinitions,
-  communityFilamentCache,
   apiTokens,
 } from "@shared/schema";
 
@@ -275,11 +274,6 @@ async function seedDemo(): Promise<void> {
     await tx.insert(apiTokens).values([
       { userId: alice.id, tokenHash: "seed-token-hash-alice", label: "Print server", lastUsedAt: daysAgo(1) },
       { userId: bob.id, tokenHash: "seed-token-hash-bob", label: null },
-    ]);
-
-    await tx.insert(communityFilamentCache).values([
-      { manufacturer: "Bambu Lab", material: "PLA", name: "Basic PLA Jade White", colorName: "Jade White", colorCode: "#FFFFFF", density: "1.24", diameter: "1.75", extruderTemp: 220, bedTemp: 60 },
-      { manufacturer: "Prusament", material: "PETG", name: "Prusament PETG Orange", colorName: "Orange", colorCode: "#EA580C", density: "1.27", diameter: "1.75", extruderTemp: 240, bedTemp: 85 },
     ]);
 
     // The email settings row is seeded by a migration, so this updates rather

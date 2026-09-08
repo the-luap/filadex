@@ -18,8 +18,8 @@ export function isCatalogSyncDue(lastUpdatedIso: string | null, now: Date = new 
 let running = false;
 
 export async function runScheduledCatalogSync(now: Date = new Date()): Promise<void> {
-  if (running) {
-    logger.debug("Catalog sync check already running; skipping.");
+  if (running || communityCatalog.isSyncing()) {
+    logger.debug("Catalog sync check already running or catalog is syncing; skipping.");
     return;
   }
 

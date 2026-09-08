@@ -264,7 +264,8 @@ export function FilamentModal({
   const [communitySearchQuery, setCommunitySearchQuery] = useState("");
   const [catalogSource, setCatalogSource] = useState<"ofd" | "spoolmandb">(() => {
     if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-      return (localStorage.getItem("filament_catalog_source") as "ofd" | "spoolmandb") || "ofd";
+      const stored = localStorage.getItem("filament_catalog_source");
+      return stored === "spoolmandb" ? "spoolmandb" : "ofd";
     }
     return "ofd";
   });
@@ -445,7 +446,10 @@ export function FilamentModal({
         : `${result.extruderTemp}°C`);
     }
     const mfgText = result.manufacturer ? ` (${result.manufacturer})` : '';
-    form.setValue('name', `${result.name} ${result.colorName}${mfgText}`.trim());
+    const cleanName = result.name.toLowerCase().includes(result.colorName.toLowerCase())
+      ? result.name
+      : `${result.name} ${result.colorName}`;
+    form.setValue('name', `${cleanName}${mfgText}`.trim());
     if (result.gtin) {
       form.setValue('barcode', result.gtin);
     }
@@ -553,6 +557,7 @@ export function FilamentModal({
       // Not found in OFD GTIN index
     }
 
+    form.setValue('barcode', code);
     toast({
       variant: "destructive",
       title: t('scanner.notFoundAllSources', { code }),

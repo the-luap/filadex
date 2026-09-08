@@ -64,6 +64,13 @@
       "when": 1788879597566,
       "tag": "0008_mighty_mephistopheles",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788881803297,
+      "tag": "0009_round_radioactive_man",
+      "breakpoints": true
     }
   ]
 }

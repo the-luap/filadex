@@ -288,31 +288,83 @@ export default function Home() {
 
   const handleBarcodeScanned = async (decodedText: string) => {
     setShowScanner(false);
-    let code = decodedText.trim();
+    let parsed: any = null;
     try {
-      const parsed = JSON.parse(decodedText);
-      if (parsed.barcode) code = parsed.barcode;
-      else if (parsed.name) code = parsed.name;
+      parsed = JSON.parse(decodedText);
     } catch {
       // raw barcode string
     }
 
-    // 1. Match in current collection
+    // Case 1: Structured QR code (Bambu Lab barcode/QR, Filadex QR)
+    if (parsed && (parsed.name || parsed.material)) {
+      const matchName = parsed.name?.toLowerCase();
+      const matchBarcode = parsed.barcode?.toLowerCase();
+      const matchingSpool = filaments.find(
+        (f) => (matchBarcode && f.barcode && f.barcode.toLowerCase() === matchBarcode) ||
+               (matchName && f.name && f.name.toLowerCase() === matchName)
+      );
+
+      if (matchingSpool) {
+        setSearchTerm(matchingSpool.name);
+        toast({
+          title: matchingSpool.name,
+          description: matchingSpool.manufacturer ? `${matchingSpool.manufacturer} • ${matchingSpool.material}` : matchingSpool.material,
+        });
+        return;
+      }
+
+      // Pre-fill Add modal with decoded structured filament data
+      setSelectedFilament(undefined);
+      setCopyFromFilament({
+        id: 0,
+        name: parsed.name || "",
+        manufacturer: parsed.manufacturer || "",
+        material: parsed.material || "",
+        colorName: parsed.colorName || "",
+        colorCode: parsed.colorCode || "#000000",
+        diameter: parsed.diameter ? String(parsed.diameter) : "1.75",
+        printTemp: parsed.printTemp || "",
+        barcode: parsed.barcode || "",
+        spoolType: parsed.spoolType || "spooled",
+        totalWeight: parsed.totalWeight ? String(parsed.totalWeight) : "1",
+        remainingPercentage: "100",
+        status: "sealed",
+        dryerCount: 0,
+        userId: 0,
+        purchaseDate: null,
+        purchasePrice: null,
+        storageLocation: null,
+        lastDryingDate: null,
+        customFieldValues: null,
+        createdAt: new Date() as any,
+        updatedAt: new Date() as any,
+      } as unknown as Filament);
+      setShowAddModal(true);
+      toast({
+        title: parsed.name,
+        description: parsed.manufacturer ? `${parsed.manufacturer} • ${parsed.material}` : parsed.material,
+      });
+      return;
+    }
+
+    // Case 2: Raw 1D/2D barcode
+    const code = (parsed?.barcode || decodedText).trim();
+
+    // Check if matching spool exists in current collection
     const matchingSpool = filaments.find(
-      (f) => (f.barcode && f.barcode.toLowerCase() === code.toLowerCase()) ||
-             (f.name && f.name.toLowerCase() === code.toLowerCase())
+      (f) => f.barcode && f.barcode.toLowerCase() === code.toLowerCase()
     );
 
     if (matchingSpool) {
       setSearchTerm(code);
       toast({
         title: matchingSpool.name,
-        description: t('scanner.foundInOfd', { name: `${matchingSpool.manufacturer || ''} - ${matchingSpool.name}`.trim() }),
+        description: matchingSpool.manufacturer ? `${matchingSpool.manufacturer} • ${matchingSpool.material}` : matchingSpool.material,
       });
       return;
     }
 
-    // 2. Query OFD GTIN lookup
+    // Query OFD GTIN lookup
     try {
       const result = await apiRequest<any>(
         `/api/community-filaments/gtin/${encodeURIComponent(code)}`
@@ -355,7 +407,7 @@ export default function Home() {
       // Not found in OFD
     }
 
-    // 3. Not found anywhere -> open add modal prefilled with barcode
+    // Not found anywhere -> open add modal prefilled with barcode
     setSelectedFilament(undefined);
     setCopyFromFilament({
       id: 0,

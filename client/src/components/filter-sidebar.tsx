@@ -54,20 +54,13 @@ export function FilterSidebar({
   onColorChange,
   filaments = [],
   onScanClick,
-  searchTerm: externalSearchTerm,
+  searchTerm = "",
 }: FilterSidebarProps) {
   const { t } = useTranslation();
-  const [searchTerm, setSearchTerm] = useState(externalSearchTerm || '');
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
   const [selectedManufacturers, setSelectedManufacturers] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [minRemaining, setMinRemaining] = useState(0);
-
-  useEffect(() => {
-    if (externalSearchTerm !== undefined && externalSearchTerm !== searchTerm) {
-      setSearchTerm(externalSearchTerm);
-    }
-  }, [externalSearchTerm, searchTerm]);
 
   // Laden der Hersteller, Materialien und Farben aus der Datenbank
   const { data: manufacturers = [] } = useQuery({
@@ -117,10 +110,6 @@ export function FilterSidebar({
   }, [colors, filaments]);
 
   // Update parent component when filters change
-  useEffect(() => {
-    onSearchChange(searchTerm);
-  }, [searchTerm, onSearchChange]);
-
   useEffect(() => {
     onMaterialChange(selectedMaterials);
   }, [selectedMaterials, onMaterialChange]);
@@ -210,7 +199,7 @@ export function FilterSidebar({
               placeholder={t('filters.searchByNameManufacturer')}
               className="w-full pl-3 pr-9 py-2 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 bg-white border-gray-300 text-gray-800 rounded-md focus:outline-none focus:ring-1 focus:border-primary"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => onSearchChange(e.target.value)}
             />
             <svg
               xmlns="http://www.w3.org/2000/svg"

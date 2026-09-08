@@ -99,6 +99,20 @@ describe("CommunityCatalogService", () => {
       const results = service.search("bambu", { limit: 1 });
       expect(results.length).toBe(1);
     });
+
+    it("supports multi-word queries across manufacturer, name, material, and color", () => {
+      const results = service.search("bambu white");
+      expect(results.length).toBe(1);
+      expect(results[0].colorName).toBe("Jade White");
+
+      const plaGreen = service.search("bambu pla green");
+      expect(plaGreen.length).toBe(1);
+      expect(plaGreen[0].colorName).toBe("Bambu Green");
+
+      const prusaPetg = service.search("prusament black");
+      expect(prusaPetg.length).toBe(1);
+      expect(prusaPetg[0].manufacturer).toBe("Prusament");
+    });
   });
 
   describe("lookupGtin", () => {

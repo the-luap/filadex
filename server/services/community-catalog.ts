@@ -106,11 +106,16 @@ export class CommunityCatalogService {
     ofd: { count: 0, lastUpdated: null },
     spoolmandb: { count: 0, lastUpdated: null },
   };
+  private syncing = false;
 
   private cacheDir: string;
 
   constructor(cacheDir?: string) {
     this.cacheDir = cacheDir || process.env.CATALOG_CACHE_DIR || path.join(process.cwd(), "data", "cache", "catalogs");
+  }
+
+  public isSyncing(): boolean {
+    return this.syncing;
   }
 
   public setItems(items: CommunityCatalogItem[]): void {
@@ -147,7 +152,8 @@ export class CommunityCatalogService {
     options?: { source?: "ofd" | "spoolmandb"; limit?: number }
   ): CommunityCatalogItem[] {
     const q = query.trim().toLowerCase();
-    if (!q) {
+    const terms = q.split(/\s+/).filter(Boolean);
+    if (terms.length === 0) {
       return [];
     }
 
@@ -160,12 +166,8 @@ export class CommunityCatalogService {
         continue;
       }
 
-      const matchMfg = item.manufacturer.toLowerCase().includes(q);
-      const matchName = item.name.toLowerCase().includes(q);
-      const matchColor = item.colorName.toLowerCase().includes(q);
-      const matchMaterial = item.material.toLowerCase().includes(q);
-
-      if (matchMfg || matchName || matchColor || matchMaterial) {
+      const haystack = `${item.manufacturer} ${item.name} ${item.colorName} ${item.material}`.toLowerCase();
+      if (terms.every((term) => haystack.includes(term))) {
         results.push(item);
         if (results.length >= limit) {
           break;
@@ -360,18 +362,50 @@ export class CommunityCatalogService {
       }
       const fileName = source === "ofd" ? "ofd.json" : "spoolmandb.json";
       const filePath = path.join(this.cacheDir, fileName);
+      const tmpPath = path.join(this.cacheDir, `${fileName}.${Date.now()}.tmp`);
       const items = this.items.filter((item) => item.source === source);
       const payload = {
         lastUpdated: this.status[source].lastUpdated,
         items,
       };
-      fs.writeFileSync(filePath, JSON.stringify(payload), "utf-8");
+      fs.writeFileSync(tmpPath, JSON.stringify(payload), "utf-8");
+      fs.renameSync(tmpPath, filePath);
     } catch (error) {
       logger.warn(`Failed to save community catalog ${source} to disk: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
+  public async sync(source: "ofd" | "spoolmandb" | "all" = "all"): Promise<{ ofdCount: number; spoolmanCount: number }> {
+    if (this.syncing) {
+      throw new Error("Catalog synchronization is already in progress");
+    }
+    this.syncing = true;
+    try {
+      let ofdCount = 0;
+      let spoolmanCount = 0;
+      if (source === "ofd" || source === "all") {
+        ofdCount = await this.syncOfdInternal();
+      }
+      if (source === "spoolmandb" || source === "all") {
+        spoolmanCount = await this.syncSpoolmanDbInternal();
+      }
+      return { ofdCount, spoolmanCount };
+    } finally {
+      this.syncing = false;
+    }
+  }
+
   public async syncOfd(): Promise<number> {
+    const res = await this.sync("ofd");
+    return res.ofdCount;
+  }
+
+  public async syncSpoolmanDb(): Promise<number> {
+    const res = await this.sync("spoolmandb");
+    return res.spoolmanCount;
+  }
+
+  private async syncOfdInternal(): Promise<number> {
     const url = "https://api.openfilamentdatabase.org/json/all.json.gz";
     const res = await fetch(url, {
       headers: { "User-Agent": "Filadex/1.0" },
@@ -391,7 +425,7 @@ export class CommunityCatalogService {
     return items.length;
   }
 
-  public async syncSpoolmanDb(): Promise<number> {
+  private async syncSpoolmanDbInternal(): Promise<number> {
     const repo = "Donkie/SpoolmanDB";
     const treeRes = await fetch(`https://api.github.com/repos/${repo}/git/trees/main?recursive=1`, {
       headers: { "User-Agent": "Filadex/1.0" },

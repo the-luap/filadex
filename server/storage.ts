@@ -14,7 +14,6 @@ import {
   users, type User,
   userSharing, type UserSharing,
   catalogRequests, type CatalogRequest,
-  communityFilamentCache, type CommunityFilamentCacheEntry,
   emailSettings, type EmailSettings,
   backupSettings, type BackupSettings,
   foldUsername,
@@ -23,7 +22,7 @@ import {
 import { db, dialect, vacuumBackup } from "@db";
 import { eq, sql, and, or, inArray, desc, isNull, count } from "drizzle-orm";
 import { logger } from "./utils/logger";
-import { containsIgnoreCase, eqIgnoreCase, eqNumeric } from "@db/predicates";
+import { eqIgnoreCase, eqNumeric } from "@db/predicates";
 import { catalogName, foldMaterialName } from "./utils/materials";
 
 /** What the authentication middleware needs to authorize a request. */
@@ -81,13 +80,6 @@ export type UserChanges = {
 
 export type EmailSettingsChanges = Partial<Omit<typeof emailSettings.$inferInsert, "id" | "updatedAt">>;
 export type BackupSettingsChanges = Partial<Omit<typeof backupSettings.$inferInsert, "id" | "updatedAt">>;
-
-export type NewCommunityFilament = typeof communityFilamentCache.$inferInsert;
-
-export type CommunityFilamentCacheStatus = {
-  count: number;
-  lastUpdated: string | null;
-};
 
 /** A queued catalog request as an admin sees it: named requester, no user id. */
 export type CatalogRequestForReview = {
@@ -302,13 +294,6 @@ export interface IStorage {
   /** Only returns a request still awaiting review, so a second review cannot land. */
   getPendingCatalogRequest(id: number): Promise<CatalogRequest | undefined>;
   reviewCatalogRequest(id: number, review: CatalogRequestReview): Promise<CatalogRequest | undefined>;
-
-  // Community filament cache (mirrored from SpoolmanDB)
-  /** Case-insensitive substring match over manufacturer, product name and colour. */
-  searchCommunityFilaments(query: string, limit: number): Promise<CommunityFilamentCacheEntry[]>;
-  /** Swaps the whole cache for a fresh set, atomically. */
-  replaceCommunityFilaments(entries: NewCommunityFilament[]): Promise<void>;
-  getCommunityFilamentCacheStatus(): Promise<CommunityFilamentCacheStatus>;
 
   // Email settings (a single row)
   getEmailSettings(): Promise<EmailSettings | undefined>;
@@ -647,43 +632,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(catalogRequests.id, id))
       .returning();
     return updated || undefined;
-  }
-
-  async searchCommunityFilaments(query: string, limit: number): Promise<CommunityFilamentCacheEntry[]> {
-    return await db.select().from(communityFilamentCache)
-      .where(or(
-        containsIgnoreCase(communityFilamentCache.manufacturer, query),
-        containsIgnoreCase(communityFilamentCache.name, query),
-        containsIgnoreCase(communityFilamentCache.colorName, query),
-      ))
-      .limit(limit);
-  }
-
-  async replaceCommunityFilaments(entries: NewCommunityFilament[]): Promise<void> {
-    await db.transaction(async (tx) => {
-      await tx.delete(communityFilamentCache);
-      if (entries.length > 0) {
-        // Insert in chunks to stay well under typical parameter-count limits
-        const CHUNK_SIZE = 500;
-        for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
-          await tx.insert(communityFilamentCache).values(entries.slice(i, i + CHUNK_SIZE));
-        }
-      }
-    });
-  }
-
-  async getCommunityFilamentCacheStatus(): Promise<CommunityFilamentCacheStatus> {
-    const [row] = await db.select({
-      count: sql<number>`count(*)`,
-      lastUpdated: sql<string | number | null>`max(${communityFilamentCache.updatedAt})`,
-    }).from(communityFilamentCache);
-    let lastUpdated: string | null = null;
-    if (typeof row?.lastUpdated === "number") {
-      lastUpdated = new Date(row.lastUpdated).toISOString().replace("T", " ").slice(0, 19);
-    } else if (typeof row?.lastUpdated === "string") {
-      lastUpdated = row.lastUpdated;
-    }
-    return { count: Number(row?.count ?? 0), lastUpdated };
   }
 
   async getEmailSettings(): Promise<EmailSettings | undefined> {

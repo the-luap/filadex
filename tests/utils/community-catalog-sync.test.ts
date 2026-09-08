@@ -105,4 +105,42 @@ describe("CommunityCatalogService sync", () => {
     // Verify disk cache
     expect(fs.existsSync(path.join(tempDir, "spoolmandb.json"))).toBe(true);
   });
+
+  it("prevents concurrent sync operations using mutex guard", async () => {
+    let resolveFetch: (value: any) => void;
+    const fetchPromise = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+
+    vi.spyOn(global, "fetch").mockImplementation(() => fetchPromise as any);
+
+    expect(service.isSyncing()).toBe(false);
+    const syncPromise1 = service.syncOfd();
+    expect(service.isSyncing()).toBe(true);
+
+    // Second sync should fail immediately with an error
+    await expect(service.syncOfd()).rejects.toThrow(/already in progress/i);
+    await expect(service.syncSpoolmanDb()).rejects.toThrow(/already in progress/i);
+    await expect(service.sync()).rejects.toThrow(/already in progress/i);
+
+    // Resolve first fetch
+    const mockOfd: OfdDataset = {
+      version: "1",
+      generated_at: "2026-09-08T00:00:00Z",
+      brands: [],
+      filaments: [],
+      variants: [],
+      sizes: [],
+    };
+    const gzipped = zlib.gzipSync(Buffer.from(JSON.stringify(mockOfd)));
+    resolveFetch!({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => gzipped.buffer.slice(gzipped.byteOffset, gzipped.byteOffset + gzipped.byteLength),
+    });
+
+    await syncPromise1;
+    expect(service.isSyncing()).toBe(false);
+  });
 });
+

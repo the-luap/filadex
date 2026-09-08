@@ -741,28 +741,6 @@ export const insertCustomFieldDefinitionSchema = createInsertSchema(customFieldD
 export type InsertCustomFieldDefinition = z.infer<typeof insertCustomFieldDefinitionSchema>;
 export type CustomFieldDefinition = typeof customFieldDefinitions.$inferSelect;
 
-// A locally-cached copy of community filament profiles from SpoolmanDB
-// (https://github.com/Donkie/SpoolmanDB, MIT licensed), refreshed by an
-// admin action rather than a live external API call per search. One row per
-// manufacturer/product/color combination.
-export const communityFilamentCache = table("community_filament_cache", {
-  id: t.pk("id"),
-  manufacturer: t.text("manufacturer").notNull(),
-  material: t.text("material").notNull(),
-  name: t.text("name").notNull(),
-  colorName: t.text("color_name").notNull(),
-  colorCode: t.text("color_code"),
-  density: t.numeric("density"),
-  diameter: t.numeric("diameter"),
-  extruderTemp: t.int("extruder_temp"),
-  bedTemp: t.int("bed_temp"),
-  updatedAt: t.timestamp("updated_at").defaultNow(),
-}, (table) => [
-  index("community_filament_cache_search_idx").on(table.manufacturer, table.name, table.colorName),
-]);
-
-export type CommunityFilamentCacheEntry = typeof communityFilamentCache.$inferSelect;
-
 // Per-user API tokens for printer/print-server integrations (a print server
 // can't hold a user's login cookie). tokenHash is a SHA-256 digest of the
 // plaintext token - looked up directly, not bcrypt-compared, since the
