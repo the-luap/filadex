@@ -16,6 +16,8 @@ import { MaterialColorChart } from "@/components/material-color-chart";
 import { StatisticsAccordion } from "@/components/statistics";
 import { BatchActionsPanel } from "@/components/batch-actions-panel";
 import { QRScanner } from "@/components/qr-scanner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,6 +30,8 @@ export default function Home() {
   const [copyFromFilament, setCopyFromFilament] = useState<Filament | undefined>(undefined);
   const [labelFilament, setLabelFilament] = useState<Filament | undefined>(undefined);
   const [showScanner, setShowScanner] = useState(false);
+  const [variantCandidates, setVariantCandidates] = useState<CommunityCatalogItem[] | null>(null);
+  const [variantCandidateBarcode, setVariantCandidateBarcode] = useState<string>("");
 
   // Batch selection state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -279,8 +283,73 @@ export default function Home() {
     window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
   }, [filaments]);
 
+  const applyCommunityItem = (result: CommunityCatalogItem, code: string) => {
+    const mfgText = result.manufacturer ? ` (${result.manufacturer})` : '';
+    const cleanName = result.colorName && result.name.toLowerCase().includes(result.colorName.toLowerCase())
+      ? result.name
+      : `${result.name} ${result.colorName || ''}`.trim();
+    const kg = result.weightGrams ? Number((result.weightGrams / 1000).toFixed(2)) : 1;
+    setSelectedFilament(undefined);
+    setCopyFromFilament({
+      id: 0,
+      name: `${cleanName}${mfgText}`.trim(),
+      manufacturer: result.manufacturer || "",
+      material: result.material || "",
+      colorName: result.colorName || "",
+      colorCode: result.colorCode || "#000000",
+      diameter: result.diameter ? String(result.diameter) : "1.75",
+      printTemp: result.extruderTemp ? (result.bedTemp ? `${result.extruderTemp}°C / Bed ${result.bedTemp}°C` : `${result.extruderTemp}°C`) : "",
+      barcode: result.gtin || code,
+      spoolType: result.spoolRefill ? "spoolless" : "spooled",
+      totalWeight: String(kg),
+      remainingPercentage: "100",
+      status: "sealed",
+      dryerCount: 0,
+      userId: 0,
+      purchaseDate: null,
+      purchasePrice: null,
+      storageLocation: null,
+      lastDryingDate: null,
+      customFieldValues: null,
+      createdAt: new Date() as any,
+      updatedAt: new Date() as any,
+    } as unknown as Filament);
+    setShowAddModal(true);
+    toast({
+      title: t('scanner.foundInOfd', { name: `${result.manufacturer} - ${result.name}` }),
+    });
+  };
+
   const handleBarcodeScanned = async (decodedText: string) => {
     setShowScanner(false);
+
+    // Case 0: Filadex URL (e.g. printed label with ?openFilament=123)
+    const openFilamentMatch = decodedText.match(/[?&]openFilament=(\d+)/);
+    if (openFilamentMatch) {
+      const filamentId = Number(openFilamentMatch[1]);
+      const match = filaments.find(f => f.id === filamentId);
+      if (match) {
+        handleEditFilament(match);
+        return;
+      }
+      try {
+        const fetched = await apiRequest<Filament>(`/api/filaments/${filamentId}`);
+        if (fetched) {
+          handleEditFilament(fetched);
+          return;
+        }
+      } catch (err: any) {
+        if (err?.status !== 404) {
+          toast({
+            variant: "destructive",
+            title: t('common.error') || 'Error',
+            description: err?.message || 'Failed to open filament',
+          });
+          return;
+        }
+      }
+    }
+
     let parsed: any = null;
     try {
       parsed = JSON.parse(decodedText);
@@ -289,7 +358,7 @@ export default function Home() {
     }
 
     // Case 1: Structured QR code (Bambu Lab barcode/QR, Filadex QR)
-    if (parsed && (parsed.name || parsed.material)) {
+    if (parsed && typeof parsed === "object" && (parsed.name || parsed.material)) {
       const matchName = parsed.name?.toLowerCase();
       const matchBarcode = parsed.barcode?.toLowerCase();
       const matchingSpool = filaments.find(
@@ -341,7 +410,7 @@ export default function Home() {
     }
 
     // Case 2: Raw 1D/2D barcode
-    const code = (parsed?.barcode || decodedText).trim();
+    const code = (parsed && typeof parsed === "object" && parsed.barcode ? parsed.barcode : decodedText).trim();
 
     // Check if matching spool exists in current collection (supporting zero-padded GTINs)
     const normCode = code.replace(/^0+/, "");
@@ -366,43 +435,23 @@ export default function Home() {
         `/api/community-filaments/gtin/${encodeURIComponent(code)}`
       );
       if (result) {
-        const mfgText = result.manufacturer ? ` (${result.manufacturer})` : '';
-        const cleanName = result.colorName && result.name.toLowerCase().includes(result.colorName.toLowerCase())
-          ? result.name
-          : `${result.name} ${result.colorName || ''}`.trim();
-        const kg = result.weightGrams ? Number((result.weightGrams / 1000).toFixed(2)) : 1;
-        setSelectedFilament(undefined);
-        setCopyFromFilament({
-          id: 0,
-          name: `${cleanName}${mfgText}`.trim(),
-          manufacturer: result.manufacturer || "",
-          material: result.material || "",
-          colorName: result.colorName || "",
-          colorCode: result.colorCode || "#000000",
-          diameter: result.diameter ? String(result.diameter) : "1.75",
-          printTemp: result.extruderTemp ? (result.bedTemp ? `${result.extruderTemp}°C / Bed ${result.bedTemp}°C` : `${result.extruderTemp}°C`) : "",
-          barcode: result.gtin || code,
-          spoolType: result.spoolRefill ? "spoolless" : "spooled",
-          totalWeight: String(kg),
-          remainingPercentage: "100",
-          status: "sealed",
-          dryerCount: 0,
-          userId: 0,
-          purchaseDate: null,
-          purchasePrice: null,
-          storageLocation: null,
-          lastDryingDate: null,
-          customFieldValues: null,
-          createdAt: new Date() as any,
-          updatedAt: new Date() as any,
-        } as unknown as Filament);
-        setShowAddModal(true);
+        if (result.candidates && result.candidates.length > 1) {
+          setVariantCandidateBarcode(code);
+          setVariantCandidates(result.candidates);
+          return;
+        }
+        applyCommunityItem(result, code);
+        return;
+      }
+    } catch (err: any) {
+      if (err?.status !== 404) {
         toast({
-          title: t('scanner.foundInOfd', { name: `${result.manufacturer} - ${result.name}` }),
+          variant: "destructive",
+          title: t('common.error') || 'Error',
+          description: t('scanner.lookupError', { code }) || err?.message || 'Failed to search community catalog',
         });
         return;
       }
-    } catch {
       // Not found in OFD
     }
 
@@ -437,6 +486,7 @@ export default function Home() {
       title: t('scanner.notFoundAllSources', { code }),
     });
   };
+
 
   // Batch operation handlers
   const handleToggleSelectionMode = () => {
@@ -647,6 +697,63 @@ export default function Home() {
           onClose={() => setShowScanner(false)}
         />
       )}
+
+      {/* Multi-variant Candidate Selection Dialog */}
+      {variantCandidates && (
+        <Dialog open={true} onOpenChange={() => setVariantCandidates(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{t('scanner.multipleMatchesTitle')}</DialogTitle>
+              <DialogDescription>
+                {t('scanner.multipleMatchesDescription', { code: variantCandidateBarcode })}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+              {variantCandidates.map((candidate) => {
+                const colorCode = candidate.colorCode || "#888888";
+                const spoolTypeText = candidate.spoolRefill ? (t('filaments.spoolless') || 'Refill') : (t('filaments.spooled') || 'Spooled');
+                const weightText = candidate.weightGrams ? `${(candidate.weightGrams / 1000).toFixed(1)}kg` : '';
+                return (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    onClick={() => {
+                      applyCommunityItem(candidate, variantCandidateBarcode);
+                      setVariantCandidates(null);
+                    }}
+                    className="w-full text-left p-3 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:border-primary hover:bg-neutral-50 dark:hover:bg-neutral-800 transition flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-600 flex-shrink-0"
+                        style={{ backgroundColor: colorCode }}
+                      />
+                      <div>
+                        <div className="font-medium text-sm text-neutral-900 dark:text-neutral-100">
+                          {candidate.name} {candidate.colorName ? `(${candidate.colorName})` : ''}
+                        </div>
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                          {candidate.manufacturer} • {candidate.material}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right text-xs text-neutral-500 dark:text-neutral-400 flex flex-col items-end">
+                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">{spoolTypeText}</span>
+                      {weightText && <span>{weightText}</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setVariantCandidates(null)}>
+                {t('common.close') || 'Close'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
+
   );
 }

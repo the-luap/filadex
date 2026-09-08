@@ -20,6 +20,7 @@ interface BambuFilamentData {
   diameter?: number;
   totalWeight?: number;
   printTemp?: string;
+  barcode?: string;
 }
 
 export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
@@ -290,7 +291,8 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       manufacturer: "Bambu Lab",
       diameter: 1.75, // Standard für Bambu Lab
       totalWeight: 1, // Standard-Gewicht (1kg) für Bambu Lab Spulen
-      printTemp: printTemp
+      printTemp: printTemp,
+      barcode: barcode,
     };
   };
 
@@ -457,7 +459,8 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       manufacturer: "Bambu Lab",
       diameter: 1.75, // Standard für Bambu Lab
       totalWeight: weight || 1, // Standardgewicht oder extrahiertes Gewicht
-      printTemp: printTemp
+      printTemp: printTemp,
+      barcode: qrCode,
     };
   };
 

@@ -243,6 +243,8 @@ export function FilamentModal({
   const [customWeightVisible, setCustomWeightVisible] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showNFCScanner, setShowNFCScanner] = useState(false);
+  const [variantCandidates, setVariantCandidates] = useState<CommunityFilamentResult[] | null>(null);
+  const [variantCandidateBarcode, setVariantCandidateBarcode] = useState<string>("");
   const [usageNote, setUsageNote] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
@@ -518,28 +520,93 @@ export function FilamentModal({
   // Handler for QR code scan
   const handleQRCodeScanned = async (decodedText: string) => {
     setShowQRScanner(false);
+
+    // Case 0: Filadex URL (e.g. printed label with ?openFilament=123)
+    const openFilamentMatch = decodedText.match(/[?&]openFilament=(\d+)/);
+    if (openFilamentMatch) {
+      const filamentId = Number(openFilamentMatch[1]);
+      try {
+        const existing = await apiRequest<Filament>(`/api/filaments/${filamentId}`);
+        if (existing) {
+          applyScannedFilamentData({
+            name: existing.name,
+            manufacturer: existing.manufacturer,
+            material: existing.material,
+            colorName: existing.colorName,
+            colorCode: existing.colorCode,
+            diameter: existing.diameter,
+            printTemp: existing.printTemp,
+            barcode: existing.barcode,
+            totalWeight: existing.totalWeight,
+          });
+          toast({
+            title: existing.name,
+            description: existing.manufacturer ? `${existing.manufacturer} • ${existing.material}` : existing.material,
+          });
+          return;
+        }
+      } catch (err: any) {
+        if (err?.status !== 404) {
+          toast({
+            variant: "destructive",
+            title: t('common.error') || 'Error',
+            description: err?.message || 'Failed to fetch filament from label',
+          });
+          return;
+        }
+      }
+    }
+
+    // Case 1: Structured JSON QR code
+    let parsed: any = null;
     try {
-      const parsed = JSON.parse(decodedText);
-      applyScannedFilamentData(parsed);
-      return;
+      parsed = JSON.parse(decodedText);
     } catch {
       // Non-JSON string - query OFD GTIN lookup
     }
 
-    const code = decodedText.trim();
+    if (parsed && typeof parsed === "object" && (parsed.name || parsed.material)) {
+      applyScannedFilamentData(parsed);
+      return;
+    }
+
+    // Case 2: 1D/2D Barcode GTIN lookup
+    const code = (parsed && typeof parsed === "object" && parsed.barcode ? parsed.barcode : decodedText).trim();
     try {
+      const currentDiameter = form.getValues('diameter');
+      const currentWeight = form.getValues('totalWeight');
+      const currentSpoolType = form.getValues('spoolType');
+      const params = new URLSearchParams();
+      if (currentDiameter) params.set('diameter', String(currentDiameter));
+      if (currentWeight) params.set('weightGrams', String(Math.round(currentWeight * 1000)));
+      if (currentSpoolType) params.set('spoolRefill', String(currentSpoolType === 'spoolless'));
+      const query = params.toString() ? `?${params.toString()}` : '';
+
       const result = await apiRequest<CommunityFilamentResult>(
-        `/api/community-filaments/gtin/${encodeURIComponent(code)}`
+        `/api/community-filaments/gtin/${encodeURIComponent(code)}${query}`
       );
       if (result) {
         handleUseCommunityResult(result);
+        if (result.candidates && result.candidates.length > 1) {
+          setVariantCandidateBarcode(code);
+          setVariantCandidates(result.candidates);
+        } else {
+          toast({
+            title: t('scanner.foundInOfd', { name: `${result.manufacturer} - ${result.name}` }),
+          });
+        }
+        return;
+      }
+    } catch (err: any) {
+      if (err?.status !== 404) {
         toast({
-          title: t('scanner.foundInOfd', { name: `${result.manufacturer} - ${result.name}` }),
+          variant: "destructive",
+          title: t('common.error') || 'Error',
+          description: t('scanner.lookupError', { code }) || err?.message || 'Failed to search community catalog',
         });
         return;
       }
-    } catch {
-      // Not found in OFD GTIN index
+      // Only 404 status falls through to "not recognized" flow
     }
 
     form.setValue('barcode', code);
@@ -548,6 +615,7 @@ export function FilamentModal({
       title: t('scanner.notFoundAllSources', { code }),
     });
   };
+
 
   // Handler für NFC Scan
   const handleNFCScanned = (data: any) => {
@@ -576,6 +644,64 @@ export function FilamentModal({
           onScanSuccess={handleNFCScanned}
           onClose={() => setShowNFCScanner(false)}
         />
+      )}
+
+      {variantCandidates && (
+        <Dialog open={true} onOpenChange={() => setVariantCandidates(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{t('scanner.multipleMatchesTitle')}</DialogTitle>
+              <DialogDescription>
+                {t('scanner.multipleMatchesDescription', { code: variantCandidateBarcode })}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+              {variantCandidates.map((candidate) => {
+                const colorCode = candidate.colorCode || "#888888";
+                const spoolTypeText = candidate.spoolRefill ? (t('filaments.spoolless') || 'Refill') : (t('filaments.spooled') || 'Spooled');
+                const weightText = candidate.weightGrams ? `${(candidate.weightGrams / 1000).toFixed(1)}kg` : '';
+                return (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    onClick={() => {
+                      handleUseCommunityResult(candidate);
+                      setVariantCandidates(null);
+                      toast({
+                        title: t('scanner.foundInOfd', { name: `${candidate.manufacturer} - ${candidate.name}` }),
+                      });
+                    }}
+                    className="w-full text-left p-3 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:border-primary hover:bg-neutral-50 dark:hover:bg-neutral-800 transition flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-600 flex-shrink-0"
+                        style={{ backgroundColor: colorCode }}
+                      />
+                      <div>
+                        <div className="font-medium text-sm text-neutral-900 dark:text-neutral-100">
+                          {candidate.name} {candidate.colorName ? `(${candidate.colorName})` : ''}
+                        </div>
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                          {candidate.manufacturer} • {candidate.material}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right text-xs text-neutral-500 dark:text-neutral-400 flex flex-col items-end">
+                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">{spoolTypeText}</span>
+                      {weightText && <span>{weightText}</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setVariantCandidates(null)}>
+                {t('common.close') || 'Close'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

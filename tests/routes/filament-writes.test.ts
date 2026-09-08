@@ -102,6 +102,67 @@ describe("POST /api/filaments", () => {
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Import at most 2000 rows at a time");
   });
+
+  it("persists barcodes across CSV export, CSV import, and JSON import", async () => {
+    // 1. Create a spool with a barcode
+    const created = await create({
+      ...spool,
+      name: "Barcode Spool",
+      barcode: "6975337031901",
+    });
+    expect(created.status).toBe(201);
+    expect(created.body.barcode).toBe("6975337031901");
+
+    // 2. Test CSV export includes barcode column and value
+    const csvExport = await request(app)
+      .get("/api/filaments?export=csv")
+      .set("Cookie", cookie);
+    expect(csvExport.status).toBe(200);
+    expect(csvExport.text).toContain("barcode");
+    expect(csvExport.text).toContain("6975337031901");
+
+    // 3. Test CSV import persists barcode
+    const csvImportData = [
+      "name,manufacturer,material,colorname,colorcode,diameter,printtemp,totalweight,remainingpercentage,purchasedate,purchaseprice,status,spooltype,dryercount,lastdryingdate,storagelocation,barcode",
+      "Imported CSV Spool,Bambu Lab,PLA,White,#FFFFFF,1.75,210,1,100,2026-01-01,20,sealed,spooled,0,,Box A,6975337039999",
+    ].join("\n");
+    const csvImportRes = await request(app)
+      .post("/api/filaments?import=csv")
+      .set("Cookie", cookie)
+      .send({ csvData: csvImportData });
+    expect(csvImportRes.status).toBe(201);
+    expect(csvImportRes.body.created).toBe(1);
+
+    // Verify imported CSV spool has barcode
+    const listAfterCsv = await request(app).get("/api/filaments").set("Cookie", cookie);
+    const csvSpool = listAfterCsv.body.find((f: any) => f.name === "Imported CSV Spool");
+    expect(csvSpool).toBeDefined();
+    expect(csvSpool.barcode).toBe("6975337039999");
+
+    // 4. Test JSON import persists barcode
+    const jsonImportData = JSON.stringify([
+      {
+        name: "Imported JSON Spool",
+        manufacturer: "Polymaker",
+        material: "PETG",
+        colorName: "Teal",
+        colorCode: "#008080",
+        barcode: "1234567890123",
+      },
+    ]);
+    const jsonImportRes = await request(app)
+      .post("/api/filaments?import=json")
+      .set("Cookie", cookie)
+      .send({ jsonData: jsonImportData });
+    expect(jsonImportRes.status).toBe(201);
+    expect(jsonImportRes.body.created).toBe(1);
+
+    // Verify imported JSON spool has barcode
+    const listAfterJson = await request(app).get("/api/filaments").set("Cookie", cookie);
+    const jsonSpool = listAfterJson.body.find((f: any) => f.name === "Imported JSON Spool");
+    expect(jsonSpool).toBeDefined();
+    expect(jsonSpool.barcode).toBe("1234567890123");
+  });
 });
 
 describe("PATCH /api/filaments/:id and /batch", () => {
@@ -127,3 +188,4 @@ describe("PATCH /api/filaments/:id and /batch", () => {
     expect(good.body.updatedCount).toBe(1);
   });
 });
+

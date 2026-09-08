@@ -299,10 +299,109 @@ describe("CommunityCatalogService", () => {
         colorCode: "#008080",
         density: 1.24,
         diameter: 1.75,
+        weightGrams: null,
+        spoolRefill: null,
         extruderTemp: 210,
         bedTemp: 50,
         gtin: null,
       });
+    });
+  });
+
+  describe("OFD top-level temperatures and shared GTINs", () => {
+    it("extracts extruder and bed temperatures from OFD top-level min/max fields", () => {
+      const mockOfd: OfdDataset = {
+        version: "2026.09.08",
+        generated_at: "2026-09-08T00:00:00Z",
+        brands: [{ id: "b1", name: "123-3D", slug: "123_3d" }],
+        filaments: [
+          {
+            id: "f1",
+            brand_id: "b1",
+            name: "Filament PLA",
+            material: "PLA",
+            min_print_temperature: 190,
+            max_print_temperature: 220,
+            min_bed_temperature: 0,
+            max_bed_temperature: 50,
+          },
+        ],
+        variants: [{ id: "v1", filament_id: "f1", name: "White", color_hex: "ffffff" }],
+        sizes: [{ id: "s1", variant_id: "v1", diameter: 1.75, filament_weight: 1000, gtin: "1234567890123" }],
+      };
+
+      const items = service.parseOfdDataset(mockOfd);
+      expect(items).toHaveLength(1);
+      expect(items[0].extruderTemp).toBe(205);
+      expect(items[0].bedTemp).toBe(50);
+    });
+
+    it("indexes shared GTINs across multiple variants and supports hint resolution", () => {
+      const spoolItem: CommunityCatalogItem = {
+        id: "ofd-spool",
+        source: "ofd",
+        manufacturer: "Bambu Lab",
+        material: "PLA",
+        name: "PLA Basic Spool",
+        colorName: "Jade White",
+        colorCode: "#FFFFFF",
+        density: 1.24,
+        diameter: 1.75,
+        weightGrams: 1000,
+        spoolRefill: false,
+        extruderTemp: 220,
+        bedTemp: 55,
+        gtin: "6975337032878",
+      };
+
+      const refillItem: CommunityCatalogItem = {
+        id: "ofd-refill",
+        source: "ofd",
+        manufacturer: "Bambu Lab",
+        material: "PLA",
+        name: "PLA Basic Refill",
+        colorName: "Jade White",
+        colorCode: "#FFFFFF",
+        density: 1.24,
+        diameter: 1.75,
+        weightGrams: 1000,
+        spoolRefill: true,
+        extruderTemp: 220,
+        bedTemp: 55,
+        gtin: "6975337032878",
+      };
+
+      service.setItems([spoolItem, refillItem]);
+
+      const candidates = service.lookupGtinCandidates("6975337032878");
+      expect(candidates).toHaveLength(2);
+
+      const defaultMatch = service.lookupGtin("6975337032878");
+      expect(defaultMatch?.id).toBe("ofd-spool");
+
+      const refillMatch = service.lookupGtin("6975337032878", { spoolRefill: true });
+      expect(refillMatch?.id).toBe("ofd-refill");
+    });
+
+    it("handles numeric gtin in rebuildIndexes and lookup without crashing", () => {
+      const numericGtinItem: any = {
+        id: "item-numeric",
+        source: "ofd",
+        manufacturer: "Test",
+        material: "PLA",
+        name: "Numeric GTIN",
+        colorName: "Black",
+        colorCode: "#000000",
+        gtin: 6975337031901,
+      };
+
+      expect(() => {
+        service.setItems([numericGtinItem]);
+      }).not.toThrow();
+
+      const found = service.lookupGtin("6975337031901");
+      expect(found).not.toBeNull();
+      expect(found?.name).toBe("Numeric GTIN");
     });
   });
 

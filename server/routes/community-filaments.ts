@@ -31,16 +31,26 @@ export function registerCommunityFilamentRoutes(app: Express): void {
       if (!code) {
         return res.status(400).json({ message: "Invalid GTIN code" });
       }
-      const item = communityCatalog.lookupGtin(code);
-      if (!item) {
+      const candidates = communityCatalog.lookupGtinCandidates(code);
+      if (candidates.length === 0) {
         return res.status(404).json({ message: "Filament not found in community catalog" });
       }
-      res.json(item);
+      const hint = {
+        diameter: req.query.diameter ? Number(req.query.diameter) : undefined,
+        weightGrams: req.query.weightGrams ? Number(req.query.weightGrams) : undefined,
+        spoolRefill: req.query.spoolRefill !== undefined ? req.query.spoolRefill === "true" : undefined,
+      };
+      const primary = communityCatalog.lookupGtin(code, hint) || candidates[0];
+      res.json({
+        ...primary,
+        candidates,
+      });
     } catch (error) {
       appLogger.error("Error looking up GTIN:", error);
       res.status(500).json({ message: "Failed to look up GTIN" });
     }
   });
+
 
   app.get("/api/community-filaments/status", authenticate, isAdmin, async (_req, res) => {
     try {

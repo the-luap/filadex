@@ -1,11 +1,15 @@
 import fs from "fs";
 import path from "path";
 import zlib from "zlib";
+import { z } from "zod";
 import { logger } from "../utils/logger";
 import type { CommunityCatalogItem } from "@shared/schema";
 
 export type { CommunityCatalogItem };
 
+export const MAX_SPOOLMANDB_RESPONSE_BYTES = 8 * 1024 * 1024;
+export const MAX_OFD_RESPONSE_BYTES = 15 * 1024 * 1024;
+export const MAX_GUNZIP_OUTPUT_BYTES = 50 * 1024 * 1024;
 
 export interface CatalogSourceStatus {
   count: number;
@@ -17,41 +21,69 @@ export interface CommunityCatalogStatus {
   spoolmandb: CatalogSourceStatus;
 }
 
-export interface OfdBrand {
-  id: string;
-  name: string;
-  slug: string;
-}
+export const spoolmanDbColorSchema = z.object({
+  name: z.string().max(200),
+  hex: z.union([z.string(), z.number()]).transform((v) => String(v).trim()).optional().default(""),
+});
 
-export interface OfdFilament {
-  id: string;
-  brand_id: string;
-  name: string;
-  material: string;
-  density?: number;
-  slicer_settings?: {
-    [slicer: string]: {
-      extruder_temp?: number;
-      bed_temp?: number;
-    };
-  };
-}
+export const spoolmanDbFilamentSchema = z.object({
+  name: z.string().max(300),
+  material: z.string().max(100),
+  density: z.number().optional().nullable(),
+  diameters: z.array(z.number()).optional().nullable(),
+  extruder_temp: z.number().optional().nullable(),
+  bed_temp: z.number().optional().nullable(),
+  colors: z.array(spoolmanDbColorSchema).optional().nullable(),
+});
 
-export interface OfdVariant {
-  id: string;
-  filament_id: string;
-  name: string;
-  color_hex?: string;
-}
+export const spoolmanDbVendorFileSchema = z.object({
+  manufacturer: z.string().max(200),
+  filaments: z.array(spoolmanDbFilamentSchema),
+});
 
-export interface OfdSize {
-  id: string;
-  variant_id: string;
-  diameter?: number;
-  filament_weight?: number;
-  spool_refill?: boolean;
-  gtin?: string;
-}
+export type SpoolmanDbColor = z.infer<typeof spoolmanDbColorSchema>;
+export type SpoolmanDbFilament = z.infer<typeof spoolmanDbFilamentSchema>;
+export type SpoolmanDbVendorFile = z.infer<typeof spoolmanDbVendorFileSchema>;
+
+export const ofdBrandSchema = z.object({
+  id: z.union([z.string(), z.number()]).transform(String),
+  name: z.string(),
+  slug: z.string().optional(),
+});
+
+export const ofdFilamentSchema = z.object({
+  id: z.union([z.string(), z.number()]).transform(String),
+  brand_id: z.union([z.string(), z.number()]).transform(String).optional().nullable(),
+  name: z.string(),
+  material: z.string().optional().default(""),
+  density: z.number().optional().nullable(),
+  min_print_temperature: z.number().optional().nullable(),
+  max_print_temperature: z.number().optional().nullable(),
+  min_bed_temperature: z.number().optional().nullable(),
+  max_bed_temperature: z.number().optional().nullable(),
+  slicer_settings: z.record(z.any()).optional().nullable(),
+});
+
+export const ofdVariantSchema = z.object({
+  id: z.union([z.string(), z.number()]).transform(String),
+  filament_id: z.union([z.string(), z.number()]).transform(String),
+  name: z.string().optional().default(""),
+  color_hex: z.union([z.string(), z.number()]).transform((v) => String(v).trim()).optional().nullable(),
+});
+
+export const ofdSizeSchema = z.object({
+  id: z.union([z.string(), z.number()]).transform(String).optional(),
+  variant_id: z.union([z.string(), z.number()]).transform(String),
+  diameter: z.number().optional().nullable(),
+  filament_weight: z.number().optional().nullable(),
+  spool_refill: z.boolean().optional().nullable(),
+  gtin: z.union([z.string(), z.number()]).transform((v) => String(v).trim()).optional().nullable(),
+});
+
+export type OfdBrand = z.infer<typeof ofdBrandSchema>;
+export type OfdFilament = z.infer<typeof ofdFilamentSchema>;
+export type OfdVariant = z.infer<typeof ofdVariantSchema>;
+export type OfdSize = z.infer<typeof ofdSizeSchema>;
 
 export interface OfdDataset {
   version: string;
@@ -62,29 +94,10 @@ export interface OfdDataset {
   sizes: OfdSize[];
 }
 
-export interface SpoolmanDbColor {
-  name: string;
-  hex?: string;
-}
-
-export interface SpoolmanDbFilament {
-  name: string;
-  material: string;
-  density?: number;
-  diameters?: number[];
-  extruder_temp?: number;
-  bed_temp?: number;
-  colors?: SpoolmanDbColor[];
-}
-
-export interface SpoolmanDbVendorFile {
-  manufacturer: string;
-  filaments: SpoolmanDbFilament[];
-}
-
 function normalizeGtin(gtin: string): string {
-  return gtin.trim().replace(/^0+/, "");
+  return String(gtin).trim().replace(/^0+/, "");
 }
+
 
 export class CatalogSyncConflictError extends Error {
   constructor(message = "Catalog synchronization is already in progress") {
@@ -105,7 +118,7 @@ export function getCatalogCacheDir(): string {
 
 export class CommunityCatalogService {
   private items: CommunityCatalogItem[] = [];
-  private gtinMap: Map<string, CommunityCatalogItem> = new Map();
+  private gtinMap: Map<string, CommunityCatalogItem[]> = new Map();
   private status: CommunityCatalogStatus = {
     ofd: { count: 0, lastUpdated: null },
     spoolmandb: { count: 0, lastUpdated: null },
@@ -138,15 +151,20 @@ export class CommunityCatalogService {
   }
 
   private rebuildIndexes(): void {
-    const nextGtinMap = new Map<string, CommunityCatalogItem>();
+    const nextGtinMap = new Map<string, CommunityCatalogItem[]>();
     for (const item of this.items) {
       if (item.gtin) {
-        const raw = item.gtin.trim();
+        const raw = typeof item.gtin === "string" ? item.gtin.trim() : String(item.gtin).trim();
         const norm = normalizeGtin(raw);
         if (norm) {
-          nextGtinMap.set(norm, item);
-        } else if (raw) {
-          nextGtinMap.set(raw, item);
+          const list = nextGtinMap.get(norm) || [];
+          list.push(item);
+          nextGtinMap.set(norm, list);
+        }
+        if (raw && raw !== norm) {
+          const list = nextGtinMap.get(raw) || [];
+          list.push(item);
+          nextGtinMap.set(raw, list);
         }
       }
     }
@@ -184,11 +202,11 @@ export class CommunityCatalogService {
     return results;
   }
 
-  public lookupGtin(gtin: string): CommunityCatalogItem | null {
-    if (!gtin || !gtin.trim()) {
-      return null;
+  public lookupGtinCandidates(gtin: string): CommunityCatalogItem[] {
+    if (!gtin || !String(gtin).trim()) {
+      return [];
     }
-    const raw = gtin.trim();
+    const raw = String(gtin).trim();
     const norm = normalizeGtin(raw);
     if (norm && this.gtinMap.has(norm)) {
       return this.gtinMap.get(norm)!;
@@ -196,7 +214,44 @@ export class CommunityCatalogService {
     if (this.gtinMap.has(raw)) {
       return this.gtinMap.get(raw)!;
     }
-    return null;
+    return [];
+  }
+
+  public lookupGtin(
+    gtin: string,
+    hint?: { diameter?: number; weightGrams?: number; spoolRefill?: boolean }
+  ): CommunityCatalogItem | null {
+    const candidates = this.lookupGtinCandidates(gtin);
+    if (candidates.length === 0) {
+      return null;
+    }
+    if (candidates.length === 1) {
+      return candidates[0];
+    }
+
+    if (hint) {
+      const match = candidates.find((c) => {
+        if (hint.spoolRefill !== undefined && c.spoolRefill !== null && c.spoolRefill !== hint.spoolRefill) {
+          return false;
+        }
+        if (hint.weightGrams !== undefined && c.weightGrams !== null && c.weightGrams !== hint.weightGrams) {
+          return false;
+        }
+        if (hint.diameter !== undefined && c.diameter !== null && Math.abs(c.diameter - hint.diameter) > 0.05) {
+          return false;
+        }
+        return true;
+      });
+      if (match) {
+        return match;
+      }
+    }
+
+    // Default preference: standard spooled 1kg, then standard spooled, then first candidate
+    const preferred = candidates.find((c) => c.spoolRefill === false && c.weightGrams === 1000)
+      || candidates.find((c) => c.spoolRefill === false)
+      || candidates[0];
+    return preferred;
   }
 
   public getStatus(): CommunityCatalogStatus {
@@ -212,59 +267,89 @@ export class CommunityCatalogService {
 
   public parseOfdDataset(data: OfdDataset): CommunityCatalogItem[] {
     const brandMap = new Map<string, OfdBrand>();
-    for (const brand of data.brands || []) {
-      if (brand?.id) {
-        brandMap.set(brand.id, brand);
+    for (const rawBrand of data.brands || []) {
+      const parsed = ofdBrandSchema.safeParse(rawBrand);
+      if (parsed.success) {
+        brandMap.set(parsed.data.id, parsed.data);
       }
     }
 
     const filamentMap = new Map<string, OfdFilament>();
-    for (const fil of data.filaments || []) {
-      if (fil?.id) {
-        filamentMap.set(fil.id, fil);
+    for (const rawFil of data.filaments || []) {
+      const parsed = ofdFilamentSchema.safeParse(rawFil);
+      if (parsed.success) {
+        filamentMap.set(parsed.data.id, parsed.data);
       }
     }
 
     // Map size to variant to filament to brand
     const sizesByVariant = new Map<string, OfdSize[]>();
-    for (const s of data.sizes || []) {
-      if (!s?.variant_id) continue;
-      const existing = sizesByVariant.get(s.variant_id) || [];
-      existing.push(s);
-      sizesByVariant.set(s.variant_id, existing);
+    for (const rawSize of data.sizes || []) {
+      const parsed = ofdSizeSchema.safeParse(rawSize);
+      if (!parsed.success || !parsed.data.variant_id) continue;
+      const existing = sizesByVariant.get(parsed.data.variant_id) || [];
+      existing.push(parsed.data);
+      sizesByVariant.set(parsed.data.variant_id, existing);
     }
 
     const items: CommunityCatalogItem[] = [];
 
-    for (const variant of data.variants || []) {
-      if (!variant?.id || !variant?.filament_id) continue;
+    for (const rawVariant of data.variants || []) {
+      const parsedVariant = ofdVariantSchema.safeParse(rawVariant);
+      if (!parsedVariant.success) continue;
+      const variant = parsedVariant.data;
+
       const filament = filamentMap.get(variant.filament_id);
       if (!filament) continue;
-      const brand = brandMap.get(filament.brand_id);
+      const brand = filament.brand_id ? brandMap.get(filament.brand_id) : undefined;
       const mfg = brand ? brand.name : "Unknown";
 
-      // Extract slicer settings if available (prioritizing popular slicers)
+      // Determine extruder and bed temperatures:
+      // OFD filaments store temperatures at top-level min/max fields
       let extruderTemp: number | null = null;
       let bedTemp: number | null = null;
-      if (filament.slicer_settings && typeof filament.slicer_settings === "object") {
+
+      if (filament.min_print_temperature != null && filament.max_print_temperature != null) {
+        extruderTemp = Math.round((filament.min_print_temperature + filament.max_print_temperature) / 2);
+      } else if (filament.min_print_temperature != null) {
+        extruderTemp = filament.min_print_temperature;
+      } else if (filament.max_print_temperature != null) {
+        extruderTemp = filament.max_print_temperature;
+      }
+
+      if (filament.max_bed_temperature != null) {
+        if (filament.min_bed_temperature != null && filament.min_bed_temperature > 30) {
+          bedTemp = Math.round((filament.min_bed_temperature + filament.max_bed_temperature) / 2);
+        } else {
+          bedTemp = filament.max_bed_temperature;
+        }
+      } else if (filament.min_bed_temperature != null) {
+        bedTemp = filament.min_bed_temperature;
+      }
+
+      // Check slicer settings if temperatures are still missing
+      if ((extruderTemp === null || bedTemp === null) && filament.slicer_settings && typeof filament.slicer_settings === "object") {
         const preferredSlicers = ["orca", "bambu_studio", "prusa_slicer", "cura"];
         for (const name of preferredSlicers) {
           const s = filament.slicer_settings[name];
           if (s && typeof s === "object") {
-            if (s.extruder_temp && extruderTemp === null) extruderTemp = s.extruder_temp;
-            if (s.bed_temp && bedTemp === null) bedTemp = s.bed_temp;
+            if (s.extruder_temp && extruderTemp === null && typeof s.extruder_temp === "number") extruderTemp = s.extruder_temp;
+            if (s.bed_temp && bedTemp === null && typeof s.bed_temp === "number") bedTemp = s.bed_temp;
           }
         }
         for (const slicer of Object.values(filament.slicer_settings)) {
           if (slicer && typeof slicer === "object") {
-            if (slicer.extruder_temp && extruderTemp === null) extruderTemp = slicer.extruder_temp;
-            if (slicer.bed_temp && bedTemp === null) bedTemp = slicer.bed_temp;
+            if (slicer.extruder_temp && extruderTemp === null && typeof slicer.extruder_temp === "number") extruderTemp = slicer.extruder_temp;
+            if (slicer.bed_temp && bedTemp === null && typeof slicer.bed_temp === "number") bedTemp = slicer.bed_temp;
           }
         }
       }
 
-      const colorCode = variant.color_hex
-        ? (variant.color_hex.startsWith("#") ? variant.color_hex : `#${variant.color_hex}`)
+      const hexStr = typeof variant.color_hex === "string"
+        ? variant.color_hex.trim()
+        : (variant.color_hex != null ? String(variant.color_hex).trim() : "");
+      const colorCode = hexStr
+        ? (hexStr.startsWith("#") ? hexStr : `#${hexStr}`)
         : null;
 
       const sizes = sizesByVariant.get(variant.id) || [];
@@ -273,14 +358,14 @@ export class CommunityCatalogService {
           id: `ofd-v-${variant.id}`,
           source: "ofd",
           manufacturer: mfg,
-          material: filament.material,
+          material: filament.material || "",
           name: filament.name,
-          colorName: variant.name,
+          colorName: variant.name || "",
           colorCode,
           density: filament.density ?? null,
           diameter: 1.75,
-          weightGrams: 1000,
-          spoolRefill: false,
+          weightGrams: null,
+          spoolRefill: null,
           extruderTemp,
           bedTemp,
           gtin: null,
@@ -288,20 +373,20 @@ export class CommunityCatalogService {
       } else {
         for (const size of sizes) {
           items.push({
-            id: `ofd-s-${size.id}`,
+            id: `ofd-s-${size.id || variant.id}`,
             source: "ofd",
             manufacturer: mfg,
-            material: filament.material,
+            material: filament.material || "",
             name: filament.name,
-            colorName: variant.name,
+            colorName: variant.name || "",
             colorCode,
             density: filament.density ?? null,
             diameter: size.diameter ?? 1.75,
-            weightGrams: size.filament_weight ?? 1000,
-            spoolRefill: size.spool_refill ?? false,
+            weightGrams: size.filament_weight ?? null,
+            spoolRefill: size.spool_refill ?? null,
             extruderTemp,
             bedTemp,
-            gtin: size.gtin || null,
+            gtin: size.gtin ? String(size.gtin).trim() : null,
           });
         }
       }
@@ -313,23 +398,23 @@ export class CommunityCatalogService {
   public parseSpoolmanDbVendorFiles(files: SpoolmanDbVendorFile[]): CommunityCatalogItem[] {
     const items: CommunityCatalogItem[] = [];
 
-    for (const vendor of files) {
-      if (!vendor || !vendor.manufacturer || !Array.isArray(vendor.filaments)) {
+    for (const rawVendor of files) {
+      const parsedVendor = spoolmanDbVendorFileSchema.safeParse(rawVendor);
+      if (!parsedVendor.success) {
+        logger.warn(`Skipping malformed SpoolmanDB vendor file: ${parsedVendor.error.errors[0]?.message ?? "unexpected shape"}`);
         continue;
       }
+      const vendor = parsedVendor.data;
 
       for (const fil of vendor.filaments) {
-        if (!fil || typeof fil.name !== "string" || typeof fil.material !== "string") {
-          continue;
-        }
-
         const colors = fil.colors && fil.colors.length > 0 ? fil.colors : [{ name: "Unknown", hex: "" }];
         const diameter = fil.diameters?.[0] ?? 1.75;
 
         for (const col of colors) {
-          const colName = col?.name || "Unknown";
+          const colName = col.name || "Unknown";
           const name = fil.name.replace("{color_name}", colName);
-          const colorCode = col?.hex ? (col.hex.startsWith("#") ? col.hex : `#${col.hex}`) : null;
+          const colHex = typeof col.hex === "string" ? col.hex.trim() : (col.hex ? String(col.hex).trim() : "");
+          const colorCode = colHex ? (colHex.startsWith("#") ? colHex : `#${colHex}`) : null;
 
           items.push({
             id: `spoolmandb-${vendor.manufacturer}-${name}-${colName}`,
@@ -341,8 +426,8 @@ export class CommunityCatalogService {
             colorCode,
             density: fil.density ?? null,
             diameter,
-            weightGrams: 1000,
-            spoolRefill: false,
+            weightGrams: null,
+            spoolRefill: null,
             extruderTemp: fil.extruder_temp ?? null,
             bedTemp: fil.bed_temp ?? null,
             gtin: null,
@@ -370,8 +455,9 @@ export class CommunityCatalogService {
         const raw = fs.readFileSync(ofdFile, "utf-8");
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.items)) {
-          this.setSourceItems("ofd", parsed.items, parsed.lastUpdated || null);
-          logger.info(`Loaded ${parsed.items.length} OFD catalog items from disk cache.`);
+          const validItems = this.sanitizeLoadedItems(parsed.items, "ofd");
+          this.setSourceItems("ofd", validItems, parsed.lastUpdated || null);
+          logger.info(`Loaded ${validItems.length} OFD catalog items from disk cache.`);
         }
       }
     } catch (error) {
@@ -384,14 +470,41 @@ export class CommunityCatalogService {
         const raw = fs.readFileSync(spoolmanFile, "utf-8");
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.items)) {
-          this.setSourceItems("spoolmandb", parsed.items, parsed.lastUpdated || null);
-          logger.info(`Loaded ${parsed.items.length} SpoolmanDB catalog items from disk cache.`);
+          const validItems = this.sanitizeLoadedItems(parsed.items, "spoolmandb");
+          this.setSourceItems("spoolmandb", validItems, parsed.lastUpdated || null);
+          logger.info(`Loaded ${validItems.length} SpoolmanDB catalog items from disk cache.`);
         }
       }
     } catch (error) {
       logger.warn(`Failed to load SpoolmanDB catalog from disk: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+
+  private sanitizeLoadedItems(items: any[], defaultSource: "ofd" | "spoolmandb"): CommunityCatalogItem[] {
+    const validItems: CommunityCatalogItem[] = [];
+    for (const item of items) {
+      if (item && typeof item === "object" && item.id && item.name && item.material) {
+        validItems.push({
+          id: String(item.id),
+          source: item.source === "spoolmandb" || item.source === "ofd" ? item.source : defaultSource,
+          manufacturer: String(item.manufacturer || "Unknown"),
+          material: String(item.material || ""),
+          name: String(item.name || ""),
+          colorName: String(item.colorName || ""),
+          colorCode: item.colorCode ? String(item.colorCode) : null,
+          density: typeof item.density === "number" ? item.density : null,
+          diameter: typeof item.diameter === "number" ? item.diameter : null,
+          weightGrams: typeof item.weightGrams === "number" ? item.weightGrams : null,
+          spoolRefill: typeof item.spoolRefill === "boolean" ? item.spoolRefill : null,
+          extruderTemp: typeof item.extruderTemp === "number" ? item.extruderTemp : null,
+          bedTemp: typeof item.bedTemp === "number" ? item.bedTemp : null,
+          gtin: item.gtin ? String(item.gtin).trim() : null,
+        });
+      }
+    }
+    return validItems;
+  }
+
 
   public async saveToDisk(source: "ofd" | "spoolmandb"): Promise<void> {
     const fileName = source === "ofd" ? "ofd.json" : "spoolmandb.json";
@@ -480,8 +593,11 @@ export class CommunityCatalogService {
       throw new Error(`Failed to fetch OFD: ${res.status} ${res.statusText}`);
     }
     const arrayBuffer = await res.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_OFD_RESPONSE_BYTES) {
+      throw new Error(`OFD response exceeds maximum allowed size (${arrayBuffer.byteLength} > ${MAX_OFD_RESPONSE_BYTES} bytes)`);
+    }
     const buffer = Buffer.from(arrayBuffer);
-    const unzipped = zlib.gunzipSync(buffer).toString("utf-8");
+    const unzipped = zlib.gunzipSync(buffer, { maxOutputLength: MAX_GUNZIP_OUTPUT_BYTES }).toString("utf-8");
     const data: OfdDataset = JSON.parse(unzipped);
     const items = this.parseOfdDataset(data);
     if (items.length === 0) {
@@ -525,10 +641,17 @@ export class CommunityCatalogService {
             });
             if (fileRes.ok) {
               const text = await fileRes.text();
+              if (text.length > MAX_SPOOLMANDB_RESPONSE_BYTES) {
+                logger.warn(`SpoolmanDB file ${p} exceeded size limit (${text.length} bytes)`);
+                return null;
+              }
               try {
                 const parsed = JSON.parse(text);
-                if (parsed && typeof parsed === "object") {
-                  return parsed as SpoolmanDbVendorFile;
+                const validated = spoolmanDbVendorFileSchema.safeParse(parsed);
+                if (validated.success) {
+                  return validated.data;
+                } else {
+                  logger.warn(`Skipping malformed SpoolmanDB file ${p}: ${validated.error.errors[0]?.message ?? "unexpected shape"}`);
                 }
               } catch {
                 logger.warn(`Failed to parse JSON from SpoolmanDB file ${p}`);
@@ -566,6 +689,7 @@ export class CommunityCatalogService {
     await this.saveToDisk("spoolmandb");
     return items.length;
   }
+
 }
 
 export const communityCatalog = new CommunityCatalogService();

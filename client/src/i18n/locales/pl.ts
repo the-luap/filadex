@@ -16,6 +16,10 @@ const scanner = {
   notFoundAllSources: 'Kod kreskowy {{code}} nie został rozpoznany (przeszukano Filadex QR, Bambu Lab i Open Filament Database).',
   foundInOfd: 'Znaleziono w Open Filament Database: {{name}}',
   scanBarcode: 'Skanuj kod kreskowy',
+  multipleMatchesTitle: 'Znaleziono wiele wariantów',
+  multipleMatchesDescription: 'Kod kreskowy {{code}} odpowiada wielu wariantom. Wybierz swój wariant:',
+  selectVariant: 'Wybierz wariant',
+  lookupError: 'Błąd podczas wyszukiwania kodu {{code}} w katalogu społeczności.',
 };
 
 // Polish translations

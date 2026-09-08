@@ -16,6 +16,10 @@ const scanner = {
   notFoundAllSources: 'Barcode {{code}} not recognized (searched Filadex QR, Bambu Lab, and Open Filament Database).',
   foundInOfd: 'Found in Open Filament Database: {{name}}',
   scanBarcode: 'Scan barcode',
+  multipleMatchesTitle: 'Multiple Variants Found',
+  multipleMatchesDescription: 'Barcode {{code}} matches multiple variants. Please select yours:',
+  selectVariant: 'Select Variant',
+  lookupError: 'Failed to search community catalog for barcode {{code}}.',
 };
 
 // English translations

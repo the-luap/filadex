@@ -153,7 +153,45 @@ describe("GET /api/community-filaments/gtin/:code", () => {
 
     expect(response.status).toBe(404);
   });
+
+  it("returns candidates array when multiple variants share a GTIN and respects hint", async () => {
+    const spoolVariant = {
+      ...bambu,
+      id: "ofd-spool",
+      name: "Basic PLA Spooled",
+      spoolRefill: false,
+      gtin: "6975337032878",
+    };
+    const refillVariant = {
+      ...bambu,
+      id: "ofd-refill",
+      name: "Basic PLA Refill",
+      spoolRefill: true,
+      gtin: "6975337032878",
+    };
+
+    communityCatalog.setItems([spoolVariant, refillVariant]);
+
+    // Request without hint - returns candidates and defaults to preferred (spooled)
+    const resAll = await request(app)
+      .get("/api/community-filaments/gtin/6975337032878")
+      .set("Cookie", userCookie);
+
+    expect(resAll.status).toBe(200);
+    expect(resAll.body.candidates).toHaveLength(2);
+    expect(resAll.body.name).toBe("Basic PLA Spooled");
+
+    // Request with spoolRefill=true hint - returns refill as primary
+    const resRefill = await request(app)
+      .get("/api/community-filaments/gtin/6975337032878?spoolRefill=true")
+      .set("Cookie", userCookie);
+
+    expect(resRefill.status).toBe(200);
+    expect(resRefill.body.candidates).toHaveLength(2);
+    expect(resRefill.body.name).toBe("Basic PLA Refill");
+  });
 });
+
 
 describe("GET /api/community-filaments/status", () => {
   it("rejects a non-admin", async () => {
