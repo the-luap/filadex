@@ -55,6 +55,40 @@ describe("Filament search matching by barcode", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as unknown as Filament,
+    {
+      id: 4,
+      name: "All Zero Barcode",
+      manufacturer: "Generic",
+      material: "abs",
+      colorName: "Blue",
+      colorCode: "#0000FF",
+      diameter: "1.75",
+      barcode: "0000",
+      userId: 1,
+      totalWeight: "1",
+      remainingPercentage: "100",
+      status: "sealed",
+      dryerCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as unknown as Filament,
+    {
+      id: 5,
+      name: "Short Barcode Spool",
+      manufacturer: "Generic",
+      material: "abs",
+      colorName: "Yellow",
+      colorCode: "#FFFF00",
+      diameter: "1.75",
+      barcode: "123",
+      userId: 1,
+      totalWeight: "1",
+      remainingPercentage: "100",
+      status: "sealed",
+      dryerCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as unknown as Filament,
   ];
 
   it("returns null for empty search term", () => {
@@ -86,5 +120,19 @@ describe("Filament search matching by barcode", () => {
     const matches = getFilamentSearchMatchIds(sampleFilaments, "1234567890");
     expect(matches).not.toBeNull();
     expect(matches?.has(3)).toBe(true);
+  });
+
+  it("does not match all-zero barcode when searching for unrelated terms", () => {
+    const matches = getFilamentSearchMatchIds(sampleFilaments, "Prusament");
+    expect(matches).not.toBeNull();
+    expect(matches?.has(2)).toBe(true);
+    expect(matches?.has(4)).toBe(false); // All-zero barcode must NOT match
+  });
+
+  it("does not match short barcode when search term merely contains the barcode digits", () => {
+    const matches = getFilamentSearchMatchIds(sampleFilaments, "Carmine");
+    expect(matches).not.toBeNull();
+    expect(matches?.has(2)).toBe(true);
+    expect(matches?.has(5)).toBe(false); // "123" must not match
   });
 });

@@ -402,7 +402,7 @@ export const filamentWriteSchema = z.object({
   dryerCount: z.number().int().min(0).max(10_000).optional(),
   lastDryingDate: isoDate.nullable().optional(),
   storageLocation: z.string().max(200).nullable().optional(),
-  barcode: z.string().max(100).nullable().optional(),
+  barcode: z.string().trim().max(100).nullable().optional(),
   customFieldValues: customFieldValuesSchema.optional(),
 });
 

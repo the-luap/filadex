@@ -26,7 +26,7 @@ export function getFilamentSearchMatchIds(
       const normBarcode = lowerBarcode.replace(/^0+/, "");
       if (
         lowerBarcode.includes(term) ||
-        (normTerm && (normBarcode.includes(normTerm) || normTerm.includes(normBarcode)))
+        (normBarcode && normTerm && normBarcode.includes(normTerm))
       ) {
         matches.add(f.id);
       }

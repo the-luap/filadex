@@ -46,10 +46,10 @@ export function CommunityFilamentsSettings() {
         description: t("settings.communityFilaments.refreshSuccessDescription", { count: result.count }),
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: t("common.error"),
-        description: t("settings.communityFilaments.refreshError"),
+        description: error?.message || t("settings.communityFilaments.refreshError"),
         variant: "destructive",
       });
     },

@@ -65,6 +65,7 @@ temp/
 
 # Cache
 .cache/
+data/cache/
 .eslintcache
 .stylelintcache
 

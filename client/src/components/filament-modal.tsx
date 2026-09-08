@@ -431,9 +431,9 @@ export function FilamentModal({
         : `${result.extruderTemp}°C`);
     }
     const mfgText = result.manufacturer ? ` (${result.manufacturer})` : '';
-    const cleanName = result.name.toLowerCase().includes(result.colorName.toLowerCase())
+    const cleanName = result.colorName && result.name.toLowerCase().includes(result.colorName.toLowerCase())
       ? result.name
-      : `${result.name} ${result.colorName}`;
+      : `${result.name} ${result.colorName || ''}`.trim();
     form.setValue('name', `${cleanName}${mfgText}`.trim());
     if (result.gtin) {
       form.setValue('barcode', result.gtin);
@@ -627,10 +627,10 @@ export function FilamentModal({
                           {t('settings.communityFilaments.noResults')}
                         </p>
                       ) : (
-                        communityResults.map((result) => (
+                        communityResults.map((result, index) => (
                           <button
                             type="button"
-                            key={`${result.id}`}
+                            key={`${result.id}-${index}`}
                             onClick={() => handleUseCommunityResult(result)}
                             className="w-full text-left text-sm flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-primary/10"
                           >

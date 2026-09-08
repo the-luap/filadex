@@ -67,6 +67,10 @@ const INTENTIONALLY_DROPPED: Record<string, readonly string[]> = {
   filaments: ["created_at", "updated_at"],
 };
 
+const INTENTIONALLY_DROPPED_TABLES: readonly string[] = [
+  "community_filament_cache",
+];
+
 type TableShape = { name: string; columns: string[] };
 
 /**
@@ -76,9 +80,6 @@ type TableShape = { name: string; columns: string[] };
  * column at a time": a column a migration adds is absent here and so is never
  * compared, and a column a migration drops must be in INTENTIONALLY_DROPPED or
  * check 1 fails.
- *
- * A migration that drops a whole table is not handled here - the after-snapshot
- * throws rather than failing cleanly - because nothing in play does that.
  */
 async function discoverShape(pool: pg.Pool): Promise<TableShape[]> {
   const { rows } = await pool.query<{ table_name: string; column_name: string }>(`
@@ -88,6 +89,7 @@ async function discoverShape(pool: pg.Pool): Promise<TableShape[]> {
     ORDER BY table_name, ordinal_position`);
   const byTable = new Map<string, string[]>();
   for (const { table_name, column_name } of rows) {
+    if (INTENTIONALLY_DROPPED_TABLES.includes(table_name)) continue;
     if ((INTENTIONALLY_DROPPED[table_name] ?? []).includes(column_name)) continue;
     let columns = byTable.get(table_name);
     if (!columns) byTable.set(table_name, (columns = []));
@@ -141,11 +143,13 @@ async function staleDropEntries(pool: pg.Pool): Promise<string[]> {
     SELECT table_name, column_name
     FROM information_schema.columns
     WHERE table_schema = 'public'`);
+  const liveTables = new Set(rows.map((r) => r.table_name));
+  const staleTables = INTENTIONALLY_DROPPED_TABLES.filter((t) => liveTables.has(t));
   const live = new Set(rows.map((r) => `${r.table_name}.${r.column_name}`));
-  return Object.entries(INTENTIONALLY_DROPPED)
+  const staleColumns = Object.entries(INTENTIONALLY_DROPPED)
     .flatMap(([table, columns]) => columns.map((column) => `${table}.${column}`))
-    .filter((qualified) => live.has(qualified))
-    .sort();
+    .filter((qualified) => live.has(qualified));
+  return [...staleTables, ...staleColumns].sort();
 }
 
 /**

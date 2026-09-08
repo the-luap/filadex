@@ -487,7 +487,7 @@ export class CommunityCatalogService {
     if (items.length === 0) {
       throw new Error("OFD catalog sync returned 0 items; preserving existing cache");
     }
-    const lastUpdated = data.generated_at || new Date().toISOString();
+    const lastUpdated = new Date().toISOString();
     this.setSourceItems("ofd", items, lastUpdated);
     await this.saveToDisk("ofd");
     return items.length;
