@@ -3,7 +3,8 @@ import Fuse from "fuse.js";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
-import { Filament, InsertFilament } from "@shared/schema";
+import { Filament, InsertFilament, CommunityCatalogItem } from "@shared/schema";
+import { getFilamentSearchMatchIds } from "@/lib/filament-search";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { FilterSidebar } from "@/components/filter-sidebar";
@@ -54,15 +55,7 @@ export default function Home() {
   }), [filaments]);
 
   const searchMatchIds = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return null;
-    const matches = new Set(fuse.search(searchTerm).map(result => result.item.id));
-    for (const f of filaments) {
-      if (f.barcode && f.barcode.toLowerCase().includes(term)) {
-        matches.add(f.id);
-      }
-    }
-    return matches;
+    return getFilamentSearchMatchIds(filaments, searchTerm, fuse);
   }, [fuse, filaments, searchTerm]);
 
   // Filter filaments based on all filters
@@ -359,7 +352,7 @@ export default function Home() {
     });
 
     if (matchingSpool) {
-      setSearchTerm(code);
+      setSearchTerm(matchingSpool.barcode || matchingSpool.name);
       toast({
         title: matchingSpool.name,
         description: matchingSpool.manufacturer ? `${matchingSpool.manufacturer} • ${matchingSpool.material}` : matchingSpool.material,
@@ -369,7 +362,7 @@ export default function Home() {
 
     // Query OFD GTIN lookup
     try {
-      const result = await apiRequest<any>(
+      const result = await apiRequest<CommunityCatalogItem | null>(
         `/api/community-filaments/gtin/${encodeURIComponent(code)}`
       );
       if (result) {

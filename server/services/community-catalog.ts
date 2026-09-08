@@ -228,6 +228,7 @@ export class CommunityCatalogService {
     // Map size to variant to filament to brand
     const sizesByVariant = new Map<string, OfdSize[]>();
     for (const s of data.sizes || []) {
+      if (!s?.variant_id) continue;
       const existing = sizesByVariant.get(s.variant_id) || [];
       existing.push(s);
       sizesByVariant.set(s.variant_id, existing);
@@ -236,6 +237,7 @@ export class CommunityCatalogService {
     const items: CommunityCatalogItem[] = [];
 
     for (const variant of data.variants || []) {
+      if (!variant?.id || !variant?.filament_id) continue;
       const filament = filamentMap.get(variant.filament_id);
       if (!filament) continue;
       const brand = brandMap.get(filament.brand_id);
@@ -244,20 +246,26 @@ export class CommunityCatalogService {
       // Extract slicer settings if available (prioritizing popular slicers)
       let extruderTemp: number | null = null;
       let bedTemp: number | null = null;
-      if (filament.slicer_settings) {
+      if (filament.slicer_settings && typeof filament.slicer_settings === "object") {
         const preferredSlicers = ["orca", "bambu_studio", "prusa_slicer", "cura"];
         for (const name of preferredSlicers) {
           const s = filament.slicer_settings[name];
-          if (s) {
+          if (s && typeof s === "object") {
             if (s.extruder_temp && extruderTemp === null) extruderTemp = s.extruder_temp;
             if (s.bed_temp && bedTemp === null) bedTemp = s.bed_temp;
           }
         }
         for (const slicer of Object.values(filament.slicer_settings)) {
-          if (slicer.extruder_temp && extruderTemp === null) extruderTemp = slicer.extruder_temp;
-          if (slicer.bed_temp && bedTemp === null) bedTemp = slicer.bed_temp;
+          if (slicer && typeof slicer === "object") {
+            if (slicer.extruder_temp && extruderTemp === null) extruderTemp = slicer.extruder_temp;
+            if (slicer.bed_temp && bedTemp === null) bedTemp = slicer.bed_temp;
+          }
         }
       }
+
+      const colorCode = variant.color_hex
+        ? (variant.color_hex.startsWith("#") ? variant.color_hex : `#${variant.color_hex}`)
+        : null;
 
       const sizes = sizesByVariant.get(variant.id) || [];
       if (sizes.length === 0) {
@@ -268,7 +276,7 @@ export class CommunityCatalogService {
           material: filament.material,
           name: filament.name,
           colorName: variant.name,
-          colorCode: variant.color_hex || null,
+          colorCode,
           density: filament.density ?? null,
           diameter: 1.75,
           weightGrams: 1000,
@@ -286,7 +294,7 @@ export class CommunityCatalogService {
             material: filament.material,
             name: filament.name,
             colorName: variant.name,
-            colorCode: variant.color_hex || null,
+            colorCode,
             density: filament.density ?? null,
             diameter: size.diameter ?? 1.75,
             weightGrams: size.filament_weight ?? 1000,
@@ -386,13 +394,13 @@ export class CommunityCatalogService {
   }
 
   public async saveToDisk(source: "ofd" | "spoolmandb"): Promise<void> {
+    const fileName = source === "ofd" ? "ofd.json" : "spoolmandb.json";
+    const filePath = path.join(this.cacheDir, fileName);
+    const tmpPath = path.join(this.cacheDir, `${fileName}.${Date.now()}.tmp`);
     try {
       if (!fs.existsSync(this.cacheDir)) {
         fs.mkdirSync(this.cacheDir, { recursive: true });
       }
-      const fileName = source === "ofd" ? "ofd.json" : "spoolmandb.json";
-      const filePath = path.join(this.cacheDir, fileName);
-      const tmpPath = path.join(this.cacheDir, `${fileName}.${Date.now()}.tmp`);
       const items = this.items.filter((item) => item.source === source);
       const payload = {
         lastUpdated: this.status[source].lastUpdated,
@@ -401,6 +409,13 @@ export class CommunityCatalogService {
       fs.writeFileSync(tmpPath, JSON.stringify(payload), "utf-8");
       fs.renameSync(tmpPath, filePath);
     } catch (error) {
+      if (fs.existsSync(tmpPath)) {
+        try {
+          fs.unlinkSync(tmpPath);
+        } catch {
+          // ignore cleanup error
+        }
+      }
       logger.warn(`Failed to save community catalog ${source} to disk: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -469,6 +484,9 @@ export class CommunityCatalogService {
     const unzipped = zlib.gunzipSync(buffer).toString("utf-8");
     const data: OfdDataset = JSON.parse(unzipped);
     const items = this.parseOfdDataset(data);
+    if (items.length === 0) {
+      throw new Error("OFD catalog sync returned 0 items; preserving existing cache");
+    }
     const lastUpdated = data.generated_at || new Date().toISOString();
     this.setSourceItems("ofd", items, lastUpdated);
     await this.saveToDisk("ofd");
@@ -515,6 +533,8 @@ export class CommunityCatalogService {
               } catch {
                 logger.warn(`Failed to parse JSON from SpoolmanDB file ${p}`);
               }
+            } else {
+              logger.warn(`Failed to fetch SpoolmanDB file ${p}: HTTP ${fileRes.status} ${fileRes.statusText}`);
             }
           } catch (err) {
             logger.warn(`Failed to fetch SpoolmanDB file ${p}: ${err instanceof Error ? err.message : String(err)}`);
@@ -531,7 +551,16 @@ export class CommunityCatalogService {
       throw new Error(`Failed to fetch SpoolmanDB vendor files: all ${paths.length} file downloads failed`);
     }
 
+    if (paths.length > 0 && vendorFiles.length < paths.length * 0.5) {
+      throw new Error(
+        `Failed to fetch SpoolmanDB vendor files: too many download errors (${vendorFiles.length}/${paths.length} succeeded); preserving existing cache`
+      );
+    }
+
     const items = this.parseSpoolmanDbVendorFiles(vendorFiles);
+    if (paths.length > 0 && items.length === 0) {
+      throw new Error("SpoolmanDB catalog sync returned 0 items; preserving existing cache");
+    }
     const lastUpdated = new Date().toISOString();
     this.setSourceItems("spoolmandb", items, lastUpdated);
     await this.saveToDisk("spoolmandb");

@@ -216,6 +216,57 @@ describe("CommunityCatalogService", () => {
         bedTemp: 55,
       });
     });
+
+    it("handles null, non-object, and missing entries in slicer_settings and variants gracefully", () => {
+      const mockOfd: OfdDataset = {
+        version: "2026.09.08",
+        generated_at: "2026-09-08T00:00:00Z",
+        brands: [
+          { id: "b1", name: "Custom Brand", slug: "custom" },
+        ],
+        filaments: [
+          {
+            id: "f1",
+            brand_id: "b1",
+            name: "Test Filament",
+            material: "PLA",
+            slicer_settings: {
+              custom: null as any,
+              invalid: "not-an-object" as any,
+              prusa_slicer: { extruder_temp: 215, bed_temp: 60 },
+            },
+          },
+        ],
+        variants: [
+          {
+            id: "v1",
+            filament_id: "f1",
+            name: "Ruby Red",
+            color_hex: "ff0000", // no '#' prefix
+          },
+          null as any,
+        ],
+        sizes: [
+          {
+            id: "s1",
+            variant_id: "v1",
+            diameter: 1.75,
+            filament_weight: 1000,
+            spool_refill: false,
+          },
+          {
+            id: "s2",
+            variant_id: null as any,
+          } as any,
+        ],
+      };
+
+      const items = service.parseOfdDataset(mockOfd);
+      expect(items.length).toBe(1);
+      expect(items[0].colorCode).toBe("#ff0000");
+      expect(items[0].extruderTemp).toBe(215);
+      expect(items[0].bedTemp).toBe(60);
+    });
   });
 
   describe("parseSpoolmanDbVendorFiles", () => {

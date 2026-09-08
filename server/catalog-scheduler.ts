@@ -3,6 +3,17 @@ import { logger } from "./utils/logger";
 
 const CHECK_INTERVAL_MS = 60 * 1000; // Check every 60 seconds
 const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+export const FAILURE_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes cooldown after failure
+
+const lastFailureTime: Record<"ofd" | "spoolmandb", number> = {
+  ofd: 0,
+  spoolmandb: 0,
+};
+
+export function _resetFailureCooldownForTesting(): void {
+  lastFailureTime.ofd = 0;
+  lastFailureTime.spoolmandb = 0;
+}
 
 export function isCatalogSyncDue(lastUpdatedIso: string | null, now: Date = new Date()): boolean {
   if (!lastUpdatedIso) {
@@ -26,24 +37,37 @@ export async function runScheduledCatalogSync(now: Date = new Date()): Promise<v
   running = true;
   try {
     const status = communityCatalog.getStatus();
+    const nowMs = now.getTime();
 
     if (isCatalogSyncDue(status.ofd.lastUpdated, now)) {
-      logger.info("Executing scheduled Open Filament Database catalog sync...");
-      try {
-        const count = await communityCatalog.syncOfd();
-        logger.info(`Scheduled OFD catalog sync completed: ${count} variants loaded.`);
-      } catch (err) {
-        logger.error("Scheduled OFD catalog sync failed:", err);
+      if (nowMs - lastFailureTime.ofd < FAILURE_COOLDOWN_MS) {
+        logger.debug("Scheduled OFD catalog sync is within failure cooldown; skipping.");
+      } else {
+        logger.info("Executing scheduled Open Filament Database catalog sync...");
+        try {
+          const count = await communityCatalog.syncOfd();
+          logger.info(`Scheduled OFD catalog sync completed: ${count} variants loaded.`);
+          lastFailureTime.ofd = 0;
+        } catch (err) {
+          lastFailureTime.ofd = nowMs;
+          logger.error("Scheduled OFD catalog sync failed:", err);
+        }
       }
     }
 
     if (isCatalogSyncDue(status.spoolmandb.lastUpdated, now)) {
-      logger.info("Executing scheduled SpoolmanDB catalog sync...");
-      try {
-        const count = await communityCatalog.syncSpoolmanDb();
-        logger.info(`Scheduled SpoolmanDB catalog sync completed: ${count} filaments loaded.`);
-      } catch (err) {
-        logger.error("Scheduled SpoolmanDB catalog sync failed:", err);
+      if (nowMs - lastFailureTime.spoolmandb < FAILURE_COOLDOWN_MS) {
+        logger.debug("Scheduled SpoolmanDB catalog sync is within failure cooldown; skipping.");
+      } else {
+        logger.info("Executing scheduled SpoolmanDB catalog sync...");
+        try {
+          const count = await communityCatalog.syncSpoolmanDb();
+          logger.info(`Scheduled SpoolmanDB catalog sync completed: ${count} filaments loaded.`);
+          lastFailureTime.spoolmandb = 0;
+        } catch (err) {
+          lastFailureTime.spoolmandb = nowMs;
+          logger.error("Scheduled SpoolmanDB catalog sync failed:", err);
+        }
       }
     }
   } finally {

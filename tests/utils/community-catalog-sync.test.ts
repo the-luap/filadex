@@ -205,9 +205,9 @@ describe("CommunityCatalogService sync", () => {
     const mockOfd: OfdDataset = {
       version: "1",
       generated_at: "2026-09-08T00:00:00Z",
-      brands: [],
-      filaments: [],
-      variants: [],
+      brands: [{ id: "b1", name: "Bambu Lab", slug: "bambu_lab" }],
+      filaments: [{ id: "f1", brand_id: "b1", name: "PLA Basic", material: "PLA" }],
+      variants: [{ id: "v1", filament_id: "f1", name: "Jade White" }],
       sizes: [],
     };
     const gzipped = zlib.gzipSync(Buffer.from(JSON.stringify(mockOfd)));
@@ -287,6 +287,116 @@ describe("CommunityCatalogService sync", () => {
     } finally {
       delete process.env.GITHUB_TOKEN;
     }
+  });
+
+  it("syncOfd throws and preserves existing cache if parsed dataset yields 0 items", async () => {
+    service.setItems([
+      {
+        id: "ofd-existing",
+        source: "ofd",
+        manufacturer: "Existing",
+        material: "PLA",
+        name: "Existing PLA",
+        colorName: "White",
+        colorCode: "#fff",
+        density: 1.24,
+        diameter: 1.75,
+        weightGrams: 1000,
+        spoolRefill: false,
+        extruderTemp: 200,
+        bedTemp: 50,
+        gtin: null,
+      },
+    ]);
+
+    const emptyOfd: OfdDataset = {
+      version: "2026.09.08",
+      generated_at: "2026-09-08T00:00:00Z",
+      brands: [],
+      filaments: [],
+      variants: [],
+      sizes: [],
+    };
+    const gzipped = zlib.gzipSync(Buffer.from(JSON.stringify(emptyOfd)));
+
+    vi.spyOn(global, "fetch").mockImplementation(async (url: any) => {
+      if (String(url).includes("all.json.gz")) {
+        return {
+          ok: true,
+          status: 200,
+          arrayBuffer: async () => gzipped.buffer.slice(gzipped.byteOffset, gzipped.byteOffset + gzipped.byteLength),
+        } as any;
+      }
+      throw new Error(`Unexpected url: ${url}`);
+    });
+
+    await expect(service.syncOfd()).rejects.toThrow("0 items; preserving existing cache");
+    expect(service.search("Existing").length).toBe(1);
+  });
+
+  it("syncSpoolmanDb throws and preserves existing cache if more than 50% of vendor files fail", async () => {
+    service.setItems([
+      {
+        id: "spoolman-existing",
+        source: "spoolmandb",
+        manufacturer: "Existing",
+        material: "PLA",
+        name: "Existing PLA",
+        colorName: "White",
+        colorCode: "#fff",
+        density: 1.24,
+        diameter: 1.75,
+        weightGrams: 1000,
+        spoolRefill: false,
+        extruderTemp: 200,
+        bedTemp: 50,
+        gtin: null,
+      },
+    ]);
+
+    const mockVendor: SpoolmanDbVendorFile = {
+      manufacturer: "Prusa",
+      filaments: [
+        {
+          name: "Prusament PLA",
+          material: "PLA",
+          colors: [{ name: "Black", hex: "000000" }],
+        },
+      ],
+    };
+
+    vi.spyOn(global, "fetch").mockImplementation(async (url: any) => {
+      const urlStr = String(url);
+      if (urlStr.includes("git/trees/main")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            tree: [
+              { path: "filaments/f1.json", type: "blob" },
+              { path: "filaments/f2.json", type: "blob" },
+              { path: "filaments/f3.json", type: "blob" },
+              { path: "filaments/f4.json", type: "blob" },
+            ],
+          }),
+        } as any;
+      }
+      if (urlStr.includes("filaments/f1.json")) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify(mockVendor),
+        } as any;
+      }
+      return {
+        ok: false,
+        status: 403,
+        statusText: "Rate limit exceeded",
+      } as any;
+    });
+
+    await expect(service.syncSpoolmanDb()).rejects.toThrow("too many download errors");
+    expect(service.search("Existing").length).toBe(1);
   });
 });
 

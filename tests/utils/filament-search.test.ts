@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import Fuse from "fuse.js";
 import type { Filament } from "@shared/schema";
+import { getFilamentSearchMatchIds } from "../../client/src/lib/filament-search";
 
 describe("Filament search matching by barcode", () => {
   const sampleFilaments: Filament[] = [
@@ -38,36 +38,53 @@ describe("Filament search matching by barcode", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as unknown as Filament,
+    {
+      id: 3,
+      name: "PETG Zero Padded",
+      manufacturer: "Generic",
+      material: "petg",
+      colorName: "White",
+      colorCode: "#FFFFFF",
+      diameter: "1.75",
+      barcode: "00001234567890",
+      userId: 1,
+      totalWeight: "1",
+      remainingPercentage: "100",
+      status: "sealed",
+      dryerCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as unknown as Filament,
   ];
 
-  function matchFilaments(filaments: Filament[], searchTerm: string): number[] {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return filaments.map(f => f.id);
-
-    const fuse = new Fuse(filaments, {
-      keys: ["name", "manufacturer", "material", "colorName", "barcode"],
-      threshold: 0.35,
-      ignoreLocation: true,
-    });
-
-    const matches = new Set(fuse.search(searchTerm).map(r => r.item.id));
-    for (const f of filaments) {
-      if (f.barcode && f.barcode.toLowerCase().includes(term)) {
-        matches.add(f.id);
-      }
-    }
-    return Array.from(matches);
-  }
+  it("returns null for empty search term", () => {
+    expect(getFilamentSearchMatchIds(sampleFilaments, "")).toBeNull();
+    expect(getFilamentSearchMatchIds(sampleFilaments, "   ")).toBeNull();
+  });
 
   it("finds filament by full barcode", () => {
-    const results = matchFilaments(sampleFilaments, "6975337031901");
-    expect(results).toContain(1);
-    expect(results).not.toContain(2);
+    const matches = getFilamentSearchMatchIds(sampleFilaments, "6975337031901");
+    expect(matches).not.toBeNull();
+    expect(matches?.has(1)).toBe(true);
+    expect(matches?.has(2)).toBe(false);
   });
 
   it("finds filament by partial barcode substring", () => {
-    const results = matchFilaments(sampleFilaments, "5180123");
-    expect(results).toContain(2);
-    expect(results).not.toContain(1);
+    const matches = getFilamentSearchMatchIds(sampleFilaments, "5180123");
+    expect(matches).not.toBeNull();
+    expect(matches?.has(2)).toBe(true);
+    expect(matches?.has(1)).toBe(false);
+  });
+
+  it("matches when search term has leading zeros (e.g. GTIN-14 scan of EAN-13 barcode)", () => {
+    const matches = getFilamentSearchMatchIds(sampleFilaments, "06975337031901");
+    expect(matches).not.toBeNull();
+    expect(matches?.has(1)).toBe(true);
+  });
+
+  it("matches when stored barcode has leading zeros and query is unpadded", () => {
+    const matches = getFilamentSearchMatchIds(sampleFilaments, "1234567890");
+    expect(matches).not.toBeNull();
+    expect(matches?.has(3)).toBe(true);
   });
 });
