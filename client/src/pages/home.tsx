@@ -14,6 +14,7 @@ import { LabelPrintModal } from "@/components/label-print-modal";
 import { MaterialColorChart } from "@/components/material-color-chart";
 import { StatisticsAccordion } from "@/components/statistics";
 import { BatchActionsPanel } from "@/components/batch-actions-panel";
+import { QRScanner } from "@/components/qr-scanner";
 import { useTranslation } from "@/i18n";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,6 +26,7 @@ export default function Home() {
   const [selectedFilament, setSelectedFilament] = useState<Filament | undefined>(undefined);
   const [copyFromFilament, setCopyFromFilament] = useState<Filament | undefined>(undefined);
   const [labelFilament, setLabelFilament] = useState<Filament | undefined>(undefined);
+  const [showScanner, setShowScanner] = useState(false);
 
   // Batch selection state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -44,17 +46,24 @@ export default function Home() {
     refetchOnMount: true, // Bei Mounten immer neu laden
   });
 
-  // Fuzzy search across name/manufacturer/material/color, rebuilt only when the list changes
+  // Fuzzy search across name/manufacturer/material/color/barcode, rebuilt only when the list changes
   const fuse = useMemo(() => new Fuse(filaments, {
-    keys: ['name', 'manufacturer', 'material', 'colorName'],
+    keys: ['name', 'manufacturer', 'material', 'colorName', 'barcode'],
     threshold: 0.35,
     ignoreLocation: true,
   }), [filaments]);
 
   const searchMatchIds = useMemo(() => {
-    if (searchTerm.trim() === '') return null;
-    return new Set(fuse.search(searchTerm).map(result => result.item.id));
-  }, [fuse, searchTerm]);
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return null;
+    const matches = new Set(fuse.search(searchTerm).map(result => result.item.id));
+    for (const f of filaments) {
+      if (f.barcode && f.barcode.toLowerCase().includes(term)) {
+        matches.add(f.id);
+      }
+    }
+    return matches;
+  }, [fuse, filaments, searchTerm]);
 
   // Filter filaments based on all filters
   const filteredFilaments = filaments.filter(filament => {
@@ -277,6 +286,107 @@ export default function Home() {
     window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
   }, [filaments]);
 
+  const handleBarcodeScanned = async (decodedText: string) => {
+    setShowScanner(false);
+    let code = decodedText.trim();
+    try {
+      const parsed = JSON.parse(decodedText);
+      if (parsed.barcode) code = parsed.barcode;
+      else if (parsed.name) code = parsed.name;
+    } catch {
+      // raw barcode string
+    }
+
+    // 1. Match in current collection
+    const matchingSpool = filaments.find(
+      (f) => (f.barcode && f.barcode.toLowerCase() === code.toLowerCase()) ||
+             (f.name && f.name.toLowerCase() === code.toLowerCase())
+    );
+
+    if (matchingSpool) {
+      setSearchTerm(code);
+      toast({
+        title: matchingSpool.name,
+        description: t('scanner.foundInOfd', { name: `${matchingSpool.manufacturer || ''} - ${matchingSpool.name}`.trim() }),
+      });
+      return;
+    }
+
+    // 2. Query OFD GTIN lookup
+    try {
+      const result = await apiRequest<any>(
+        `/api/community-filaments/gtin/${encodeURIComponent(code)}`
+      );
+      if (result) {
+        const mfgText = result.manufacturer ? ` (${result.manufacturer})` : '';
+        const kg = result.weightGrams ? Number((result.weightGrams / 1000).toFixed(2)) : 1;
+        setSelectedFilament(undefined);
+        setCopyFromFilament({
+          id: 0,
+          name: `${result.name} ${result.colorName}${mfgText}`.trim(),
+          manufacturer: result.manufacturer || "",
+          material: result.material || "",
+          colorName: result.colorName || "",
+          colorCode: result.colorCode || "#000000",
+          diameter: result.diameter ? String(result.diameter) : "1.75",
+          printTemp: result.extruderTemp ? (result.bedTemp ? `${result.extruderTemp}°C / Bed ${result.bedTemp}°C` : `${result.extruderTemp}°C`) : "",
+          barcode: result.gtin || code,
+          spoolType: result.spoolRefill ? "spoolless" : "spooled",
+          totalWeight: String(kg),
+          remainingPercentage: "100",
+          status: "sealed",
+          dryerCount: 0,
+          userId: 0,
+          purchaseDate: null,
+          purchasePrice: null,
+          storageLocation: null,
+          lastDryingDate: null,
+          customFieldValues: null,
+          createdAt: new Date() as any,
+          updatedAt: new Date() as any,
+        } as unknown as Filament);
+        setShowAddModal(true);
+        toast({
+          title: t('scanner.foundInOfd', { name: `${result.manufacturer} - ${result.name}` }),
+        });
+        return;
+      }
+    } catch {
+      // Not found in OFD
+    }
+
+    // 3. Not found anywhere -> open add modal prefilled with barcode
+    setSelectedFilament(undefined);
+    setCopyFromFilament({
+      id: 0,
+      name: "",
+      manufacturer: "",
+      material: "",
+      colorName: "",
+      colorCode: "#000000",
+      diameter: "1.75",
+      printTemp: "",
+      barcode: code,
+      totalWeight: "1",
+      remainingPercentage: "100",
+      status: "sealed",
+      dryerCount: 0,
+      userId: 0,
+      purchaseDate: null,
+      purchasePrice: null,
+      storageLocation: null,
+      lastDryingDate: null,
+      customFieldValues: null,
+      createdAt: new Date() as any,
+      updatedAt: new Date() as any,
+    } as unknown as Filament);
+    setShowAddModal(true);
+    toast({
+      variant: "destructive",
+      title: t('scanner.notFoundAllSources', { code }),
+    });
+  };
+
   // Batch operation handlers
   const handleToggleSelectionMode = () => {
     setSelectionMode(prev => !prev);
@@ -389,6 +499,8 @@ export default function Home() {
               onManufacturerChange={handleManufacturerChange}
               onColorChange={handleColorChange}
               filaments={filaments}
+              searchTerm={searchTerm}
+              onScanClick={() => setShowScanner(true)}
             />
           </aside>
 
@@ -476,6 +588,14 @@ export default function Home() {
         onConfirm={handleConfirmDelete}
         filament={selectedFilament}
       />
+
+      {/* Barcode Scanner Modal */}
+      {showScanner && (
+        <QRScanner
+          onScanSuccess={handleBarcodeScanned}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 }

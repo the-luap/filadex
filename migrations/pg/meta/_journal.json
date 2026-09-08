@@ -57,6 +57,13 @@
       "when": 1788808333286,
       "tag": "0007_users_password_changed_at",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788879597566,
+      "tag": "0008_mighty_mephistopheles",
+      "breakpoints": true
     }
   ]
 }

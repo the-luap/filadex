@@ -70,3 +70,16 @@ _Avoid_: Share, Visibility, Permission
 What an unauthenticated visitor sees at a user's share URL: the spools their
 Sharing Settings expose, and nothing else.
 _Avoid_: Shared filaments, Public profile
+
+### External catalogs & identification
+
+**Community Catalog**:
+A read-only external repository of filament specifications (Open Filament
+Database or SpoolmanDB) queried to autofill spool and filament type fields
+during entry.
+_Avoid_: External database, Global catalog
+
+**Barcode**:
+A machine-readable code (GTIN, EAN, UPC, or vendor barcode) identifying a
+spool or its retail packaging, recorded on the spool.
+_Avoid_: QR code (when referring to 1D barcodes), GTIN (when referring to non-standard vendor barcodes)

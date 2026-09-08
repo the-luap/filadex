@@ -300,6 +300,7 @@ export function registerFilamentRoutes(app: Express): void {
         dryerCount: data.dryerCount,
         lastDryingDate: data.lastDryingDate,
         storageLocation: data.storageLocation,
+        barcode: data.barcode,
         customFieldValues: data.customFieldValues
       };
 
@@ -380,6 +381,7 @@ export function registerFilamentRoutes(app: Express): void {
         updateData.dryingReminderNotifiedAt = null; // drying resets the reminder clock
       }
       if (data.storageLocation !== undefined) updateData.storageLocation = data.storageLocation;
+      if (data.barcode !== undefined) updateData.barcode = data.barcode;
       if (data.customFieldValues !== undefined) updateData.customFieldValues = data.customFieldValues;
 
       // A top-up clears the low-stock notification latch, so a future drop

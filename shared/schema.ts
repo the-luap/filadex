@@ -97,6 +97,7 @@ export const filaments = table("filaments", {
   dryerCount: t.int("dryer_count").default(0).notNull(), // Anzahl der Trocknungen
   lastDryingDate: t.date("last_drying_date"), // Datum der letzten Trocknung
   storageLocation: t.text("storage_location"), // Lagerort
+  barcode: t.text("barcode"), // Barcode or GTIN from packaging/spool
   // Set when a low-stock email is sent, cleared once remaining % rises back
   // above the threshold - prevents re-notifying every scheduled check.
   lowStockNotifiedAt: t.timestamp("low_stock_notified_at"),
@@ -401,6 +402,7 @@ export const filamentWriteSchema = z.object({
   dryerCount: z.number().int().min(0).max(10_000).optional(),
   lastDryingDate: isoDate.nullable().optional(),
   storageLocation: z.string().max(200).nullable().optional(),
+  barcode: z.string().max(100).nullable().optional(),
   customFieldValues: customFieldValuesSchema.optional(),
 });
 

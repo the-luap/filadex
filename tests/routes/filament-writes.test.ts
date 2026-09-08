@@ -48,6 +48,19 @@ describe("POST /api/filaments", () => {
     expect(res.body).toMatchObject({ totalWeight: "1000", remainingPercentage: "100", diameter: "1.75", status: "sealed" });
   });
 
+  it("accepts and returns barcode on creation and patch", async () => {
+    const res = await create({ ...spool, barcode: "6975337031901" });
+    expect(res.status).toBe(201);
+    expect(res.body.barcode).toBe("6975337031901");
+
+    const patchRes = await request(app)
+      .patch(`/api/filaments/${res.body.id}`)
+      .set("Cookie", cookie)
+      .send({ barcode: "123456789012" });
+    expect(patchRes.status).toBe(200);
+    expect(patchRes.body.barcode).toBe("123456789012");
+  });
+
   it("refuses a status outside the known set", async () => {
     const res = await create({ ...spool, status: "bogus" });
 

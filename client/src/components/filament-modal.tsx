@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "@/i18n";
+import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Language } from "@shared/languages";
 
 const DATE_LOCALES: Record<Language, Locale> = {
@@ -174,6 +176,7 @@ const createFormSchema = (t: (key: string) => string) => z.object({
   dryerCount: z.number().min(0).default(0),
   lastDryingDate: z.date().optional(),
   storageLocation: z.string().optional(),
+  barcode: z.string().optional(),
 });
 
 // This will be defined in the component
@@ -209,15 +212,20 @@ interface Material {
 }
 
 interface CommunityFilamentResult {
-  id: number;
+  id: number | string;
+  source?: "ofd" | "spoolmandb";
   manufacturer: string;
   material: string;
   name: string;
   colorName: string;
   colorCode: string | null;
-  diameter: string | null;
+  diameter: number | string | null;
+  density?: number | null;
+  weightGrams?: number | null;
+  spoolRefill?: boolean | null;
   extruderTemp: number | null;
   bedTemp: number | null;
+  gtin?: string | null;
 }
 
 interface CustomFieldDefinition {
@@ -242,6 +250,7 @@ export function FilamentModal({
   filament,
 }: FilamentModalProps) {
   const { t, language } = useTranslation();
+  const { toast } = useToast();
   const { currency, temperatureUnit } = useUnits();
   const isEditing = !!filament;
   const [remainingPercentage, setRemainingPercentage] = useState(100);
@@ -253,10 +262,23 @@ export function FilamentModal({
   const [showHistory, setShowHistory] = useState(false);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   const [communitySearchQuery, setCommunitySearchQuery] = useState("");
+  const [catalogSource, setCatalogSource] = useState<"ofd" | "spoolmandb">(() => {
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      return (localStorage.getItem("filament_catalog_source") as "ofd" | "spoolmandb") || "ofd";
+    }
+    return "ofd";
+  });
+
+  const handleCatalogSourceChange = (source: "ofd" | "spoolmandb") => {
+    setCatalogSource(source);
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      localStorage.setItem("filament_catalog_source", source);
+    }
+  };
 
   const { data: communityResults = [] } = useQuery<CommunityFilamentResult[]>({
-    queryKey: [`/api/community-filaments/search?q=${encodeURIComponent(communitySearchQuery)}`],
-    queryFn: () => apiRequest<CommunityFilamentResult[]>(`/api/community-filaments/search?q=${encodeURIComponent(communitySearchQuery)}`),
+    queryKey: [`/api/community-filaments/search?q=${encodeURIComponent(communitySearchQuery)}&source=${catalogSource}`],
+    queryFn: () => apiRequest<CommunityFilamentResult[]>(`/api/community-filaments/search?q=${encodeURIComponent(communitySearchQuery)}&source=${catalogSource}`),
     enabled: isOpen && !isEditing && communitySearchQuery.trim().length >= 2,
   });
 
@@ -335,7 +357,8 @@ export function FilamentModal({
       spoolType: (filament?.spoolType as any) || undefined,
       dryerCount: filament?.dryerCount || 0,
       lastDryingDate: filament?.lastDryingDate ? new Date(filament.lastDryingDate) : undefined,
-      storageLocation: filament?.storageLocation || ""
+      storageLocation: filament?.storageLocation || "",
+      barcode: filament?.barcode || ""
     },
   });
 
@@ -358,7 +381,8 @@ export function FilamentModal({
         spoolType: (filament.spoolType as any) || undefined,
         dryerCount: filament.dryerCount || 0,
         lastDryingDate: filament.lastDryingDate ? new Date(filament.lastDryingDate) : undefined,
-        storageLocation: filament.storageLocation || ""
+        storageLocation: filament.storageLocation || "",
+        barcode: filament.barcode || ""
       });
 
       setRemainingPercentage(Number(filament.remainingPercentage));
@@ -385,7 +409,8 @@ export function FilamentModal({
         spoolType: undefined,
         dryerCount: 0,
         lastDryingDate: undefined,
-        storageLocation: ""
+        storageLocation: "",
+        barcode: ""
       });
       setRemainingPercentage(100);
       setTotalWeight(1);
@@ -420,7 +445,19 @@ export function FilamentModal({
         : `${result.extruderTemp}°C`);
     }
     const mfgText = result.manufacturer ? ` (${result.manufacturer})` : '';
-    form.setValue('name', `${result.name} ${result.colorName}${mfgText}`);
+    form.setValue('name', `${result.name} ${result.colorName}${mfgText}`.trim());
+    if (result.gtin) {
+      form.setValue('barcode', result.gtin);
+    }
+    if (result.spoolRefill !== undefined && result.spoolRefill !== null) {
+      form.setValue('spoolType', result.spoolRefill ? 'spoolless' : 'spooled');
+    }
+    if (result.weightGrams) {
+      const kg = Number((result.weightGrams / 1000).toFixed(2));
+      form.setValue('totalWeight', kg);
+      setTotalWeight(kg);
+      setCustomWeightVisible(!STANDARD_WEIGHTS.includes(kg));
+    }
     setCommunitySearchQuery("");
   };
 
@@ -480,6 +517,7 @@ export function FilamentModal({
     if (data.colorCode) form.setValue('colorCode', data.colorCode);
     if (data.diameter) form.setValue('diameter', Number(data.diameter));
     if (data.printTemp) form.setValue('printTemp', data.printTemp);
+    if (data.barcode) form.setValue('barcode', data.barcode);
     if (data.totalWeight) {
       const weight = Number(data.totalWeight);
       setTotalWeight(weight);
@@ -489,13 +527,36 @@ export function FilamentModal({
   };
 
   // Handler for QR code scan
-  const handleQRCodeScanned = (decodedText: string) => {
+  const handleQRCodeScanned = async (decodedText: string) => {
     setShowQRScanner(false);
     try {
-      applyScannedFilamentData(JSON.parse(decodedText));
-    } catch (error) {
-      console.error('Fehler beim Verarbeiten des QR-Codes:', error);
+      const parsed = JSON.parse(decodedText);
+      applyScannedFilamentData(parsed);
+      return;
+    } catch {
+      // Non-JSON string - query OFD GTIN lookup
     }
+
+    const code = decodedText.trim();
+    try {
+      const result = await apiRequest<CommunityFilamentResult>(
+        `/api/community-filaments/gtin/${encodeURIComponent(code)}`
+      );
+      if (result) {
+        handleUseCommunityResult(result);
+        toast({
+          title: t('scanner.foundInOfd', { name: `${result.manufacturer} - ${result.name}` }),
+        });
+        return;
+      }
+    } catch {
+      // Not found in OFD GTIN index
+    }
+
+    toast({
+      variant: "destructive",
+      title: t('scanner.notFoundAllSources', { code }),
+    });
   };
 
   // Handler für NFC Scan
@@ -545,10 +606,25 @@ export function FilamentModal({
             <Form {...form}>
               <form id="filament-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               {!isEditing && (
-                <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200">
-                  <label className="text-sm font-medium dark:text-neutral-300 text-gray-700 mb-1 block">
-                    {t('settings.communityFilaments.searchLabel')}
-                  </label>
+                <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <label className="text-sm font-medium dark:text-neutral-300 text-gray-700 block">
+                      {t('settings.communityFilaments.searchLabel')}
+                    </label>
+                    <Tabs
+                      value={catalogSource}
+                      onValueChange={(val) => handleCatalogSourceChange(val as "ofd" | "spoolmandb")}
+                    >
+                      <TabsList className="grid grid-cols-2 h-8">
+                        <TabsTrigger value="ofd" className="text-xs px-2.5 py-1">
+                          {t('settings.communityFilaments.sourceOfd')}
+                        </TabsTrigger>
+                        <TabsTrigger value="spoolmandb" className="text-xs px-2.5 py-1">
+                          {t('settings.communityFilaments.sourceSpoolman')}
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
                   <Input
                     placeholder={t('settings.communityFilaments.searchPlaceholder')}
                     value={communitySearchQuery}
@@ -1152,6 +1228,24 @@ export function FilamentModal({
                           </SelectContent>
                         </Select>
                         <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="barcode"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col md:col-span-2">
+                          <FormLabel>{t('filaments.barcode')}</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder={t('filaments.barcodePlaceholder')}
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />

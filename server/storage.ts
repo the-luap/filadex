@@ -240,6 +240,7 @@ const FILAMENT_SELECT_COLUMNS = {
   dryerCount: filaments.dryerCount,
   lastDryingDate: filaments.lastDryingDate,
   storageLocation: filaments.storageLocation,
+  barcode: filaments.barcode,
   lowStockNotifiedAt: filaments.lowStockNotifiedAt,
   dryingReminderNotifiedAt: filaments.dryingReminderNotifiedAt,
   customFieldValues: filaments.customFieldValues,
