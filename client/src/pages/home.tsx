@@ -371,11 +371,14 @@ export default function Home() {
       );
       if (result) {
         const mfgText = result.manufacturer ? ` (${result.manufacturer})` : '';
+        const cleanName = result.colorName && result.name.toLowerCase().includes(result.colorName.toLowerCase())
+          ? result.name
+          : `${result.name} ${result.colorName || ''}`.trim();
         const kg = result.weightGrams ? Number((result.weightGrams / 1000).toFixed(2)) : 1;
         setSelectedFilament(undefined);
         setCopyFromFilament({
           id: 0,
-          name: `${result.name} ${result.colorName}${mfgText}`.trim(),
+          name: `${cleanName}${mfgText}`.trim(),
           manufacturer: result.manufacturer || "",
           material: result.material || "",
           colorName: result.colorName || "",

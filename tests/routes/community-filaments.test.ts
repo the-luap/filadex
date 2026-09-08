@@ -182,8 +182,7 @@ describe("POST /api/community-filaments/refresh", () => {
   });
 
   it("refreshes ofd when source is ofd", async () => {
-    const ofdSpy = vi.spyOn(communityCatalog, "syncOfd").mockResolvedValue(100);
-    const spoolSpy = vi.spyOn(communityCatalog, "syncSpoolmanDb").mockResolvedValue(50);
+    const syncSpy = vi.spyOn(communityCatalog, "sync").mockResolvedValue({ ofdCount: 100, spoolmanCount: 0 });
 
     const response = await request(app)
       .post("/api/community-filaments/refresh")
@@ -191,13 +190,12 @@ describe("POST /api/community-filaments/refresh", () => {
       .set("Cookie", adminCookie);
 
     expect(response.status).toBe(200);
-    expect(ofdSpy).toHaveBeenCalledTimes(1);
-    expect(spoolSpy).not.toHaveBeenCalled();
+    expect(syncSpy).toHaveBeenCalledWith("ofd");
+    expect(response.body).toEqual({ ofdCount: 100, spoolmanCount: 0, count: 100 });
   });
 
   it("refreshes both when source is all or omitted", async () => {
-    const ofdSpy = vi.spyOn(communityCatalog, "syncOfd").mockResolvedValue(100);
-    const spoolSpy = vi.spyOn(communityCatalog, "syncSpoolmanDb").mockResolvedValue(50);
+    const syncSpy = vi.spyOn(communityCatalog, "sync").mockResolvedValue({ ofdCount: 100, spoolmanCount: 50 });
 
     const response = await request(app)
       .post("/api/community-filaments/refresh")
@@ -205,8 +203,8 @@ describe("POST /api/community-filaments/refresh", () => {
       .set("Cookie", adminCookie);
 
     expect(response.status).toBe(200);
-    expect(ofdSpy).toHaveBeenCalledTimes(1);
-    expect(spoolSpy).toHaveBeenCalledTimes(1);
+    expect(syncSpy).toHaveBeenCalledWith("all");
+    expect(response.body).toEqual({ ofdCount: 100, spoolmanCount: 50, count: 150 });
   });
 
   it("returns 409 Conflict if catalog synchronization is already in progress", async () => {

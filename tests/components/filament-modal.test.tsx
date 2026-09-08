@@ -57,4 +57,23 @@ describe("FilamentModal", () => {
 
     expect(html).toContain("filaments.barcode");
   });
+
+  it("treats pre-filled template with id 0 as adding (not editing)", () => {
+    const template: any = {
+      id: 0,
+      name: "Prusament PLA Galaxy Black",
+      manufacturer: "Prusa",
+      material: "PLA",
+      barcode: "123456789",
+    };
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={template} />
+    );
+
+    expect(html).toContain("filaments.addFilament");
+    expect(html).not.toContain("filaments.editFilament");
+    expect(html).toContain("settings.communityFilaments.sourceOfd");
+  });
 });
+

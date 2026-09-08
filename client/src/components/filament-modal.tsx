@@ -252,7 +252,7 @@ export function FilamentModal({
   const { t, language } = useTranslation();
   const { toast } = useToast();
   const { currency, temperatureUnit } = useUnits();
-  const isEditing = !!filament;
+  const isEditing = Boolean(filament && filament.id && filament.id > 0);
   const [remainingPercentage, setRemainingPercentage] = useState(100);
   const [totalWeight, setTotalWeight] = useState<number | string>(1);
   const [customWeightVisible, setCustomWeightVisible] = useState(false);

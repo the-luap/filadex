@@ -68,17 +68,7 @@ export function registerCommunityFilamentRoutes(app: Express): void {
       }
 
       const source = req.body?.source as "ofd" | "spoolmandb" | "all" | undefined;
-      let ofdCount = 0;
-      let spoolmanCount = 0;
-
-      if (source === "ofd") {
-        ofdCount = await communityCatalog.syncOfd();
-      } else if (source === "spoolmandb") {
-        spoolmanCount = await communityCatalog.syncSpoolmanDb();
-      } else {
-        ofdCount = await communityCatalog.syncOfd();
-        spoolmanCount = await communityCatalog.syncSpoolmanDb();
-      }
+      const { ofdCount, spoolmanCount } = await communityCatalog.sync(source ?? "all");
 
       res.json({
         ofdCount,

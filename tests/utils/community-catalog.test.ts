@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
   CommunityCatalogService,
+  getCatalogCacheDir,
   type CommunityCatalogItem,
   type OfdDataset,
   type SpoolmanDbVendorFile,
@@ -284,4 +285,45 @@ describe("CommunityCatalogService", () => {
       expect(status.spoolmandb.lastUpdated).toBeNull();
     });
   });
+
+  describe("getCatalogCacheDir", () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+    });
+
+    it("returns CATALOG_CACHE_DIR if set", () => {
+      process.env.CATALOG_CACHE_DIR = "/custom/cache/dir";
+      expect(getCatalogCacheDir()).toBe("/custom/cache/dir");
+    });
+
+    it("returns /data/cache/catalogs in production", () => {
+      delete process.env.CATALOG_CACHE_DIR;
+      process.env.NODE_ENV = "production";
+      expect(getCatalogCacheDir()).toBe("/data/cache/catalogs");
+    });
+
+    it("returns path within cwd in development", () => {
+      delete process.env.CATALOG_CACHE_DIR;
+      process.env.NODE_ENV = "development";
+      expect(getCatalogCacheDir()).toContain("data/cache/catalogs");
+    });
+  });
+
+  describe("defensive vendor file parsing", () => {
+    it("safely skips malformed or null vendor records", () => {
+      const malformed = [
+        null,
+        undefined,
+        {},
+        { manufacturer: "Test" },
+        { manufacturer: "Test", filaments: [null, {}, { name: "Bad" }] },
+      ] as any;
+
+      const items = service.parseSpoolmanDbVendorFiles(malformed);
+      expect(items).toEqual([]);
+    });
+  });
 });
+

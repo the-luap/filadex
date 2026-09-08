@@ -106,6 +106,16 @@ export class CatalogSyncConflictError extends Error {
   }
 }
 
+export function getCatalogCacheDir(): string {
+  if (process.env.CATALOG_CACHE_DIR) {
+    return path.resolve(process.env.CATALOG_CACHE_DIR);
+  }
+  if (process.env.NODE_ENV === "production") {
+    return "/data/cache/catalogs";
+  }
+  return path.resolve(process.cwd(), "data", "cache", "catalogs");
+}
+
 export class CommunityCatalogService {
   private items: CommunityCatalogItem[] = [];
   private gtinMap: Map<string, CommunityCatalogItem> = new Map();
@@ -118,7 +128,7 @@ export class CommunityCatalogService {
   private cacheDir: string;
 
   constructor(cacheDir?: string) {
-    this.cacheDir = cacheDir || process.env.CATALOG_CACHE_DIR || path.join(process.cwd(), "data", "cache", "catalogs");
+    this.cacheDir = cacheDir || getCatalogCacheDir();
   }
 
   public isSyncing(): boolean {
@@ -141,18 +151,19 @@ export class CommunityCatalogService {
   }
 
   private rebuildIndexes(): void {
-    this.gtinMap.clear();
+    const nextGtinMap = new Map<string, CommunityCatalogItem>();
     for (const item of this.items) {
       if (item.gtin) {
         const raw = item.gtin.trim();
         const norm = normalizeGtin(raw);
         if (norm) {
-          this.gtinMap.set(norm, item);
+          nextGtinMap.set(norm, item);
         } else if (raw) {
-          this.gtinMap.set(raw, item);
+          nextGtinMap.set(raw, item);
         }
       }
     }
+    this.gtinMap = nextGtinMap;
   }
 
   public search(
@@ -301,21 +312,30 @@ export class CommunityCatalogService {
     const items: CommunityCatalogItem[] = [];
 
     for (const vendor of files) {
-      for (const fil of vendor.filaments || []) {
+      if (!vendor || !vendor.manufacturer || !Array.isArray(vendor.filaments)) {
+        continue;
+      }
+
+      for (const fil of vendor.filaments) {
+        if (!fil || typeof fil.name !== "string" || typeof fil.material !== "string") {
+          continue;
+        }
+
         const colors = fil.colors && fil.colors.length > 0 ? fil.colors : [{ name: "Unknown", hex: "" }];
         const diameter = fil.diameters?.[0] ?? 1.75;
 
         for (const col of colors) {
-          const name = fil.name.replace("{color_name}", col.name);
-          const colorCode = col.hex ? (col.hex.startsWith("#") ? col.hex : `#${col.hex}`) : null;
+          const colName = col?.name || "Unknown";
+          const name = fil.name.replace("{color_name}", colName);
+          const colorCode = col?.hex ? (col.hex.startsWith("#") ? col.hex : `#${col.hex}`) : null;
 
           items.push({
-            id: `spoolmandb-${vendor.manufacturer}-${name}-${col.name}`,
+            id: `spoolmandb-${vendor.manufacturer}-${name}-${colName}`,
             source: "spoolmandb",
             manufacturer: vendor.manufacturer,
             material: fil.material,
             name,
-            colorName: col.name,
+            colorName: colName,
             colorCode,
             density: fil.density ?? null,
             diameter,
@@ -481,7 +501,14 @@ export class CommunityCatalogService {
         });
         if (fileRes.ok) {
           const text = await fileRes.text();
-          vendorFiles.push(JSON.parse(text));
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed && typeof parsed === "object") {
+              vendorFiles.push(parsed);
+            }
+          } catch {
+            logger.warn(`Failed to parse JSON from SpoolmanDB file ${p}`);
+          }
         }
       } catch (err) {
         logger.warn(`Failed to fetch SpoolmanDB file ${p}: ${err instanceof Error ? err.message : String(err)}`);
