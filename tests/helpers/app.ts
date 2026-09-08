@@ -62,8 +62,9 @@ export async function registerAndVerify(
 /**
  * The default admin/admin account, ready to use. initializeAdminUser creates it
  * with forceChangePassword set, and the server refuses every route but
- * change-password to such an account - so a test that wants an admin to drive
- * the API has to clear the flag first, the way a real first login would.
+ * change-password (and language preference) to such an account - so a test that
+ * wants an admin to drive the API has to clear the flag first, the way a real
+ * first login would.
  */
 export async function bootstrapAdmin(): Promise<void> {
   await initializeAdminUser();

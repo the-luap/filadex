@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { LanguageContext, Language, getTranslation, interpolate } from './index';
 import { getInitialClientLanguage, isSupportedLanguage } from './resolve-language';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -63,6 +63,7 @@ function writePendingAccountLanguage(language: Language | null): void {
 
 export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(getInitialClientLanguage);
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [location] = useLocation();
   const { isPublicRoute } = useAuth();
@@ -107,6 +108,12 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
         method: 'POST',
         body: JSON.stringify({ language: newLanguage })
       });
+    },
+    onSuccess: (_data, newLanguage) => {
+      queryClient.setQueryData(['/api/auth/me'], (old: any) =>
+        old ? { ...old, language: newLanguage } : old
+      );
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
     },
     onError: (error) => {
       console.error('Error updating language preference:', error);

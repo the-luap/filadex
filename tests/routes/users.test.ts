@@ -78,16 +78,21 @@ describe("an account that must still change its password", () => {
   it("is refused every route but the password change, then admitted", async () => {
     await createUserAsAdmin({ username: "bob", password: "bobs-password" });
     const cookie = await loginAs(app, "bob", "bobs-password");
-
-    const refused = await request(app).post("/api/users/language").set("Cookie", cookie).send({ language: "de" });
+    // Other routes remain refused
+    const refused = await request(app).post("/api/users/units").set("Cookie", cookie).send({ currency: "EUR" });
     expect(refused.status).toBe(403);
     expect(refused.body).toEqual({
       message: "You must change your password before continuing",
       code: "PASSWORD_CHANGE_REQUIRED",
     });
 
-    // What the change-password page itself needs still works.
-    await request(app).get("/api/auth/me").set("Cookie", cookie).expect(200);
+    // What the change-password page itself needs still works: user context and
+    // language preference so the screen can be read in the chosen language.
+    const beforeMe = await currentUser(cookie);
+    expect(beforeMe.forceChangePassword).toBe(true);
+    await request(app).post("/api/users/language").set("Cookie", cookie).send({ language: "pl" }).expect(200);
+    const updatedMe = await currentUser(cookie);
+    expect(updatedMe.language).toBe("pl");
 
     const changed = await request(app)
       .post("/api/auth/change-password")
@@ -99,7 +104,12 @@ describe("an account that must still change its password", () => {
     // and answers with a fresh cookie so the page can carry straight on.
     const fresh = changed.headers["set-cookie"][0];
     expect(fresh).toMatch(/^token=/);
-    await request(app).post("/api/users/language").set("Cookie", fresh).send({ language: "de" }).expect(200);
+
+    // Proving admission: routes refused prior to password change (e.g. units) now succeed.
+    await request(app).post("/api/users/units").set("Cookie", fresh).send({ currency: "PLN" }).expect(200);
+    const admittedMe = await currentUser(fresh);
+    expect(admittedMe.forceChangePassword).toBe(false);
+    expect(admittedMe.currency).toBe("PLN");
   });
 });
 
