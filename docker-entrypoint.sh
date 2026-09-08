@@ -1,12 +1,17 @@
 #!/bin/sh
 set -e
 
-# The image runs the server as the unprivileged `node` user. Mounted volumes
-# arrive owned by root, so when started as root take ownership of the data
-# paths first, then re-run this script as `node`. Started as any other user -
-# `docker run --user`, or a compose `user:` line - this block is skipped and
-# the paths are assumed to be writable already.
+PUID=${PUID:-1000}
+PGID=${PGID:-1000}
+
+# The image runs the server as an unprivileged user (defaulting to node:node 1000:1000,
+# or PUID:PGID on environments like Synology DSM). Mounted volumes arrive owned by root
+# or the NAS user, so when started as root take ownership of the data paths first,
+# ensure permissions (chmod -R 775), then re-run this script as PUID:PGID. Started as
+# any other user - `docker run --user`, or a compose `user:` line - this block is skipped
+# and the paths are assumed to be writable already.
 if [ "$(id -u)" = "0" ]; then
+  echo "Using PUID: ${PUID}, PGID: ${PGID}"
   DATA_PATHS="/data ${BACKUP_DIR:-/data/backups}"
   case "${DATABASE_URL}" in
     file:*)
@@ -16,9 +21,10 @@ if [ "$(id -u)" = "0" ]; then
   esac
   for p in ${DATA_PATHS}; do
     mkdir -p "${p}"
-    chown -R node:node "${p}"
+    chown -R "$PUID:$PGID" "${p}"
+    chmod -R 775 "${p}"
   done
-  exec su-exec node:node "$0" "$@"
+  exec su-exec "$PUID:$PGID" "$0" "$@"
 fi
 
 # Decide dialect from DATABASE_URL scheme.
@@ -65,6 +71,28 @@ elif [ "$1" = "node" ] && { [ "$2" = "dist/index.js" ] || [ "$2" = "dist/index.p
 fi
 
 if [ -n "${MANAGED}" ]; then
+  case "${DATABASE_URL}" in
+    file:*|sqlite:*)
+      DB_FILE="${DATABASE_URL#file:}"
+      DB_DIR="$(dirname "${DB_FILE%%\?*}")"
+      if ! touch "${DB_DIR}/.filadex_write_test" 2>/dev/null; then
+        echo "====================================================================" >&2
+        echo "ERROR: Data directory '${DB_DIR}' is not writable by current user (UID $(id -u), GID $(id -g))." >&2
+        echo "This causes SQLite to fail with SQLITE_READONLY." >&2
+        echo "" >&2
+        echo "To fix this on Synology NAS:" >&2
+        echo "1. Set PUID and PGID in your compose environment matching your DSM user" >&2
+        echo "   (typically PUID=1026, PGID=100)." >&2
+        echo "2. In File Station, right-click the folder mapped to '${DB_DIR}' -> Properties -> Permission." >&2
+        echo "   Ensure your user (or Everyone) has Read & Write permissions," >&2
+        echo "   and check 'Apply to this folder, sub-folders and files'." >&2
+        echo "====================================================================" >&2
+        exit 1
+      fi
+      rm -f "${DB_DIR}/.filadex_write_test"
+      ;;
+  esac
+
   echo "Applying database migrations..."
   node "${MIGRATOR}"
 

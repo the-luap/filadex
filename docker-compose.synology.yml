@@ -48,6 +48,11 @@ services:
       - NODE_ENV=production
       - PORT=8080
 
+      # UID/GID of the folder owner on NAS. Check via SSH: id your_username
+      # Typically on Synology DSM the first user is 1026, and "users" group is 100.
+      - PUID=1026
+      - PGID=100
+
       # SQLite database URL.
       # MUST be an absolute path starting with file: (or sqlite:).
       # In production, relative paths (e.g. file:./dev.db) are rejected on startup to
