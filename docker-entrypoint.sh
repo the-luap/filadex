@@ -4,27 +4,68 @@ set -e
 PUID=${PUID:-1000}
 PGID=${PGID:-1000}
 
+# Parse SQLite file path if DATABASE_URL points to a file.
+# Strips file: or sqlite: prefix and any query parameters.
+# Only absolute paths (starting with /) set DB_DIR, avoiding unintended
+# operations on the application tree for :memory: or relative paths.
+DB_FILE=""
+DB_DIR=""
+case "${DATABASE_URL}" in
+  file:*|sqlite:*)
+    DB_FILE="${DATABASE_URL#file:}"
+    DB_FILE="${DB_FILE#sqlite:}"
+    DB_FILE="${DB_FILE%%\?*}"
+    case "${DB_FILE}" in
+      //*) DB_FILE="${DB_FILE#//}" ;;
+    esac
+    case "${DB_FILE}" in
+      /*) DB_DIR="$(dirname "${DB_FILE}")" ;;
+    esac
+    ;;
+esac
+
 # The image runs the server as an unprivileged user (defaulting to node:node 1000:1000,
 # or PUID:PGID on environments like Synology DSM). Mounted volumes arrive owned by root
 # or the NAS user, so when started as root take ownership of the data paths first,
-# ensure permissions (chmod -R 775), then re-run this script as PUID:PGID. Started as
-# any other user - `docker run --user`, or a compose `user:` line - this block is skipped
+# ensure directory permissions, then re-run this script as PUID:PGID. Started as any
+# other user - `docker run --user`, or a compose `user:` line - this block is skipped
 # and the paths are assumed to be writable already.
 if [ "$(id -u)" = "0" ]; then
-  echo "Using PUID: ${PUID}, PGID: ${PGID}"
-  DATA_PATHS="/data ${BACKUP_DIR:-/data/backups}"
-  case "${DATABASE_URL}" in
-    file:*)
-      DB_FILE="${DATABASE_URL#file:}"
-      DATA_PATHS="${DATA_PATHS} $(dirname "${DB_FILE%%\?*}")"
+  case "${PUID}" in
+    0)
+      echo "ERROR: Running as root (PUID=0) is not supported. Filadex must run as an unprivileged user." >&2
+      exit 1
+      ;;
+    ''|*[!0-9]*)
+      echo "ERROR: PUID must be a valid numeric user ID (got '${PUID}')." >&2
+      exit 1
       ;;
   esac
+
+  case "${PGID}" in
+    ''|*[!0-9]*)
+      echo "ERROR: PGID must be a valid numeric group ID (got '${PGID}')." >&2
+      exit 1
+      ;;
+  esac
+
+  echo "Using PUID: ${PUID}, PGID: ${PGID}"
+  DATA_PATHS="/data ${BACKUP_DIR:-/data/backups}"
+  if [ -n "${DB_DIR}" ]; then
+    case " ${DATA_PATHS} " in
+      *" ${DB_DIR} "*) ;;
+      *) DATA_PATHS="${DATA_PATHS} ${DB_DIR}" ;;
+    esac
+  fi
+
   for p in ${DATA_PATHS}; do
     mkdir -p "${p}"
     chown -R "$PUID:$PGID" "${p}"
-    chmod -R 775 "${p}"
+    chmod u+rwX,g+rwX "${p}"
   done
-  exec su-exec "$PUID:$PGID" "$0" "$@"
+  if [ "$PUID" != "0" ]; then
+    exec su-exec "$PUID:$PGID" "$0" "$@"
+  fi
 fi
 
 # Decide dialect from DATABASE_URL scheme.
@@ -71,27 +112,15 @@ elif [ "$1" = "node" ] && { [ "$2" = "dist/index.js" ] || [ "$2" = "dist/index.p
 fi
 
 if [ -n "${MANAGED}" ]; then
-  case "${DATABASE_URL}" in
-    file:*|sqlite:*)
-      DB_FILE="${DATABASE_URL#file:}"
-      DB_DIR="$(dirname "${DB_FILE%%\?*}")"
-      if ! touch "${DB_DIR}/.filadex_write_test" 2>/dev/null; then
-        echo "====================================================================" >&2
-        echo "ERROR: Data directory '${DB_DIR}' is not writable by current user (UID $(id -u), GID $(id -g))." >&2
-        echo "This causes SQLite to fail with SQLITE_READONLY." >&2
-        echo "" >&2
-        echo "To fix this on Synology NAS:" >&2
-        echo "1. Set PUID and PGID in your compose environment matching your DSM user" >&2
-        echo "   (typically PUID=1026, PGID=100)." >&2
-        echo "2. In File Station, right-click the folder mapped to '${DB_DIR}' -> Properties -> Permission." >&2
-        echo "   Ensure your user (or Everyone) has Read & Write permissions," >&2
-        echo "   and check 'Apply to this folder, sub-folders and files'." >&2
-        echo "====================================================================" >&2
-        exit 1
-      fi
-      rm -f "${DB_DIR}/.filadex_write_test"
-      ;;
-  esac
+  if [ -n "${DB_DIR}" ]; then
+    mkdir -p "${DB_DIR}" 2>/dev/null || true
+    if [ ! -w "${DB_DIR}" ] || { [ -e "${DB_FILE}" ] && [ ! -w "${DB_FILE}" ]; }; then
+      echo "ERROR: Database path '${DB_FILE}' (directory '${DB_DIR}') is not writable by current user (UID $(id -u), GID $(id -g))." >&2
+      echo "This causes SQLite to fail with SQLITE_READONLY." >&2
+      echo "Ensure the volume is writable, or configure PUID/PGID (see docs/deployment-synology.md for Synology NAS)." >&2
+      exit 1
+    fi
+  fi
 
   echo "Applying database migrations..."
   node "${MIGRATOR}"

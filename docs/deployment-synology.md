@@ -137,12 +137,13 @@ Using File Station, create the following directory structure inside the shared `
   * `backups/` — automated snapshots created by the built-in backup scheduler
 
 ### Permissions Note
-Filadex runs with unprivileged user permissions (`PUID` and `PGID`). On Synology DSM, the default primary administrator account typically has UID `1026` and the `users` group has GID `100`.
-By default, the Synology Compose template sets `PUID=1026` and `PGID=100`. On startup, the container entrypoint asserts ownership (`chown -R "$PUID:$PGID" /data`) and permissions (`chmod -R 775 /data`) before dropping root privileges via `su-exec`.
+Filadex runs with unprivileged user permissions (`PUID` and `PGID`, defaulting to `1000:1000`). On Synology DSM, the primary administrator account typically has UID `1026` and the `users` group has GID `100`.
+
+By default, the Synology Compose template sets `PUID=1026` and `PGID=100`. On startup, when run as root, the container entrypoint asserts ownership of `/data` for that user and drops root privileges via `su-exec`, so the database, its write-ahead log and the backup snapshots under `/docker/filadex/data/` are owned by that user on the NAS. Snapshots are written with mode `0600`, since each holds every password hash. A File Station administrator can still copy or download them; a non-admin DSM user cannot read them by browsing the share.
 
 > [!TIP]
 > You can verify your DSM user's UID and GID via SSH by running `id your_dsm_username`.
-> If using Synology File Station to manage permissions directly, ensure your user (or **Everyone**) has **Read & Write** permissions on the `data` folder, with **"Apply to this folder, sub-folders and files"** selected.
+> If using Synology File Station to manage permissions directly, ensure your administrator user has **Read & Write** permissions on the `data` folder, with **"Apply to this folder, sub-folders and files"** selected.
 
 ---
 
