@@ -26,6 +26,9 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/components/ui/use-toast", () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
+vi.mock("@/hooks/use-toast", () => ({
+  useToast: () => ({ toast: vi.fn() }),
+}));
 
 // Mock api
 vi.mock("@/lib/api", () => ({
@@ -37,6 +40,7 @@ import RegisterPage from "../../client/src/pages/register";
 import ForgotPasswordPage from "../../client/src/pages/forgot-password";
 import ResetPasswordPage from "../../client/src/pages/reset-password";
 import VerifyEmailPage from "../../client/src/pages/verify-email";
+import ChangePasswordPage from "../../client/src/pages/change-password";
 
 function renderWithProviders(component: React.ReactElement, lang = "en") {
   const queryClient = new QueryClient({
@@ -86,6 +90,12 @@ describe("Auth pages LanguageSelector integration", () => {
   it("renders LanguageSelector in VerifyEmailPage with current language label", () => {
     const html = renderWithProviders(<VerifyEmailPage />, "en");
     expect(html).toContain("EN");
+    expect(html).toContain("settings.language");
+  });
+
+  it("renders LanguageSelector in ChangePasswordPage with current language label", () => {
+    const html = renderWithProviders(<ChangePasswordPage />, "pl");
+    expect(html).toContain("PL");
     expect(html).toContain("settings.language");
   });
 });

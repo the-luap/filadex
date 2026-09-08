@@ -88,6 +88,7 @@ const ALLOWED_WHILE_PASSWORD_CHANGE_PENDING = new Set([
   "/api/auth/change-password",
   "/api/auth/me",
   "/api/auth/logout",
+  "/api/users/language",
 ]);
 
 function allowedWhilePasswordChangePending(req: Request): boolean {
