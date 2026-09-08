@@ -241,10 +241,18 @@ export class CommunityCatalogService {
       const brand = brandMap.get(filament.brand_id);
       const mfg = brand ? brand.name : "Unknown";
 
-      // Extract slicer settings if available
+      // Extract slicer settings if available (prioritizing popular slicers)
       let extruderTemp: number | null = null;
       let bedTemp: number | null = null;
       if (filament.slicer_settings) {
+        const preferredSlicers = ["orca", "bambu_studio", "prusa_slicer", "cura"];
+        for (const name of preferredSlicers) {
+          const s = filament.slicer_settings[name];
+          if (s) {
+            if (s.extruder_temp && extruderTemp === null) extruderTemp = s.extruder_temp;
+            if (s.bed_temp && bedTemp === null) bedTemp = s.bed_temp;
+          }
+        }
         for (const slicer of Object.values(filament.slicer_settings)) {
           if (slicer.extruder_temp && extruderTemp === null) extruderTemp = slicer.extruder_temp;
           if (slicer.bed_temp && bedTemp === null) bedTemp = slicer.bed_temp;
