@@ -1,6 +1,6 @@
 {
-  "id": "afce1e61-4ca8-47c2-a6e3-593c8fd1e6a2",
-  "prevId": "b9ad67cd-8351-4944-9871-8ef2c6beefc7",
+  "id": "8072879d-4b8d-4644-8927-b2a78811d1ff",
+  "prevId": "e921e7aa-d29d-4a38-abe4-a47e71bfa3cf",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -271,114 +271,6 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.community_filament_cache": {
-      "name": "community_filament_cache",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "manufacturer": {
-          "name": "manufacturer",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "material": {
-          "name": "material",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "color_name": {
-          "name": "color_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "color_code": {
-          "name": "color_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "density": {
-          "name": "density",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "diameter": {
-          "name": "diameter",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "extruder_temp": {
-          "name": "extruder_temp",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bed_temp": {
-          "name": "bed_temp",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "community_filament_cache_search_idx": {
-          "name": "community_filament_cache_search_idx",
-          "columns": [
-            {
-              "expression": "manufacturer",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "color_name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -1402,6 +1294,40 @@
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.system_settings": {
+      "name": "system_settings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "default": 1
+        },
+        "registration_enabled": {
+          "name": "registration_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

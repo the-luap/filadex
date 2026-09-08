@@ -62,6 +62,11 @@ export function registerAuthRoutes(app: Express): void {
   // Register a new account (public). Requires email verification before login.
   app.post("/api/auth/register", publicAuthLimiter, async (req, res) => {
     try {
+      const systemSettings = await storage.getSystemSettings();
+      if (!systemSettings.registrationEnabled) {
+        return res.status(403).json({ message: "Registration is currently disabled" });
+      }
+
       const { username, email, password } = registerSchema.parse(req.body);
 
       const existingByUsername = await storage.getUserByUsername(username);

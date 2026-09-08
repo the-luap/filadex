@@ -10,11 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trash2, Edit, UserPlus } from "lucide-react";
+import { Trash2, Edit, UserPlus, User as UserIcon } from "lucide-react";
 
 // Create a function to generate the schema with translations.
 // The username rules mirror usernameSchema in shared/schema.ts, which both
@@ -62,6 +64,37 @@ export function UserManagementModal({ open, onOpenChange }: { open: boolean; onO
     queryKey: ["users"],
     queryFn: () => apiRequest("/api/users"),
     enabled: open,
+  });
+
+  const { data: systemSettings, isLoading: isLoadingSettings } = useQuery<{ registrationEnabled: boolean }>({
+    queryKey: ["/api/settings/system"],
+    queryFn: () => apiRequest<{ registrationEnabled: boolean }>("/api/settings/system"),
+    enabled: open,
+  });
+
+  const toggleRegistrationMutation = useMutation({
+    mutationFn: (enabled: boolean) =>
+      apiRequest("/api/settings/system", {
+        method: "PUT",
+        body: { registrationEnabled: enabled },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/system"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/system/public-settings"] });
+      toast({
+        title: t('common.success'),
+        description: t('users.updateSuccess'),
+        variant: "success",
+      });
+    },
+    onError: (error: any) => {
+      const errorMessage = getErrorMessage(error);
+      toast({
+        title: t('common.error'),
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
   });
 
   const form = useForm<UserFormValues>({
@@ -222,7 +255,7 @@ export function UserManagementModal({ open, onOpenChange }: { open: boolean; onO
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-[600px]"
+        className="w-[95vw] sm:max-w-[650px] max-h-[90vh] overflow-y-auto p-4 sm:p-6"
         aria-describedby="user-management-description"
       >
         <DialogHeader>
@@ -236,43 +269,88 @@ export function UserManagementModal({ open, onOpenChange }: { open: boolean; onO
             <TabsTrigger value="users">{t('users.list')}</TabsTrigger>
             <TabsTrigger value="add">{editingUser ? t('users.edit') : t('users.add')}</TabsTrigger>
           </TabsList>
-          <TabsContent value="users" className="mt-4">
+          <TabsContent value="users" className="mt-4 space-y-4">
+            {/* Registration Policy Switch Card */}
+            <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-lg border bg-muted/40 gap-3">
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <Label htmlFor="registration-toggle" className="text-sm font-medium cursor-pointer">
+                  {t('users.registrationEnabled')}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('users.registrationEnabledDescription')}
+                </p>
+              </div>
+              <Switch
+                id="registration-toggle"
+                checked={systemSettings?.registrationEnabled ?? true}
+                onCheckedChange={(checked) => toggleRegistrationMutation.mutate(checked)}
+                disabled={toggleRegistrationMutation.isPending || isLoadingSettings}
+                aria-label={t('users.registrationEnabled')}
+              />
+            </div>
+
             {isLoading ? (
               <div className="text-center py-4">{t('users.loading')}</div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border rounded-lg p-4">
+                {t('users.noUsers')}
+              </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('users.username')}</TableHead>
-                    <TableHead>{t('users.admin')}</TableHead>
-                    <TableHead>{t('users.lastLogin')}</TableHead>
-                    <TableHead className="text-right">{t('common.actions')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center">{t('users.noUsers')}</TableCell>
-                    </TableRow>
-                  ) : (
-                    users.map((user: any) => (
-                      <TableRow key={user.id}>
-                        <TableCell>{user.username}</TableCell>
-                        <TableCell>{user.isAdmin ? t('common.yes') : t('common.no')}</TableCell>
-                        <TableCell>{user.lastLogin ? new Date(user.lastLogin).toLocaleString() : t('users.never')}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditUser(user)} title={t('users.edit')} aria-label={t('users.edit')}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.id)} title={t('users.delete')} aria-label={t('users.delete')}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              <div className="space-y-2">
+                {users.map((user: any) => (
+                  <div
+                    key={user.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg border bg-card hover:bg-muted/20 transition-colors gap-3"
+                  >
+                    <div className="flex items-start sm:items-center gap-3 min-w-0">
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 mt-0.5 sm:mt-0">
+                        <UserIcon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm sm:text-base truncate">{user.username}</span>
+                          {user.isAdmin ? (
+                            <Badge variant="default" className="text-xs px-2 py-0.5">
+                              {t('users.roleAdmin')}
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                              {t('users.roleUser')}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {t('users.lastLogin')}: {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : t('users.never')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-1.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2.5 sm:px-3 text-xs"
+                        onClick={() => handleEditUser(user)}
+                        title={t('users.edit')}
+                        aria-label={t('users.edit')}
+                      >
+                        <Edit className="h-3.5 w-3.5 mr-1" />
+                        <span>{t('users.edit')}</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2.5 sm:px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+                        onClick={() => handleDeleteUser(user.id)}
+                        title={t('users.delete')}
+                        aria-label={t('users.delete')}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        <span>{t('users.delete')}</span>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
             <div className="mt-4 flex justify-end">
               <Button onClick={() => { resetForm(); setActiveTab("add"); }}>

@@ -438,7 +438,7 @@ const translations = {
     applyColor: 'Zastosuj kolor',
     savingSettings: 'Zapisywanie ustawień...',
     cancel: 'Anuluj',
-    listManagement: 'Zarządzanie listami',
+    generalSettings: 'Ustawienia ogólne',
     units: {
       title: 'Jednostki i miary',
       description: 'Skonfiguruj jednostki waluty i temperatury używane w całej aplikacji',
@@ -774,6 +774,11 @@ const translations = {
     updateUser: 'Zaktualizuj użytkownika',
     usernameMinLength: 'Nazwa użytkownika musi mieć co najmniej 3 znaki',
     actions: 'Akcje',
+    registrationEnabled: 'Zezwalaj na rejestrację nowych użytkowników',
+    registrationEnabledDescription: 'Po wyłączeniu nowe konta mogą być tworzone tylko ręcznie przez administratora.',
+    registrationDisabledNotice: 'Rejestracja jest obecnie wyłączona.',
+    roleUser: 'Użytkownik',
+    roleAdmin: 'Administrator',
   },
   statistics: {
     title: 'Statystyki',

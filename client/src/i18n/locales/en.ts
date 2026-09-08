@@ -438,7 +438,7 @@ const translations = {
     applyColor: 'Apply Color',
     savingSettings: 'Saving settings...',
     cancel: 'Cancel',
-    listManagement: 'List Management',
+    generalSettings: 'General Settings',
     units: {
       title: 'Units & Metrics',
       description: 'Configure currency and temperature units used throughout the application',
@@ -774,6 +774,11 @@ const translations = {
     updateUser: 'Update User',
     usernameMinLength: 'Username must be at least 3 characters',
     actions: 'Actions',
+    registrationEnabled: 'Allow new user registration',
+    registrationEnabledDescription: 'When disabled, new accounts can only be created manually by an administrator.',
+    registrationDisabledNotice: 'Registration is currently disabled.',
+    roleUser: 'User',
+    roleAdmin: 'Admin',
   },
   statistics: {
     title: 'Statistics',

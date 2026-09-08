@@ -71,6 +71,13 @@
       "when": 1788881803297,
       "tag": "0009_round_radioactive_man",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788885572561,
+      "tag": "0010_jazzy_korvac",
+      "breakpoints": true
     }
   ]
 }

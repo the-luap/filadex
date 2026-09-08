@@ -11,7 +11,7 @@ import {
   User,
   Wrench,
   ChevronDown,
-  List,
+  SlidersHorizontal,
   Gauge,
   ClipboardList
 } from "lucide-react";
@@ -94,8 +94,8 @@ export function Header({ onAddFilament }: HeaderProps) {
                 setSettingsDialogTab(undefined);
                 setSettingsDialogOpen(true);
               }}>
-                <List className="mr-2 h-4 w-4" />
-                {t('settings.listManagement')}
+                <SlidersHorizontal className="mr-2 h-4 w-4" />
+                {t('settings.generalSettings')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
                 setSettingsDialogTab('units');

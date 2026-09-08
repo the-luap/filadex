@@ -83,3 +83,20 @@ _Avoid_: External database, Global catalog
 A machine-readable code (GTIN, EAN, UPC, or vendor barcode) identifying a
 spool or its retail packaging, recorded on the spool.
 _Avoid_: QR code (when referring to 1D barcodes), GTIN (when referring to non-standard vendor barcodes)
+
+### Accounts and access
+
+**Self-Registration**:
+The public flow where an unauthenticated visitor creates their own user
+account, requiring email verification before login.
+_Avoid_: Sign up, Public registration, Guest creation
+
+**Admin Provisioning**:
+The administrative flow where an administrator directly creates an account,
+optionally assigning administrative privileges and setting a temporary password.
+_Avoid_: Manual creation, User invite
+
+**Registration Policy**:
+The instance-wide setting determining whether Self-Registration is permitted.
+_Avoid_: Registration toggle, Sign-up switch
+

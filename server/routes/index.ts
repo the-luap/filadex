@@ -16,6 +16,7 @@ import { registerCommunityFilamentRoutes } from "./community-filaments";
 import { registerIntegrationRoutes } from "./integrations";
 import { registerSpoolmanCompatRoutes } from "./spoolman-compat";
 import { registerBackupRoutes } from "./backups";
+import { registerSystemSettingsRoutes } from "./system-settings";
 import { registerApiNotFound } from "./not-found";
 // All routes have been extracted - routes.ts is now empty or contains only legacy code
 // Keeping registerRemainingRoutes import for backward compatibility
@@ -49,6 +50,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerIntegrationRoutes(app);
   registerSpoolmanCompatRoutes(app);
   registerBackupRoutes(app);
+  registerSystemSettingsRoutes(app);
 
   // Register any remaining routes from routes.ts (should be empty now)
   registerRemainingRoutes(app);
