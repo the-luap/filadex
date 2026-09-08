@@ -776,3 +776,21 @@ export const printerUsageEventSchema = z.object({
 });
 
 export type PrinterUsageEvent = z.infer<typeof printerUsageEventSchema>;
+
+export interface CommunityCatalogItem {
+  id: string;
+  source: "ofd" | "spoolmandb";
+  manufacturer: string;
+  material: string;
+  name: string;
+  colorName: string;
+  colorCode: string | null;
+  density: number | null;
+  diameter: number | null;
+  weightGrams: number | null;
+  spoolRefill: boolean | null;
+  extruderTemp: number | null;
+  bedTemp: number | null;
+  gtin: string | null;
+}
+

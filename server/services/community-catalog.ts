@@ -2,23 +2,10 @@ import fs from "fs";
 import path from "path";
 import zlib from "zlib";
 import { logger } from "../utils/logger";
+import type { CommunityCatalogItem } from "@shared/schema";
 
-export interface CommunityCatalogItem {
-  id: string;
-  source: "ofd" | "spoolmandb";
-  manufacturer: string;
-  material: string;
-  name: string;
-  colorName: string;
-  colorCode: string | null;
-  density: number | null;
-  diameter: number | null;
-  weightGrams: number | null;
-  spoolRefill: boolean | null;
-  extruderTemp: number | null;
-  bedTemp: number | null;
-  gtin: string | null;
-}
+export type { CommunityCatalogItem };
+
 
 export interface CatalogSourceStatus {
   count: number;
@@ -493,25 +480,35 @@ export class CommunityCatalogService {
       .map((entry) => entry.path);
 
     const vendorFiles: SpoolmanDbVendorFile[] = [];
-    for (const p of paths) {
-      try {
-        const fileRes = await fetch(`https://raw.githubusercontent.com/${repo}/main/${p}`, {
-          headers,
-          signal: AbortSignal.timeout(15_000),
-        });
-        if (fileRes.ok) {
-          const text = await fileRes.text();
+    const BATCH_SIZE = 8;
+    for (let i = 0; i < paths.length; i += BATCH_SIZE) {
+      const chunk = paths.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        chunk.map(async (p) => {
           try {
-            const parsed = JSON.parse(text);
-            if (parsed && typeof parsed === "object") {
-              vendorFiles.push(parsed);
+            const fileRes = await fetch(`https://raw.githubusercontent.com/${repo}/main/${p}`, {
+              headers,
+              signal: AbortSignal.timeout(15_000),
+            });
+            if (fileRes.ok) {
+              const text = await fileRes.text();
+              try {
+                const parsed = JSON.parse(text);
+                if (parsed && typeof parsed === "object") {
+                  return parsed as SpoolmanDbVendorFile;
+                }
+              } catch {
+                logger.warn(`Failed to parse JSON from SpoolmanDB file ${p}`);
+              }
             }
-          } catch {
-            logger.warn(`Failed to parse JSON from SpoolmanDB file ${p}`);
+          } catch (err) {
+            logger.warn(`Failed to fetch SpoolmanDB file ${p}: ${err instanceof Error ? err.message : String(err)}`);
           }
-        }
-      } catch (err) {
-        logger.warn(`Failed to fetch SpoolmanDB file ${p}: ${err instanceof Error ? err.message : String(err)}`);
+          return null;
+        })
+      );
+      for (const item of results) {
+        if (item) vendorFiles.push(item);
       }
     }
 

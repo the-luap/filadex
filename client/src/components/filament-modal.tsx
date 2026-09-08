@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Filament } from "@shared/schema";
+import { Filament, type CommunityCatalogItem } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -211,22 +211,7 @@ interface Material {
   createdAt: string;
 }
 
-interface CommunityFilamentResult {
-  id: number | string;
-  source?: "ofd" | "spoolmandb";
-  manufacturer: string;
-  material: string;
-  name: string;
-  colorName: string;
-  colorCode: string | null;
-  diameter: number | string | null;
-  density?: number | null;
-  weightGrams?: number | null;
-  spoolRefill?: boolean | null;
-  extruderTemp: number | null;
-  bedTemp: number | null;
-  gtin?: string | null;
-}
+export type CommunityFilamentResult = CommunityCatalogItem;
 
 interface CustomFieldDefinition {
   id: number;
