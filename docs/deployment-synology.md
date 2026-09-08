@@ -42,7 +42,7 @@ On first startup, [`server/auth.ts`](../server/auth.ts) automatically creates th
 * Password: `admin`
 * Force password change: `forceChangePassword: true`
 
-There is no variable that sets this password. The account is created whenever no account has the admin role, so renaming it does not bring a second one back. Until the password has been changed, the server answers every request from that account except the change itself with `403`, and the web interface takes you to `/change-password`.
+There is no variable that sets this password. The account is created whenever no account has the admin role, so renaming it does not bring a second one back. Until the password has been changed, the server answers every request from that account except the change itself and updating language preference with `403`, and the web interface takes you to `/change-password`.
 
 **4a. `APP_URL`.** Set this to the address users open Filadex at (for example `https://filadex.your-nas.synology.me`). Verification and password-reset emails link to it, and they are not sent while it is unset - the link must not come from the request, whose `Host` header anyone can forge.
 

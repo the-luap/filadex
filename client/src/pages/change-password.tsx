@@ -81,9 +81,9 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="w-[400px]">
-        <CardHeader className="relative bg-primary dark:bg-primary text-white rounded-t-lg pr-16">
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
+      <Card className="w-full max-w-[400px]">
+        <CardHeader className="relative text-center bg-primary dark:bg-primary text-white rounded-t-lg">
           <AuthLanguageSelector />
           <CardTitle>{t('auth.changePassword')}</CardTitle>
           <CardDescription className="text-white/80">{t('auth.changePasswordDescription')}</CardDescription>

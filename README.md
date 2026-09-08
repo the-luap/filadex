@@ -158,8 +158,9 @@ LOG_LEVEL=INFO                # Logging level (DEBUG, INFO, WARN, ERROR)
 
 # Authentication
 # The first admin is created as admin/admin whenever no admin account exists,
-# and every route except changing the password is refused until it has been
-# changed. There is no variable that sets it.
+# and every route except changing the password and setting a language
+# preference is refused until it has been changed. There is no variable that
+# sets it.
 JWT_SECRET=your_secret_key    # Secret key for JWT token generation
 
 # The address users open Filadex at. Verification and password-reset emails

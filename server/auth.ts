@@ -85,16 +85,15 @@ export async function hashPassword(password: string): Promise<string> {
 // Without this the flag was a client-side suggestion: a session for
 // admin/admin could drive every route while the password was still admin.
 const ALLOWED_WHILE_PASSWORD_CHANGE_PENDING = new Set([
-  "/api/auth/change-password",
-  "/api/auth/me",
-  "/api/auth/logout",
-  "/api/users/language",
+  "POST /api/auth/change-password",
+  "GET /api/auth/me",
+  "POST /api/auth/logout",
+  "POST /api/users/language",
+  "GET /api/theme",
 ]);
 
 function allowedWhilePasswordChangePending(req: Request): boolean {
-  if (ALLOWED_WHILE_PASSWORD_CHANGE_PENDING.has(req.path)) return true;
-  // The change-password page still renders in the user's theme.
-  return req.method === "GET" && req.path === "/api/theme";
+  return ALLOWED_WHILE_PASSWORD_CHANGE_PENDING.has(`${req.method} ${req.path}`);
 }
 
 // Authentication middleware
