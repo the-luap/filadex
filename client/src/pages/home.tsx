@@ -350,10 +350,13 @@ export default function Home() {
     // Case 2: Raw 1D/2D barcode
     const code = (parsed?.barcode || decodedText).trim();
 
-    // Check if matching spool exists in current collection
-    const matchingSpool = filaments.find(
-      (f) => f.barcode && f.barcode.toLowerCase() === code.toLowerCase()
-    );
+    // Check if matching spool exists in current collection (supporting zero-padded GTINs)
+    const normCode = code.replace(/^0+/, "");
+    const matchingSpool = filaments.find((f) => {
+      if (!f.barcode) return false;
+      const normBarcode = f.barcode.trim().replace(/^0+/, "");
+      return (normCode && normBarcode === normCode) || f.barcode.toLowerCase() === code.toLowerCase();
+    });
 
     if (matchingSpool) {
       setSearchTerm(code);

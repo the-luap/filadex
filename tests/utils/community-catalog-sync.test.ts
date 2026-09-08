@@ -106,6 +106,84 @@ describe("CommunityCatalogService sync", () => {
     expect(fs.existsSync(path.join(tempDir, "spoolmandb.json"))).toBe(true);
   });
 
+  it("syncSpoolmanDb throws and preserves existing cache if all vendor file downloads fail", async () => {
+    service.setSourceItems("spoolmandb", [
+      {
+        id: "existing-1",
+        source: "spoolmandb",
+        manufacturer: "Prusa",
+        material: "PLA",
+        name: "Existing PLA",
+        colorName: "Black",
+        colorCode: "#000000",
+        density: 1.24,
+        diameter: 1.75,
+        weightGrams: 1000,
+        spoolRefill: false,
+        extruderTemp: 215,
+        bedTemp: 60,
+        gtin: null,
+      },
+    ], "2026-09-08T00:00:00Z");
+
+    vi.spyOn(global, "fetch").mockImplementation(async (url: any) => {
+      const urlStr = String(url);
+      if (urlStr.includes("git/trees/main")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            tree: [{ path: "filaments/prusa.json", type: "blob" }],
+          }),
+        } as any;
+      }
+      return {
+        ok: false,
+        status: 403,
+        statusText: "Rate Limit Exceeded",
+      } as any;
+    });
+
+    await expect(service.syncSpoolmanDb()).rejects.toThrow(/all .*file downloads failed/i);
+    expect(service.search("Existing").length).toBe(1);
+    expect(service.getStatus().spoolmandb.count).toBe(1);
+  });
+
+  it("loadFromDisk continues loading spoolmandb.json even if ofd.json is corrupted", async () => {
+    fs.writeFileSync(path.join(tempDir, "ofd.json"), "invalid json content", "utf-8");
+    fs.writeFileSync(
+      path.join(tempDir, "spoolmandb.json"),
+      JSON.stringify({
+        lastUpdated: "2026-09-08T00:00:00Z",
+        items: [
+          {
+            id: "spoolman-1",
+            source: "spoolmandb",
+            manufacturer: "Prusa",
+            material: "PLA",
+            name: "Prusament PLA",
+            colorName: "Galaxy Black",
+            colorCode: "#111111",
+            density: 1.24,
+            diameter: 1.75,
+            weightGrams: 1000,
+            spoolRefill: false,
+            extruderTemp: 215,
+            bedTemp: 60,
+            gtin: null,
+          },
+        ],
+      }),
+      "utf-8"
+    );
+
+    await service.loadFromDisk();
+    expect(service.getStatus().ofd.count).toBe(0);
+    expect(service.getStatus().spoolmandb.count).toBe(1);
+    expect(service.search("Galaxy").length).toBe(1);
+  });
+
+
   it("prevents concurrent sync operations using mutex guard", async () => {
     let resolveFetch: (value: any) => void;
     const fetchPromise = new Promise((resolve) => {

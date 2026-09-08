@@ -67,7 +67,10 @@ export function registerCommunityFilamentRoutes(app: Express): void {
         return res.status(409).json({ message: "Catalog synchronization is already in progress" });
       }
 
-      const source = req.body?.source as "ofd" | "spoolmandb" | "all" | undefined;
+      const source = req.body?.source;
+      if (source !== undefined && source !== "ofd" && source !== "spoolmandb" && source !== "all") {
+        return res.status(400).json({ message: "Invalid source parameter: must be 'ofd', 'spoolmandb', or 'all'" });
+      }
       const { ofdCount, spoolmanCount } = await communityCatalog.sync(source ?? "all");
 
       res.json({

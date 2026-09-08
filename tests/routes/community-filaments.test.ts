@@ -218,5 +218,15 @@ describe("POST /api/community-filaments/refresh", () => {
     expect(response.status).toBe(409);
     expect(response.body.message).toMatch(/already in progress/i);
   });
+
+  it("rejects an invalid source parameter with 400 Bad Request", async () => {
+    const response = await request(app)
+      .post("/api/community-filaments/refresh")
+      .send({ source: "invalid_source" })
+      .set("Cookie", adminCookie);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toMatch(/invalid source/i);
+  });
 });
 

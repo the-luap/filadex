@@ -213,17 +213,16 @@ export class CommunityCatalogService {
   public parseOfdDataset(data: OfdDataset): CommunityCatalogItem[] {
     const brandMap = new Map<string, OfdBrand>();
     for (const brand of data.brands || []) {
-      brandMap.set(brand.id, brand);
+      if (brand?.id) {
+        brandMap.set(brand.id, brand);
+      }
     }
 
     const filamentMap = new Map<string, OfdFilament>();
     for (const fil of data.filaments || []) {
-      filamentMap.set(fil.id, fil);
-    }
-
-    const variantMap = new Map<string, OfdVariant>();
-    for (const v of data.variants || []) {
-      variantMap.set(v.id, v);
+      if (fil?.id) {
+        filamentMap.set(fil.id, fil);
+      }
     }
 
     // Map size to variant to filament to brand
@@ -340,12 +339,16 @@ export class CommunityCatalogService {
   }
 
   public async loadFromDisk(): Promise<void> {
-    try {
-      if (!fs.existsSync(this.cacheDir)) {
+    if (!fs.existsSync(this.cacheDir)) {
+      try {
         fs.mkdirSync(this.cacheDir, { recursive: true });
-        return;
+      } catch (err) {
+        logger.warn(`Failed to create catalog cache dir ${this.cacheDir}: ${err instanceof Error ? err.message : String(err)}`);
       }
+      return;
+    }
 
+    try {
       const ofdFile = path.join(this.cacheDir, "ofd.json");
       if (fs.existsSync(ofdFile)) {
         const raw = fs.readFileSync(ofdFile, "utf-8");
@@ -355,7 +358,11 @@ export class CommunityCatalogService {
           logger.info(`Loaded ${parsed.items.length} OFD catalog items from disk cache.`);
         }
       }
+    } catch (error) {
+      logger.warn(`Failed to load OFD catalog from disk: ${error instanceof Error ? error.message : String(error)}`);
+    }
 
+    try {
       const spoolmanFile = path.join(this.cacheDir, "spoolmandb.json");
       if (fs.existsSync(spoolmanFile)) {
         const raw = fs.readFileSync(spoolmanFile, "utf-8");
@@ -366,7 +373,7 @@ export class CommunityCatalogService {
         }
       }
     } catch (error) {
-      logger.warn(`Failed to load community catalog from disk: ${error instanceof Error ? error.message : String(error)}`);
+      logger.warn(`Failed to load SpoolmanDB catalog from disk: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -510,6 +517,10 @@ export class CommunityCatalogService {
       for (const item of results) {
         if (item) vendorFiles.push(item);
       }
+    }
+
+    if (paths.length > 0 && vendorFiles.length === 0) {
+      throw new Error(`Failed to fetch SpoolmanDB vendor files: all ${paths.length} file downloads failed`);
     }
 
     const items = this.parseSpoolmanDbVendorFiles(vendorFiles);
