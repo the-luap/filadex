@@ -142,5 +142,74 @@ describe("CommunityCatalogService sync", () => {
     await syncPromise1;
     expect(service.isSyncing()).toBe(false);
   });
+
+  it("sync('all') allows one source to succeed if the other fails", async () => {
+    const mockVendor: SpoolmanDbVendorFile = {
+      manufacturer: "Prusa",
+      filaments: [
+        {
+          name: "Prusament PLA {color_name}",
+          material: "PLA",
+          diameters: [1.75],
+          colors: [{ name: "Galaxy Black", hex: "111111" }],
+        },
+      ],
+    };
+
+    vi.spyOn(global, "fetch").mockImplementation(async (url: any) => {
+      const urlStr = String(url);
+      if (urlStr.includes("all.json.gz")) {
+        throw new Error("OFD network outage");
+      }
+      if (urlStr.includes("git/trees/main")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            tree: [{ path: "filaments/prusa.json", type: "blob" }],
+          }),
+        } as any;
+      }
+      if (urlStr.includes("filaments/prusa.json")) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify(mockVendor),
+        } as any;
+      }
+      throw new Error(`Unexpected url: ${urlStr}`);
+    });
+
+    const result = await service.sync("all");
+    expect(result.ofdCount).toBe(0);
+    expect(result.spoolmanCount).toBe(1);
+    expect(service.getStatus().spoolmandb.count).toBe(1);
+  });
+
+  it("passes GITHUB_TOKEN in headers during SpoolmanDB sync when env var is set", async () => {
+    process.env.GITHUB_TOKEN = "ghp_test123456";
+    let capturedHeaders: any;
+
+    vi.spyOn(global, "fetch").mockImplementation(async (url: any, options: any) => {
+      const urlStr = String(url);
+      if (urlStr.includes("git/trees/main")) {
+        capturedHeaders = options?.headers;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ tree: [] }),
+        } as any;
+      }
+      throw new Error(`Unexpected url: ${urlStr}`);
+    });
+
+    try {
+      await service.syncSpoolmanDb();
+      expect(capturedHeaders?.Authorization).toBe("token ghp_test123456");
+    } finally {
+      delete process.env.GITHUB_TOKEN;
+    }
+  });
 });
+
 

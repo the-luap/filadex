@@ -99,6 +99,13 @@ function normalizeGtin(gtin: string): string {
   return gtin.trim().replace(/^0+/, "");
 }
 
+export class CatalogSyncConflictError extends Error {
+  constructor(message = "Catalog synchronization is already in progress") {
+    super(message);
+    this.name = "CatalogSyncConflictError";
+  }
+}
+
 export class CommunityCatalogService {
   private items: CommunityCatalogItem[] = [];
   private gtinMap: Map<string, CommunityCatalogItem> = new Map();
@@ -141,8 +148,9 @@ export class CommunityCatalogService {
         const norm = normalizeGtin(raw);
         if (norm) {
           this.gtinMap.set(norm, item);
+        } else if (raw) {
+          this.gtinMap.set(raw, item);
         }
-        this.gtinMap.set(raw, item);
       }
     }
   }
@@ -183,12 +191,12 @@ export class CommunityCatalogService {
       return null;
     }
     const raw = gtin.trim();
+    const norm = normalizeGtin(raw);
+    if (norm && this.gtinMap.has(norm)) {
+      return this.gtinMap.get(norm)!;
+    }
     if (this.gtinMap.has(raw)) {
       return this.gtinMap.get(raw)!;
-    }
-    const norm = normalizeGtin(raw);
-    if (this.gtinMap.has(norm)) {
-      return this.gtinMap.get(norm)!;
     }
     return null;
   }
@@ -377,18 +385,38 @@ export class CommunityCatalogService {
 
   public async sync(source: "ofd" | "spoolmandb" | "all" = "all"): Promise<{ ofdCount: number; spoolmanCount: number }> {
     if (this.syncing) {
-      throw new Error("Catalog synchronization is already in progress");
+      throw new CatalogSyncConflictError();
     }
     this.syncing = true;
     try {
       let ofdCount = 0;
       let spoolmanCount = 0;
+      const errors: Error[] = [];
+
       if (source === "ofd" || source === "all") {
-        ofdCount = await this.syncOfdInternal();
+        try {
+          ofdCount = await this.syncOfdInternal();
+        } catch (err) {
+          logger.error("OFD catalog sync failed:", err);
+          if (source === "ofd") throw err;
+          errors.push(err instanceof Error ? err : new Error(String(err)));
+        }
       }
+
       if (source === "spoolmandb" || source === "all") {
-        spoolmanCount = await this.syncSpoolmanDbInternal();
+        try {
+          spoolmanCount = await this.syncSpoolmanDbInternal();
+        } catch (err) {
+          logger.error("SpoolmanDB catalog sync failed:", err);
+          if (source === "spoolmandb") throw err;
+          errors.push(err instanceof Error ? err : new Error(String(err)));
+        }
       }
+
+      if (source === "all" && errors.length === 2) {
+        throw new Error(`All catalog sync sources failed: ${errors.map((e) => e.message).join("; ")}`);
+      }
+
       return { ofdCount, spoolmanCount };
     } finally {
       this.syncing = false;
@@ -427,8 +455,13 @@ export class CommunityCatalogService {
 
   private async syncSpoolmanDbInternal(): Promise<number> {
     const repo = "Donkie/SpoolmanDB";
+    const headers: Record<string, string> = { "User-Agent": "Filadex/1.0" };
+    if (process.env.GITHUB_TOKEN) {
+      headers["Authorization"] = `token ${process.env.GITHUB_TOKEN}`;
+    }
+
     const treeRes = await fetch(`https://api.github.com/repos/${repo}/git/trees/main?recursive=1`, {
-      headers: { "User-Agent": "Filadex/1.0" },
+      headers,
       signal: AbortSignal.timeout(30_000),
     });
     if (!treeRes.ok) {
@@ -443,7 +476,7 @@ export class CommunityCatalogService {
     for (const p of paths) {
       try {
         const fileRes = await fetch(`https://raw.githubusercontent.com/${repo}/main/${p}`, {
-          headers: { "User-Agent": "Filadex/1.0" },
+          headers,
           signal: AbortSignal.timeout(15_000),
         });
         if (fileRes.ok) {

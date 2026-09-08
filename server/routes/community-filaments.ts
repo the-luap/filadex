@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { authenticate, isAdmin } from "../auth";
-import { communityCatalog } from "../services/community-catalog";
+import { communityCatalog, CatalogSyncConflictError } from "../services/community-catalog";
 import { logger as appLogger } from "../utils/logger";
 import { sensitiveActionLimiter } from "../utils/rate-limits";
 
@@ -86,7 +86,7 @@ export function registerCommunityFilamentRoutes(app: Express): void {
         count: ofdCount + spoolmanCount,
       });
     } catch (error) {
-      if (error instanceof Error && error.message.includes("already in progress")) {
+      if (error instanceof CatalogSyncConflictError || (error instanceof Error && error.message.includes("already in progress"))) {
         return res.status(409).json({ message: error.message });
       }
       appLogger.error("Error refreshing community filament cache:", error);
