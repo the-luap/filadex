@@ -42,7 +42,7 @@ export async function openSettingsTab(page: Page, tabName: string | RegExp): Pro
   await page.goto("/");
   await expect(settingsButton(page)).toBeVisible({ timeout: 30_000 });
   await settingsButton(page).click();
-  await page.getByRole("menuitem", { name: /list management/i }).click();
+  await page.getByRole("menuitem", { name: /general settings|list management/i }).click();
   await page.getByRole("tab", { name: tabName }).click();
 }
 
