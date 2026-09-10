@@ -659,11 +659,15 @@ export class DatabaseStorage implements IStorage {
     if (settings) {
       return settings;
     }
-    const defaultRegistration = process.env.DISABLE_REGISTRATION !== "true";
     const [inserted] = await db.insert(systemSettings)
-      .values({ id: 1, registrationEnabled: defaultRegistration, updatedAt: new Date() })
+      .values({ id: 1, registrationEnabled: true, updatedAt: new Date() })
+      .onConflictDoNothing()
       .returning();
-    return inserted;
+    if (inserted) {
+      return inserted;
+    }
+    const [reselected] = await db.select().from(systemSettings).where(eq(systemSettings.id, 1));
+    return reselected;
   }
 
   async updateSystemSettings(changes: UpdateSystemSettings): Promise<SystemSettings> {

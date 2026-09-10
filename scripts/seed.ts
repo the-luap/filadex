@@ -21,6 +21,7 @@ import {
   storageLocations,
   userSharing,
   emailSettings,
+  systemSettings,
   catalogRequests,
   filamentUsageLog,
   customFieldDefinitions,
@@ -74,6 +75,9 @@ async function seedStarter(): Promise<void> {
       { name: "Dry box A", sortOrder: 1 },
       { name: "Shelf", sortOrder: 2 },
     ]).onConflictDoNothing();
+
+    await tx.insert(systemSettings).values({ id: 1, registrationEnabled: true })
+      .onConflictDoNothing();
   });
 
   console.log("Basic starter selection options inserted.");
@@ -285,6 +289,9 @@ async function seedDemo(): Promise<void> {
     };
     await tx.insert(emailSettings).values({ id: 1, ...settings })
       .onConflictDoUpdate({ target: emailSettings.id, set: settings });
+
+    await tx.insert(systemSettings).values({ id: 1, registrationEnabled: true })
+      .onConflictDoNothing();
   });
 
   console.log("Seeded: 4 users, 3 filament types, 3 spools, 3 usage log entries,");

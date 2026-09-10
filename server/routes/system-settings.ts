@@ -3,12 +3,13 @@ import { updateSystemSettingsSchema } from "../../shared/schema";
 import { authenticate, isAdmin } from "../auth";
 import { storage } from "../storage";
 import { logger as appLogger } from "../utils/logger";
+import { publicReadLimiter, sensitiveActionLimiter } from "../utils/rate-limits";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 
 export function registerSystemSettingsRoutes(app: Express): void {
   // Public system settings available to unauthenticated visitors
-  app.get("/api/system/public-settings", async (_req, res) => {
+  app.get("/api/system/public-settings", publicReadLimiter, async (_req, res) => {
     try {
       const settings = await storage.getSystemSettings();
       res.json({
@@ -32,7 +33,7 @@ export function registerSystemSettingsRoutes(app: Express): void {
   });
 
   // Update system settings (admin only)
-  app.put("/api/settings/system", authenticate, isAdmin, async (req, res) => {
+  app.put("/api/settings/system", sensitiveActionLimiter, authenticate, isAdmin, async (req, res) => {
     try {
       const validated = updateSystemSettingsSchema.partial().parse(req.body);
       const updated = await storage.updateSystemSettings(validated);

@@ -109,24 +109,22 @@ describe("System Settings & Registration Policy", () => {
     });
   });
 
-  describe("DISABLE_REGISTRATION environment variable initialization", () => {
-    it("defaults registrationEnabled to false when DISABLE_REGISTRATION=true on first creation", async () => {
+  describe("getSystemSettings() concurrency on empty table", () => {
+    it("handles concurrent first-use calls without primary key race failure", async () => {
       const { db } = await import("../helpers/db");
       const { systemSettings } = await import("../../shared/schema");
       const { storage } = await import("../../server/storage");
       await db.delete(systemSettings);
 
-      const oldEnv = process.env.DISABLE_REGISTRATION;
-      try {
-        process.env.DISABLE_REGISTRATION = "true";
-        const settings = await storage.getSystemSettings();
-        expect(settings.registrationEnabled).toBe(false);
-      } finally {
-        if (oldEnv === undefined) {
-          delete process.env.DISABLE_REGISTRATION;
-        } else {
-          process.env.DISABLE_REGISTRATION = oldEnv;
-        }
+      const results = await Promise.all(
+        Array.from({ length: 8 }, () => storage.getSystemSettings())
+      );
+
+      expect(results).toHaveLength(8);
+      for (const res of results) {
+        expect(res).toBeDefined();
+        expect(res.id).toBe(1);
+        expect(res.registrationEnabled).toBe(true);
       }
     });
   });
