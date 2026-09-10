@@ -1,7 +1,6 @@
 import type { Express } from "express";
 import { authenticate, isAdmin } from "../auth";
-import { storage } from "../storage";
-import { refreshCommunityFilamentCache, searchCommunityFilaments } from "../utils/spoolmandb-sync";
+import { communityCatalog, CatalogSyncConflictError } from "../services/community-catalog";
 import { logger as appLogger } from "../utils/logger";
 import { sensitiveActionLimiter } from "../utils/rate-limits";
 
@@ -12,7 +11,13 @@ export function registerCommunityFilamentRoutes(app: Express): void {
       if (!q) {
         return res.json([]);
       }
-      const results = await searchCommunityFilaments(q);
+      const source = req.query.source === "ofd" || req.query.source === "spoolmandb" ? req.query.source : undefined;
+      let limit: number | undefined;
+      if (req.query.limit) {
+        const rawLimit = parseInt(String(req.query.limit), 10);
+        limit = Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
+      }
+      const results = communityCatalog.search(q, { source, limit });
       res.json(results);
     } catch (error) {
       appLogger.error("Error searching community filaments:", error);
@@ -20,20 +25,73 @@ export function registerCommunityFilamentRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/community-filaments/gtin/:code", authenticate, async (req, res) => {
+    try {
+      const code = req.params.code?.trim();
+      if (!code) {
+        return res.status(400).json({ message: "Invalid GTIN code" });
+      }
+      const candidates = communityCatalog.lookupGtinCandidates(code);
+      if (candidates.length === 0) {
+        return res.status(404).json({ message: "Filament not found in community catalog" });
+      }
+      const hint = {
+        diameter: req.query.diameter ? Number(req.query.diameter) : undefined,
+        weightGrams: req.query.weightGrams ? Number(req.query.weightGrams) : undefined,
+        spoolRefill: req.query.spoolRefill !== undefined ? req.query.spoolRefill === "true" : undefined,
+      };
+      const primary = communityCatalog.lookupGtin(code, hint) || candidates[0];
+      res.json({
+        ...primary,
+        candidates,
+      });
+    } catch (error) {
+      appLogger.error("Error looking up GTIN:", error);
+      res.status(500).json({ message: "Failed to look up GTIN" });
+    }
+  });
+
+
   app.get("/api/community-filaments/status", authenticate, isAdmin, async (_req, res) => {
     try {
-      res.json(await storage.getCommunityFilamentCacheStatus());
+      const status = communityCatalog.getStatus();
+      const dates = [status.ofd.lastUpdated, status.spoolmandb.lastUpdated].filter(Boolean) as string[];
+      dates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+      const lastUpdated = dates[0] || null;
+
+      res.json({
+        ofd: status.ofd,
+        spoolmandb: status.spoolmandb,
+        count: status.ofd.count + status.spoolmandb.count,
+        lastUpdated,
+      });
     } catch (error) {
       appLogger.error("Error fetching community filament cache status:", error);
       res.status(500).json({ message: "Failed to fetch community filament cache status" });
     }
   });
 
-  app.post("/api/community-filaments/refresh", authenticate, isAdmin, sensitiveActionLimiter, async (_req, res) => {
+  app.post("/api/community-filaments/refresh", authenticate, isAdmin, sensitiveActionLimiter, async (req, res) => {
     try {
-      const count = await refreshCommunityFilamentCache();
-      res.json({ count });
+      if (communityCatalog.isSyncing()) {
+        return res.status(409).json({ message: "Catalog synchronization is already in progress" });
+      }
+
+      const source = req.body?.source;
+      if (source !== undefined && source !== "ofd" && source !== "spoolmandb" && source !== "all") {
+        return res.status(400).json({ message: "Invalid source parameter: must be 'ofd', 'spoolmandb', or 'all'" });
+      }
+      const { ofdCount, spoolmanCount } = await communityCatalog.sync(source ?? "all");
+
+      res.json({
+        ofdCount,
+        spoolmanCount,
+        count: ofdCount + spoolmanCount,
+      });
     } catch (error) {
+      if (error instanceof CatalogSyncConflictError || (error instanceof Error && error.message.includes("already in progress"))) {
+        return res.status(409).json({ message: error.message });
+      }
       appLogger.error("Error refreshing community filament cache:", error);
       res.status(500).json({ message: "Failed to refresh community filament cache" });
     }

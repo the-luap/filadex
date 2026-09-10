@@ -15,6 +15,20 @@
       "when": 1788808321351,
       "tag": "0001_users_password_changed_at",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788879603141,
+      "tag": "0002_rich_nehzno",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788881808636,
+      "tag": "0003_eager_william_stryker",
+      "breakpoints": true
     }
   ]
 }

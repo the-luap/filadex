@@ -18,7 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Check, ChevronsUpDown, X } from "lucide-react";
+import { Check, ChevronsUpDown, Scan, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 
@@ -42,6 +42,8 @@ interface FilterSidebarProps {
   onManufacturerChange: (manufacturers: string[]) => void;
   onColorChange: (colors: string[]) => void;
   filaments?: Filament[];
+  onScanClick?: () => void;
+  searchTerm?: string;
 }
 
 export function FilterSidebar({
@@ -50,10 +52,11 @@ export function FilterSidebar({
   onMinRemaining,
   onManufacturerChange,
   onColorChange,
-  filaments = []
+  filaments = [],
+  onScanClick,
+  searchTerm = "",
 }: FilterSidebarProps) {
   const { t } = useTranslation();
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
   const [selectedManufacturers, setSelectedManufacturers] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
@@ -107,10 +110,6 @@ export function FilterSidebar({
   }, [colors, filaments]);
 
   // Update parent component when filters change
-  useEffect(() => {
-    onSearchChange(searchTerm);
-  }, [searchTerm, onSearchChange]);
-
   useEffect(() => {
     onMaterialChange(selectedMaterials);
   }, [selectedMaterials, onMaterialChange]);
@@ -193,29 +192,44 @@ export function FilterSidebar({
     <aside className="dark:bg-neutral-900 bg-white p-4 rounded-lg shadow-md border border-gray-200 dark:border-neutral-700 h-fit lg:sticky lg:top-4 max-h-screen lg:overflow-y-auto">
       <div className="mb-6">
         <h2 className="text-lg font-medium dark:text-neutral-400 text-gray-700 mb-3">{t('filters.searchFilaments')}</h2>
-        <div className="relative">
-          <Input
-            type="text"
-            placeholder={t('filters.searchByNameManufacturer')}
-            className="w-full pl-3 pr-9 py-2 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 bg-white border-gray-300 text-gray-800 rounded-md focus:outline-none focus:ring-1 focus:border-primary"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="absolute right-3 top-3 dark:text-neutral-400 text-gray-500 pointer-events-none"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Input
+              type="text"
+              placeholder={t('filters.searchByNameManufacturer')}
+              className="w-full pl-3 pr-9 py-2 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 bg-white border-gray-300 text-gray-800 rounded-md focus:outline-none focus:ring-1 focus:border-primary"
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+            />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="absolute right-3 top-3 dark:text-neutral-400 text-gray-500 pointer-events-none"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          </div>
+          {onScanClick && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={onScanClick}
+              title={t('scanner.scanBarcode')}
+              aria-label={t('scanner.scanBarcode')}
+              className="flex-shrink-0"
+            >
+              <Scan className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 

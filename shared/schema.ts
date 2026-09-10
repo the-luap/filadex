@@ -97,6 +97,7 @@ export const filaments = table("filaments", {
   dryerCount: t.int("dryer_count").default(0).notNull(), // Anzahl der Trocknungen
   lastDryingDate: t.date("last_drying_date"), // Datum der letzten Trocknung
   storageLocation: t.text("storage_location"), // Lagerort
+  barcode: t.text("barcode"), // Barcode or GTIN from packaging/spool
   // Set when a low-stock email is sent, cleared once remaining % rises back
   // above the threshold - prevents re-notifying every scheduled check.
   lowStockNotifiedAt: t.timestamp("low_stock_notified_at"),
@@ -401,6 +402,7 @@ export const filamentWriteSchema = z.object({
   dryerCount: z.number().int().min(0).max(10_000).optional(),
   lastDryingDate: isoDate.nullable().optional(),
   storageLocation: z.string().max(200).nullable().optional(),
+  barcode: z.string().trim().max(100).nullable().optional(),
   customFieldValues: customFieldValuesSchema.optional(),
 });
 
@@ -739,28 +741,6 @@ export const insertCustomFieldDefinitionSchema = createInsertSchema(customFieldD
 export type InsertCustomFieldDefinition = z.infer<typeof insertCustomFieldDefinitionSchema>;
 export type CustomFieldDefinition = typeof customFieldDefinitions.$inferSelect;
 
-// A locally-cached copy of community filament profiles from SpoolmanDB
-// (https://github.com/Donkie/SpoolmanDB, MIT licensed), refreshed by an
-// admin action rather than a live external API call per search. One row per
-// manufacturer/product/color combination.
-export const communityFilamentCache = table("community_filament_cache", {
-  id: t.pk("id"),
-  manufacturer: t.text("manufacturer").notNull(),
-  material: t.text("material").notNull(),
-  name: t.text("name").notNull(),
-  colorName: t.text("color_name").notNull(),
-  colorCode: t.text("color_code"),
-  density: t.numeric("density"),
-  diameter: t.numeric("diameter"),
-  extruderTemp: t.int("extruder_temp"),
-  bedTemp: t.int("bed_temp"),
-  updatedAt: t.timestamp("updated_at").defaultNow(),
-}, (table) => [
-  index("community_filament_cache_search_idx").on(table.manufacturer, table.name, table.colorName),
-]);
-
-export type CommunityFilamentCacheEntry = typeof communityFilamentCache.$inferSelect;
-
 // Per-user API tokens for printer/print-server integrations (a print server
 // can't hold a user's login cookie). tokenHash is a SHA-256 digest of the
 // plaintext token - looked up directly, not bcrypt-compared, since the
@@ -796,3 +776,22 @@ export const printerUsageEventSchema = z.object({
 });
 
 export type PrinterUsageEvent = z.infer<typeof printerUsageEventSchema>;
+
+export interface CommunityCatalogItem {
+  id: string;
+  source: "ofd" | "spoolmandb";
+  manufacturer: string;
+  material: string;
+  name: string;
+  colorName: string;
+  colorCode: string | null;
+  density: number | null;
+  diameter: number | null;
+  weightGrams: number | null;
+  spoolRefill: boolean | null;
+  extruderTemp: number | null;
+  bedTemp: number | null;
+  gtin: string | null;
+  candidates?: CommunityCatalogItem[];
+}
+

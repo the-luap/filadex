@@ -61,9 +61,11 @@ tmp/
 temp/
 .tmp/
 .temp/
+.worktrees/
 
 # Cache
 .cache/
+data/cache/
 .eslintcache
 .stylelintcache
 

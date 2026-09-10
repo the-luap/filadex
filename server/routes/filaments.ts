@@ -24,7 +24,7 @@ export function registerFilamentRoutes(app: Express): void {
         res.setHeader('Content-Disposition', 'attachment; filename="filaments.csv"');
 
         // Create CSV header and content
-        let csvContent = 'name,manufacturer,material,colorName,colorCode,diameter,printTemp,totalWeight,remainingPercentage,purchaseDate,purchasePrice,status,spoolType,dryerCount,lastDryingDate,storageLocation\n';
+        let csvContent = 'name,manufacturer,material,colorName,colorCode,diameter,printTemp,totalWeight,remainingPercentage,purchaseDate,purchasePrice,status,spoolType,dryerCount,lastDryingDate,storageLocation,barcode\n';
 
         filaments.forEach(filament => {
           // Format date fields
@@ -46,7 +46,8 @@ export function registerFilamentRoutes(app: Express): void {
           csvContent += `${escapeCsvField(filament.spoolType)},`;
           csvContent += `${escapeCsvField(filament.dryerCount)},`;
           csvContent += `${escapeCsvField(lastDryingDate)},`;
-          csvContent += `${escapeCsvField(filament.storageLocation)}\n`;
+          csvContent += `${escapeCsvField(filament.storageLocation)},`;
+          csvContent += `${escapeCsvField(filament.barcode)}\n`;
         });
 
         return res.send(csvContent);
@@ -106,7 +107,7 @@ export function registerFilamentRoutes(app: Express): void {
           'name', 'manufacturer', 'material', 'colorname', 'colorcode',
           'diameter', 'printtemp', 'totalweight', 'remainingpercentage',
           'purchasedate', 'purchaseprice', 'status', 'spooltype',
-          'dryercount', 'lastdryingdate', 'storagelocation'
+          'dryercount', 'lastdryingdate', 'storagelocation', 'barcode'
         ];
 
         // Detect CSV format
@@ -147,6 +148,7 @@ export function registerFilamentRoutes(app: Express): void {
             const dryerCount = getValue('dryercount', 13);
             const lastDryingDate = getValue('lastdryingdate', 14);
             const storageLocation = getValue('storagelocation', 15);
+            const barcode = getValue('barcode', 16);
 
             // Validate required fields
             if (!name || !material || !colorName) {
@@ -184,7 +186,8 @@ export function registerFilamentRoutes(app: Express): void {
               spoolType: spoolType || undefined,
               dryerCount: dryerCount ? parseInt(dryerCount) : 0,
               lastDryingDate: lastDryingDate ? lastDryingDate : undefined,
-              storageLocation
+              storageLocation,
+              barcode: barcode || undefined,
             };
 
             // Create the filament
@@ -258,7 +261,8 @@ export function registerFilamentRoutes(app: Express): void {
                 spoolType: filament.spoolType || undefined,
                 dryerCount: filament.dryerCount || 0,
                 lastDryingDate: filament.lastDryingDate || undefined,
-                storageLocation: filament.storageLocation
+                storageLocation: filament.storageLocation,
+                barcode: filament.barcode || undefined,
               };
 
               // Create the filament
@@ -300,6 +304,7 @@ export function registerFilamentRoutes(app: Express): void {
         dryerCount: data.dryerCount,
         lastDryingDate: data.lastDryingDate,
         storageLocation: data.storageLocation,
+        barcode: data.barcode,
         customFieldValues: data.customFieldValues
       };
 
@@ -380,6 +385,7 @@ export function registerFilamentRoutes(app: Express): void {
         updateData.dryingReminderNotifiedAt = null; // drying resets the reminder clock
       }
       if (data.storageLocation !== undefined) updateData.storageLocation = data.storageLocation;
+      if (data.barcode !== undefined) updateData.barcode = data.barcode;
       if (data.customFieldValues !== undefined) updateData.customFieldValues = data.customFieldValues;
 
       // A top-up clears the low-stock notification latch, so a future drop

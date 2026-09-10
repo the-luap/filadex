@@ -50,7 +50,7 @@ if [ "$(id -u)" = "0" ]; then
   esac
 
   echo "Using PUID: ${PUID}, PGID: ${PGID}"
-  DATA_PATHS="/data ${BACKUP_DIR:-/data/backups}"
+  DATA_PATHS="/data ${BACKUP_DIR:-/data/backups} ${CATALOG_CACHE_DIR:-/data/cache/catalogs}"
   if [ -n "${DB_DIR}" ]; then
     case " ${DATA_PATHS} " in
       *" ${DB_DIR} "*) ;;

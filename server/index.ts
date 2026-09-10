@@ -5,6 +5,8 @@ import { registerRoutes } from "./routes/index";
 import { setupVite, serveStatic, log } from "./vite";
 import { runScheduledChecks } from "./utils/notification-checks";
 import { startBackupScheduler } from "./backup-scheduler";
+import { startCatalogScheduler } from "./catalog-scheduler";
+import { communityCatalog } from "./services/community-catalog";
 import { logger } from "./utils/logger";
 import { errorHandler } from "./utils/error-handler";
 
@@ -107,4 +109,8 @@ app.use((req, res, next) => {
 
   // SQLite database automated backups (if enabled; no-op on Postgres)
   startBackupScheduler();
+
+  // Load community filament catalog cache and start daily refresh scheduler
+  await communityCatalog.loadFromDisk();
+  startCatalogScheduler();
 })();

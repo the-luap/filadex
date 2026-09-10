@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Filament } from "@shared/schema";
+import { Filament, type CommunityCatalogItem } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "@/i18n";
+import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Language } from "@shared/languages";
 
 const DATE_LOCALES: Record<Language, Locale> = {
@@ -174,6 +176,7 @@ const createFormSchema = (t: (key: string) => string) => z.object({
   dryerCount: z.number().min(0).default(0),
   lastDryingDate: z.date().optional(),
   storageLocation: z.string().optional(),
+  barcode: z.string().optional(),
 });
 
 // This will be defined in the component
@@ -208,17 +211,7 @@ interface Material {
   createdAt: string;
 }
 
-interface CommunityFilamentResult {
-  id: number;
-  manufacturer: string;
-  material: string;
-  name: string;
-  colorName: string;
-  colorCode: string | null;
-  diameter: string | null;
-  extruderTemp: number | null;
-  bedTemp: number | null;
-}
+export type CommunityFilamentResult = CommunityCatalogItem;
 
 interface CustomFieldDefinition {
   id: number;
@@ -242,21 +235,38 @@ export function FilamentModal({
   filament,
 }: FilamentModalProps) {
   const { t, language } = useTranslation();
+  const { toast } = useToast();
   const { currency, temperatureUnit } = useUnits();
-  const isEditing = !!filament;
+  const isEditing = Boolean(filament && filament.id && filament.id > 0);
   const [remainingPercentage, setRemainingPercentage] = useState(100);
   const [totalWeight, setTotalWeight] = useState<number | string>(1);
   const [customWeightVisible, setCustomWeightVisible] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showNFCScanner, setShowNFCScanner] = useState(false);
+  const [variantCandidates, setVariantCandidates] = useState<CommunityFilamentResult[] | null>(null);
+  const [variantCandidateBarcode, setVariantCandidateBarcode] = useState<string>("");
   const [usageNote, setUsageNote] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   const [communitySearchQuery, setCommunitySearchQuery] = useState("");
+  const [catalogSource, setCatalogSource] = useState<"ofd" | "spoolmandb">(() => {
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem("filament_catalog_source");
+      return stored === "spoolmandb" ? "spoolmandb" : "ofd";
+    }
+    return "ofd";
+  });
+
+  const handleCatalogSourceChange = (source: "ofd" | "spoolmandb") => {
+    setCatalogSource(source);
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      localStorage.setItem("filament_catalog_source", source);
+    }
+  };
 
   const { data: communityResults = [] } = useQuery<CommunityFilamentResult[]>({
-    queryKey: [`/api/community-filaments/search?q=${encodeURIComponent(communitySearchQuery)}`],
-    queryFn: () => apiRequest<CommunityFilamentResult[]>(`/api/community-filaments/search?q=${encodeURIComponent(communitySearchQuery)}`),
+    queryKey: [`/api/community-filaments/search?q=${encodeURIComponent(communitySearchQuery)}&source=${catalogSource}`],
+    queryFn: () => apiRequest<CommunityFilamentResult[]>(`/api/community-filaments/search?q=${encodeURIComponent(communitySearchQuery)}&source=${catalogSource}`),
     enabled: isOpen && !isEditing && communitySearchQuery.trim().length >= 2,
   });
 
@@ -335,7 +345,8 @@ export function FilamentModal({
       spoolType: (filament?.spoolType as any) || undefined,
       dryerCount: filament?.dryerCount || 0,
       lastDryingDate: filament?.lastDryingDate ? new Date(filament.lastDryingDate) : undefined,
-      storageLocation: filament?.storageLocation || ""
+      storageLocation: filament?.storageLocation || "",
+      barcode: filament?.barcode || ""
     },
   });
 
@@ -358,7 +369,8 @@ export function FilamentModal({
         spoolType: (filament.spoolType as any) || undefined,
         dryerCount: filament.dryerCount || 0,
         lastDryingDate: filament.lastDryingDate ? new Date(filament.lastDryingDate) : undefined,
-        storageLocation: filament.storageLocation || ""
+        storageLocation: filament.storageLocation || "",
+        barcode: filament.barcode || ""
       });
 
       setRemainingPercentage(Number(filament.remainingPercentage));
@@ -385,7 +397,8 @@ export function FilamentModal({
         spoolType: undefined,
         dryerCount: 0,
         lastDryingDate: undefined,
-        storageLocation: ""
+        storageLocation: "",
+        barcode: ""
       });
       setRemainingPercentage(100);
       setTotalWeight(1);
@@ -420,7 +433,22 @@ export function FilamentModal({
         : `${result.extruderTemp}°C`);
     }
     const mfgText = result.manufacturer ? ` (${result.manufacturer})` : '';
-    form.setValue('name', `${result.name} ${result.colorName}${mfgText}`);
+    const cleanName = result.colorName && result.name.toLowerCase().includes(result.colorName.toLowerCase())
+      ? result.name
+      : `${result.name} ${result.colorName || ''}`.trim();
+    form.setValue('name', `${cleanName}${mfgText}`.trim());
+    if (result.gtin) {
+      form.setValue('barcode', result.gtin);
+    }
+    if (result.spoolRefill !== undefined && result.spoolRefill !== null) {
+      form.setValue('spoolType', result.spoolRefill ? 'spoolless' : 'spooled');
+    }
+    if (result.weightGrams) {
+      const kg = Number((result.weightGrams / 1000).toFixed(2));
+      form.setValue('totalWeight', kg);
+      setTotalWeight(kg);
+      setCustomWeightVisible(!STANDARD_WEIGHTS.includes(kg));
+    }
     setCommunitySearchQuery("");
   };
 
@@ -480,6 +508,7 @@ export function FilamentModal({
     if (data.colorCode) form.setValue('colorCode', data.colorCode);
     if (data.diameter) form.setValue('diameter', Number(data.diameter));
     if (data.printTemp) form.setValue('printTemp', data.printTemp);
+    if (data.barcode) form.setValue('barcode', data.barcode);
     if (data.totalWeight) {
       const weight = Number(data.totalWeight);
       setTotalWeight(weight);
@@ -489,14 +518,104 @@ export function FilamentModal({
   };
 
   // Handler for QR code scan
-  const handleQRCodeScanned = (decodedText: string) => {
+  const handleQRCodeScanned = async (decodedText: string) => {
     setShowQRScanner(false);
-    try {
-      applyScannedFilamentData(JSON.parse(decodedText));
-    } catch (error) {
-      console.error('Fehler beim Verarbeiten des QR-Codes:', error);
+
+    // Case 0: Filadex URL (e.g. printed label with ?openFilament=123)
+    const openFilamentMatch = decodedText.match(/[?&]openFilament=(\d+)/);
+    if (openFilamentMatch) {
+      const filamentId = Number(openFilamentMatch[1]);
+      try {
+        const existing = await apiRequest<Filament>(`/api/filaments/${filamentId}`);
+        if (existing) {
+          applyScannedFilamentData({
+            name: existing.name,
+            manufacturer: existing.manufacturer,
+            material: existing.material,
+            colorName: existing.colorName,
+            colorCode: existing.colorCode,
+            diameter: existing.diameter,
+            printTemp: existing.printTemp,
+            barcode: existing.barcode,
+            totalWeight: existing.totalWeight,
+          });
+          toast({
+            title: existing.name,
+            description: existing.manufacturer ? `${existing.manufacturer} • ${existing.material}` : existing.material,
+          });
+          return;
+        }
+      } catch (err: any) {
+        if (err?.status !== 404) {
+          toast({
+            variant: "destructive",
+            title: t('common.error') || 'Error',
+            description: err?.message || 'Failed to fetch filament from label',
+          });
+          return;
+        }
+      }
     }
+
+    // Case 1: Structured JSON QR code
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(decodedText);
+    } catch {
+      // Non-JSON string - query OFD GTIN lookup
+    }
+
+    if (parsed && typeof parsed === "object" && (parsed.name || parsed.material)) {
+      applyScannedFilamentData(parsed);
+      return;
+    }
+
+    // Case 2: 1D/2D Barcode GTIN lookup
+    const code = (parsed && typeof parsed === "object" && parsed.barcode ? parsed.barcode : decodedText).trim();
+    try {
+      const currentDiameter = form.getValues('diameter');
+      const currentWeight = form.getValues('totalWeight');
+      const currentSpoolType = form.getValues('spoolType');
+      const params = new URLSearchParams();
+      if (currentDiameter) params.set('diameter', String(currentDiameter));
+      if (currentWeight) params.set('weightGrams', String(Math.round(currentWeight * 1000)));
+      if (currentSpoolType) params.set('spoolRefill', String(currentSpoolType === 'spoolless'));
+      const query = params.toString() ? `?${params.toString()}` : '';
+
+      const result = await apiRequest<CommunityFilamentResult>(
+        `/api/community-filaments/gtin/${encodeURIComponent(code)}${query}`
+      );
+      if (result) {
+        handleUseCommunityResult(result);
+        if (result.candidates && result.candidates.length > 1) {
+          setVariantCandidateBarcode(code);
+          setVariantCandidates(result.candidates);
+        } else {
+          toast({
+            title: t('scanner.foundInOfd', { name: `${result.manufacturer} - ${result.name}` }),
+          });
+        }
+        return;
+      }
+    } catch (err: any) {
+      if (err?.status !== 404) {
+        toast({
+          variant: "destructive",
+          title: t('common.error') || 'Error',
+          description: t('scanner.lookupError', { code }) || err?.message || 'Failed to search community catalog',
+        });
+        return;
+      }
+      // Only 404 status falls through to "not recognized" flow
+    }
+
+    form.setValue('barcode', code);
+    toast({
+      variant: "destructive",
+      title: t('scanner.notFoundAllSources', { code }),
+    });
   };
+
 
   // Handler für NFC Scan
   const handleNFCScanned = (data: any) => {
@@ -527,6 +646,64 @@ export function FilamentModal({
         />
       )}
 
+      {variantCandidates && (
+        <Dialog open={true} onOpenChange={() => setVariantCandidates(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{t('scanner.multipleMatchesTitle')}</DialogTitle>
+              <DialogDescription>
+                {t('scanner.multipleMatchesDescription', { code: variantCandidateBarcode })}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+              {variantCandidates.map((candidate) => {
+                const colorCode = candidate.colorCode || "#888888";
+                const spoolTypeText = candidate.spoolRefill ? (t('filaments.spoolless') || 'Refill') : (t('filaments.spooled') || 'Spooled');
+                const weightText = candidate.weightGrams ? `${(candidate.weightGrams / 1000).toFixed(1)}kg` : '';
+                return (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    onClick={() => {
+                      handleUseCommunityResult(candidate);
+                      setVariantCandidates(null);
+                      toast({
+                        title: t('scanner.foundInOfd', { name: `${candidate.manufacturer} - ${candidate.name}` }),
+                      });
+                    }}
+                    className="w-full text-left p-3 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:border-primary hover:bg-neutral-50 dark:hover:bg-neutral-800 transition flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-600 flex-shrink-0"
+                        style={{ backgroundColor: colorCode }}
+                      />
+                      <div>
+                        <div className="font-medium text-sm text-neutral-900 dark:text-neutral-100">
+                          {candidate.name} {candidate.colorName ? `(${candidate.colorName})` : ''}
+                        </div>
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                          {candidate.manufacturer} • {candidate.material}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right text-xs text-neutral-500 dark:text-neutral-400 flex flex-col items-end">
+                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">{spoolTypeText}</span>
+                      {weightText && <span>{weightText}</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setVariantCandidates(null)}>
+                {t('common.close') || 'Close'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent
           className="max-w-[95vw] sm:max-w-[90vw] md:max-w-4xl lg:max-w-5xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0 dark:bg-neutral-900 bg-white"
@@ -545,10 +722,25 @@ export function FilamentModal({
             <Form {...form}>
               <form id="filament-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               {!isEditing && (
-                <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200">
-                  <label className="text-sm font-medium dark:text-neutral-300 text-gray-700 mb-1 block">
-                    {t('settings.communityFilaments.searchLabel')}
-                  </label>
+                <div className="border rounded-md p-4 dark:bg-neutral-900 bg-gray-50 dark:border-neutral-700 border-gray-200 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <label className="text-sm font-medium dark:text-neutral-300 text-gray-700 block">
+                      {t('settings.communityFilaments.searchLabel')}
+                    </label>
+                    <Tabs
+                      value={catalogSource}
+                      onValueChange={(val) => handleCatalogSourceChange(val as "ofd" | "spoolmandb")}
+                    >
+                      <TabsList className="grid grid-cols-2 h-8">
+                        <TabsTrigger value="ofd" className="text-xs px-2.5 py-1">
+                          {t('settings.communityFilaments.sourceOfd')}
+                        </TabsTrigger>
+                        <TabsTrigger value="spoolmandb" className="text-xs px-2.5 py-1">
+                          {t('settings.communityFilaments.sourceSpoolman')}
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
                   <Input
                     placeholder={t('settings.communityFilaments.searchPlaceholder')}
                     value={communitySearchQuery}
@@ -561,10 +753,10 @@ export function FilamentModal({
                           {t('settings.communityFilaments.noResults')}
                         </p>
                       ) : (
-                        communityResults.map((result) => (
+                        communityResults.map((result, index) => (
                           <button
                             type="button"
-                            key={`${result.id}`}
+                            key={`${result.id}-${index}`}
                             onClick={() => handleUseCommunityResult(result)}
                             className="w-full text-left text-sm flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-primary/10"
                           >
@@ -1152,6 +1344,24 @@ export function FilamentModal({
                           </SelectContent>
                         </Select>
                         <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="barcode"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col md:col-span-2">
+                          <FormLabel>{t('filaments.barcode')}</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder={t('filaments.barcodePlaceholder')}
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
