@@ -15,11 +15,19 @@ export const publicAuthLimiter = rateLimit({
 
 // Anything that verifies a password: login, and change-password, which with a
 // stolen session would otherwise be an unthrottled oracle for the current one.
+//
+// Only failed attempts count. That is what the limiter is for - an attacker
+// guessing passwords produces 401s, and those still consume the budget - while
+// someone who knows their password never spends anyone else's, which matters
+// on a shared address behind NAT or a reverse proxy. It also keeps the browser
+// suite honest: it signs in about fifteen times per run, and counting those
+// successes put it one flaky retry away from locking itself out.
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 15,
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
   message: { message: "Too many login attempts, please try again later" },
 });
 
