@@ -21,7 +21,7 @@ import { test, expect } from "@playwright/test";
  * schema default the bug turned on - while leaving the admin the materials
  * specs depend on untouched.
  */
-const ALICE = { username: "alice", password: "demo-password" };
+const ALICE = { username: "alice", password: "demo-password" }; // ggignore: throwaway test fixture credential
 
 /** What the account itself holds, which is what has to change. */
 async function storedLanguage(page: import("@playwright/test").Page): Promise<string> {

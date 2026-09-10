@@ -6,7 +6,7 @@ import { expect } from "@playwright/test";
  * admin may edit those (settings-materials.tsx `ownsOrIsAdmin`), so these specs
  * sign in as the seeded admin rather than as alice.
  */
-export const DEMO_ADMIN = { username: "admin", password: "demo-password" };
+export const DEMO_ADMIN = { username: "admin", password: "demo-password" }; // ggignore: throwaway test fixture credential
 
 /**
  * Signs in through the form rather than minting a cookie.
