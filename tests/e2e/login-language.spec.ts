@@ -34,48 +34,64 @@ async function storedLanguage(page: import("@playwright/test").Page): Promise<st
 
 test.describe("a language chosen on the login screen", () => {
   test("survives logging in, and is written to the account", async ({ page }) => {
-    await page.goto("/login");
+    try {
+      await page.goto("/login");
 
-    // The server stamps the shell before any script runs, and Playwright asks
-    // for English, so this starts in English - the state the bug needs.
-    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+      // The server stamps the shell before any script runs, and Playwright asks
+      // for English, so this starts in English - the state the bug needs.
+      await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
-    await page.getByRole("button", { name: /language/i }).click();
-    await page.getByRole("menuitem", { name: "Polski" }).click();
+      await page.getByRole("button", { name: /language/i }).click();
+      await page.getByRole("menuitem", { name: "Polski" }).click();
 
-    // The form the visitor is about to fill in is now Polish...
-    await expect(page.locator("html")).toHaveAttribute("lang", "pl");
-    await expect(page.getByText("Zaloguj się, aby zarządzać filamentami")).toBeVisible();
+      // The form the visitor is about to fill in is now Polish...
+      await expect(page.locator("html")).toHaveAttribute("lang", "pl");
+      await expect(page.getByText("Zaloguj się, aby zarządzać filamentami")).toBeVisible();
 
-    // ...and they reload before logging in, which is ordinary: a failed first
-    // attempt, a password manager, a link opened in a fresh tab. The deferred
-    // choice has to outlive that, not just the client-side remount - the
-    // cookie and the stamp restore the *display* either way, but the effect
-    // below still prefers the account's stored language over both, so a choice
-    // that does not survive here is never written to the account at all.
-    await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("lang", "pl");
+      // ...and they reload before logging in, which is ordinary: a failed first
+      // attempt, a password manager, a link opened in a fresh tab. The deferred
+      // choice has to outlive that, not just the client-side remount - the
+      // cookie and the stamp restore the *display* either way, but the effect
+      // below still prefers the account's stored language over both, so a choice
+      // that does not survive here is never written to the account at all.
+      await page.reload();
+      await expect(page.locator("html")).toHaveAttribute("lang", "pl");
 
-    // ...so they log in through it.
-    await page.getByLabel(/nazwa użytkownika/i).fill(ALICE.username);
-    await page.getByLabel(/hasło/i).fill(ALICE.password);
-    await page.getByRole("button", { name: /^zaloguj się$/i }).click();
-    await expect(page).not.toHaveURL(/\/login/);
+      // ...so they log in through it.
+      await page.getByLabel(/nazwa użytkownika/i).fill(ALICE.username);
+      await page.getByLabel(/hasło/i).fill(ALICE.password);
+      await page.getByRole("button", { name: /^zaloguj się$/i }).click();
+      await expect(page).not.toHaveURL(/\/login/);
 
-    // The account said `en`. Before the fix that value came back from
-    // /api/auth/me and won, reverting the choice.
-    //
-    // Asserted before the document attribute deliberately: the provider remounts
-    // across this navigation and starts from localStorage, so `<html lang>` reads
-    // `pl` for a moment whether or not the account was ever told. Waiting for the
-    // account first means the attribute is checked after the session query has
-    // resolved and had its chance to overwrite it.
-    await expect.poll(() => storedLanguage(page), { timeout: 30_000 }).toBe("pl");
-    await expect(page.locator("html")).toHaveAttribute("lang", "pl");
+      // The account said `en`. Before the fix that value came back from
+      // /api/auth/me and won, reverting the choice.
+      //
+      // Asserted before the document attribute deliberately: the provider remounts
+      // across this navigation and starts from localStorage, so `<html lang>` reads
+      // `pl` for a moment whether or not the account was ever told. Waiting for the
+      // account first means the attribute is checked after the session query has
+      // resolved and had its chance to overwrite it.
+      await expect.poll(() => storedLanguage(page), { timeout: 30_000 }).toBe("pl");
+      await expect(page.locator("html")).toHaveAttribute("lang", "pl");
 
-    // And it holds across a reload, which is the whole point of persisting it:
-    // the server now stamps `pl` from the stored preference.
-    await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("lang", "pl");
+      // And it holds across a reload, which is the whole point of persisting it:
+      // the server now stamps `pl` from the stored preference.
+      await page.reload();
+      await expect(page.locator("html")).toHaveAttribute("lang", "pl");
+    } finally {
+      // Restore alice's language back to English (seeded value) so other specs remain isolated.
+      await page.evaluate(async () => {
+        try {
+          await fetch("/api/users/language", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ language: "en" }),
+          });
+        } catch {
+          // ignore cleanup failure
+        }
+      });
+    }
   });
 });
