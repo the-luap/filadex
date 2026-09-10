@@ -20,6 +20,14 @@ const scanner = {
   multipleMatchesDescription: 'Barcode {{code}} matches multiple variants. Please select yours:',
   selectVariant: 'Select Variant',
   lookupError: 'Failed to search community catalog for barcode {{code}}.',
+  similarManufacturerTitle: 'Similar Manufacturer Found',
+  similarManufacturerDescription: 'The scanned filament has manufacturer "{{scanned}}", but you have similar manufacturers in your database. Would you like to use an existing one or create a new one?',
+  createNewManufacturer: 'Create "{{name}}"',
+  useExistingManufacturer: 'Use "{{name}}"',
+  similarMaterialTitle: 'Similar Material Found',
+  similarMaterialDescription: 'The scanned filament has material "{{scanned}}", but you have similar materials in your database. Would you like to use an existing one or create a new one?',
+  createNewMaterial: 'Create "{{name}}"',
+  useExistingMaterial: 'Use "{{name}}"',
 };
 
 // English translations
@@ -252,6 +260,9 @@ const translations = {
     weightRequired: 'Total weight must be at least 0.1kg',
     materialRequired: 'Material is required',
     colorRequired: 'Color is required',
+    colorTemplate: 'Color Template',
+    colorCodeRequired: 'Color code is required',
+    invalidColorCode: 'Color code must be a valid hex format (#RRGGBB)',
     nameRequired: 'Name is required',
     searchFilaments: 'Search filaments...',
     noFilaments: 'No filaments found',

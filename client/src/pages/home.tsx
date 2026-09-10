@@ -97,6 +97,8 @@ export default function Home() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/filaments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/statistics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/materials'] });
 
       setShowAddModal(false);
       toast({
@@ -124,6 +126,8 @@ export default function Home() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/filaments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/statistics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/materials'] });
 
       setShowAddModal(false);
       setSelectedFilament(undefined);

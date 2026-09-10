@@ -12,9 +12,10 @@ import type { Express } from "express";
 import { eq } from "drizzle-orm";
 import { registerAuthRoutes } from "../../server/routes/auth";
 import { registerSettingsRoutes } from "../../server/routes/settings";
+import { registerFilamentRoutes } from "../../server/routes/filaments";
 import { storage } from "../../server/storage";
 import { db } from "../helpers/db";
-import { materials } from "../../shared/schema";
+import { materials, manufacturers } from "../../shared/schema";
 import { createApp, registerAndVerify } from "../helpers/app";
 
 let app: Express;
@@ -49,7 +50,7 @@ async function giveSpoolOf(userId: number, material: string) {
 const ownRows = (userId: number) => db.select().from(materials).where(eq(materials.userId, userId));
 
 beforeEach(async () => {
-  app = createApp(registerAuthRoutes, registerSettingsRoutes);
+  app = createApp(registerAuthRoutes, registerSettingsRoutes, registerFilamentRoutes);
 });
 
 describe("auto-registration of a declared material", () => {
@@ -221,3 +222,73 @@ describe("filament type reuse across dialects", () => {
     expect(unchanged?.diameter).toBe("1.75");
   });
 });
+
+describe("auto-registration of a declared manufacturer", () => {
+  it("registers a manufacturer when creating a filament if one with such a name does not exist", async () => {
+    const alice = await newUser("alice_mfg");
+    await storage.createFilament({
+      userId: alice.id,
+      name: "Custom spool",
+      manufacturer: "NewBrand",
+      material: "PLA",
+      colorName: "Black",
+      totalWeight: "1000",
+      remainingPercentage: "80",
+    });
+
+    const mfgRows = await db.select().from(manufacturers);
+    const found = mfgRows.find((m) => m.name === "NewBrand");
+    expect(found).toBeDefined();
+
+    const view = await request(app).get("/api/manufacturers").set("Cookie", alice.cookie);
+    expect(view.body.map((m: { name: string }) => m.name)).toContain("NewBrand");
+  });
+
+  it("does not duplicate an existing manufacturer when case differs", async () => {
+    const alice = await newUser("alice_mfg2");
+    await storage.createManufacturer({ name: "Polymaker" });
+
+    await storage.createFilament({
+      userId: alice.id,
+      name: "Poly spool",
+      manufacturer: "polymaker",
+      material: "PLA",
+      colorName: "Black",
+      totalWeight: "1000",
+      remainingPercentage: "80",
+    });
+
+    const mfgRows = await db.select().from(manufacturers);
+    const polyMatches = mfgRows.filter((m) => m.name.toLowerCase() === "polymaker");
+    expect(polyMatches).toHaveLength(1);
+  });
+
+  it("populates density on newly created personal material catalog entry when supplied", async () => {
+    const alice = await newUser("alice_density");
+
+    const response = await request(app)
+      .post("/api/filaments")
+      .set("Cookie", alice.cookie)
+      .send({
+        name: "Custom PCTG Spool",
+        material: "PCTG",
+        density: 1.23,
+        colorName: "Clear",
+        colorCode: "#FFFFFF",
+        totalWeight: 1000,
+        remainingPercentage: 100,
+      });
+
+    expect(response.status).toBe(201);
+
+    const materialList = await request(app)
+      .get("/api/materials")
+      .set("Cookie", alice.cookie);
+
+    const pctg = materialList.body.find((m: { name: string; density: string | null }) => m.name === "PCTG");
+    expect(pctg).toBeDefined();
+    expect(pctg.density).not.toBeNull();
+    expect(Number(pctg.density)).toBe(1.23);
+  });
+});
+

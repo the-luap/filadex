@@ -20,6 +20,14 @@ const scanner = {
   multipleMatchesDescription: 'Kod kreskowy {{code}} odpowiada wielu wariantom. Wybierz swój wariant:',
   selectVariant: 'Wybierz wariant',
   lookupError: 'Błąd podczas wyszukiwania kodu {{code}} w katalogu społeczności.',
+  similarManufacturerTitle: 'Znaleziono podobnego producenta',
+  similarManufacturerDescription: 'Zeskanowany filament ma producenta "{{scanned}}", ale masz już podobnych producentów w bazie danych. Czy chcesz użyć istniejącego, czy utworzyć nowego?',
+  createNewManufacturer: 'Utwórz "{{name}}"',
+  useExistingManufacturer: 'Użyj "{{name}}"',
+  similarMaterialTitle: 'Znaleziono podobny materiał',
+  similarMaterialDescription: 'Zeskanowany filament ma materiał "{{scanned}}", ale masz już podobne materiały w bazie danych. Czy chcesz użyć istniejącego, czy utworzyć nowy?',
+  createNewMaterial: 'Utwórz "{{name}}"',
+  useExistingMaterial: 'Użyj "{{name}}"',
 };
 
 // Polish translations
@@ -252,6 +260,9 @@ const translations = {
     weightRequired: 'Waga całkowita musi wynosić co najmniej 0,1 kg',
     materialRequired: 'Materiał jest wymagany',
     colorRequired: 'Kolor jest wymagany',
+    colorTemplate: 'Wzornik kolorów',
+    colorCodeRequired: 'Kod koloru jest wymagany',
+    invalidColorCode: 'Kod koloru musi mieć prawidłowy format szesnastkowy (#RRGGBB)',
     nameRequired: 'Nazwa jest wymagana',
     searchFilaments: 'Szukaj filamentów...',
     noFilaments: 'Nie znaleziono filamentów',

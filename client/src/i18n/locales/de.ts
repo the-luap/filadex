@@ -20,6 +20,14 @@ const scanner = {
   multipleMatchesDescription: 'Barcode {{code}} entspricht mehreren Varianten. Bitte wählen Sie Ihre:',
   selectVariant: 'Variante auswählen',
   lookupError: 'Fehler bei der Suche im Community-Katalog nach Barcode {{code}}.',
+  similarManufacturerTitle: 'Ähnlicher Hersteller gefunden',
+  similarManufacturerDescription: 'Das gescannte Filament hat den Hersteller "{{scanned}}", aber Sie haben bereits ähnliche Hersteller in Ihrer Datenbank. Möchten Sie einen vorhandenen verwenden oder einen neuen erstellen?',
+  createNewManufacturer: '"{{name}}" erstellen',
+  useExistingManufacturer: '"{{name}}" verwenden',
+  similarMaterialTitle: 'Ähnliches Material gefunden',
+  similarMaterialDescription: 'Das gescannte Filament hat das Material "{{scanned}}", aber Sie haben bereits ähnliche Materialien in Ihrer Datenbank. Möchten Sie ein vorhandenes verwenden oder ein neues erstellen?',
+  createNewMaterial: '"{{name}}" erstellen',
+  useExistingMaterial: '"{{name}}" verwenden',
 };
 
 // German translations
@@ -252,6 +260,9 @@ const translations = {
     weightRequired: 'Gesamtgewicht muss mindestens 0,1 kg betragen',
     materialRequired: 'Material ist erforderlich',
     colorRequired: 'Farbe ist erforderlich',
+    colorTemplate: 'Farbvorlage',
+    colorCodeRequired: 'Farbcode ist erforderlich',
+    invalidColorCode: 'Farbcode muss ein gültiges Hex-Format (#RRGGBB) sein',
     nameRequired: 'Name ist erforderlich',
     searchFilaments: 'Filamente suchen...',
     noFilaments: 'Keine Filamente gefunden',

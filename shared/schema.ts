@@ -300,6 +300,7 @@ type FilamentTypeInsertFields = {
   colorCode?: string | null;
   diameter?: string | null;
   printTemp?: string | null;
+  density?: string | number | null;
 };
 
 export type Filament = Omit<typeof filaments.$inferSelect, "filamentTypeId"> & FilamentTypeSelectFields & {
@@ -391,6 +392,7 @@ export const filamentWriteSchema = z.object({
   material: z.string().trim().min(1, "material is required").max(100),
   colorName: z.string().max(100),
   colorCode: z.string().max(20).nullable().optional(),
+  density: z.union([z.string(), z.number()]).nullable().optional(),
   printTemp: z.union([z.string().max(50), z.number()]).transform((v) => String(v)).optional(),
   diameter: diameterValueSchema.nullable().optional(),
   totalWeight: numberish(0),
