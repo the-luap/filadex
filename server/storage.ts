@@ -220,7 +220,7 @@ async function ensureDeclaredMaterialResolves(
   if (existing) return existing.name;
 
   const rawDensity = declaredDensity != null ? String(declaredDensity).trim() : "";
-  const density = rawDensity !== "" && /^\d+(\.\d+)?$/.test(rawDensity)
+  const density = rawDensity !== "" && /^\d+(\.\d+)?$/.test(rawDensity) && Number(rawDensity) > 0
     ? rawDensity
     : null;
 
@@ -857,7 +857,7 @@ export class DatabaseStorage implements IStorage {
       const existing = await this.getFilament(id, userId);
       if (!existing) return undefined;
 
-      const { manufacturer, material, colorName, colorCode, diameter, printTemp, ...spoolFields } = updateFilament;
+      const { manufacturer, material, colorName, colorCode, diameter, printTemp, density, ...spoolFields } = updateFilament;
       if (diameter != null) diameterValueSchema.parse(diameter);
       const typeFieldsChanged = [manufacturer, material, colorName, colorCode, diameter, printTemp]
         .some((value) => value !== undefined);
@@ -871,7 +871,12 @@ export class DatabaseStorage implements IStorage {
           colorCode: colorCode !== undefined ? colorCode : existing.colorCode,
           diameter: diameter !== undefined ? diameter : existing.diameter,
           printTemp: printTemp !== undefined ? printTemp : existing.printTemp,
+          density,
         });
+      }
+
+      if (Object.keys(dbUpdate).length === 0) {
+        return existing;
       }
 
       const [updated] = await db

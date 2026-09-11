@@ -65,7 +65,7 @@ presentation.
 - Similarity rules evaluate:
   - Unicode-aware alphanumeric equality (`/[^\p{L}\p{N}]/gu`, e.g. "PET-G" matching "PETG").
   - Token overlap for significant tokens (length >= 3 and common 2-letter polymers: `PA`, `PC`, `PP`, `PE`, `PI`, `PS`, `PU`).
-  - Prefix and suffix containment (e.g. "Prusa Research" vs "Prusa", "PLA-CF" vs "PLA").
+  - Prefix containment for clean strings with length >= 3 (e.g. "Prusa Research" vs "Prusa", "PLA+" vs "PLA").
   - Levenshtein edit distance <= 2 for strings with length >= 4.
 - **Trigger Scope**: Similarity prompts are reserved exclusively for external
   imports (barcode scan, NFC scan, community catalog search). Manual freeform typing

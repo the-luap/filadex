@@ -394,7 +394,9 @@ export const filamentWriteSchema = z.object({
   colorCode: z.string().max(20).nullable().optional(),
   density: z.union([
     z.number().positive().finite().transform((n) => String(n)),
-    z.string().regex(/^\d+(\.\d+)?$/, "Density must be a positive number"),
+    z.string()
+      .regex(/^\d+(\.\d+)?$/, "Density must be a positive number")
+      .refine((v) => Number(v) > 0, "Density must be a positive number"),
   ]).nullable().optional(),
   printTemp: z.union([z.string().max(50), z.number()]).transform((v) => String(v)).optional(),
   diameter: diameterValueSchema.nullable().optional(),

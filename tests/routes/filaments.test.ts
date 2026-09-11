@@ -296,22 +296,41 @@ describe("auto-registration of a declared manufacturer", () => {
     expect(Number(pctg.density)).toBe(1.23);
   });
 
-  it("rejects non-numeric density with 400", async () => {
+  it("rejects non-numeric or non-positive density with 400", async () => {
     const alice = await newUser("alice_bad_density");
-    const response = await request(app)
-      .post("/api/filaments")
-      .set("Cookie", alice.cookie)
-      .send({
-        name: "Bad Density Spool",
-        material: "NovelMat1",
-        density: "abc",
-        colorName: "Red",
-        colorCode: "#FF0000",
-        totalWeight: 1000,
-        remainingPercentage: 100,
-      });
+    for (const invalidDensity of ["abc", "0", 0, "-1.2", -1.2]) {
+      const response = await request(app)
+        .post("/api/filaments")
+        .set("Cookie", alice.cookie)
+        .send({
+          name: "Bad Density Spool",
+          material: "NovelMat1",
+          density: invalidDensity,
+          colorName: "Red",
+          colorCode: "#FF0000",
+          totalWeight: 1000,
+          remainingPercentage: 100,
+        });
 
-    expect(response.status).toBe(400);
+      expect(response.status).toBe(400);
+    }
+  });
+
+  it("safely handles density in storage.updateFilament without leaking column update", async () => {
+    const alice = await newUser("alice_update_density");
+    const spool = await storage.createFilament({
+      userId: alice.id,
+      name: "Update Spool",
+      material: "PETG",
+      colorName: "Blue",
+      totalWeight: "1000",
+      remainingPercentage: "100",
+    });
+
+    // Updating filament with density should not attempt to update non-existent filaments.density column
+    const updated = await storage.updateFilament(spool.id, { density: "1.25" } as any, alice.id);
+    expect(updated).toBeDefined();
+    expect(updated?.id).toBe(spool.id);
   });
 
   it("handles concurrent creation of filaments declaring the same new manufacturer", async () => {

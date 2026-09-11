@@ -53,7 +53,7 @@ const TWO_LETTER_POLYMERS = new Set(["pa", "pc", "pp", "pe", "pi", "ps", "pu"]);
 export function findSimilarItems<T extends SimilarityItem>(
   scannedName: string,
   existingItems: T[],
-  stopWords?: Set<string>
+  genericTerms?: Set<string>
 ): SimilarityResult<T> {
   const trimmed = scannedName.trim();
   const lower = trimmed.toLowerCase();
@@ -72,25 +72,30 @@ export function findSimilarItems<T extends SimilarityItem>(
   const cleanScanned = lower.replace(/[^\p{L}\p{N}]/gu, "");
   const scannedTokens = lower.split(/[\s\-_./+]+/);
 
-  let normalizedStopWords: Set<string> | undefined = stopWords;
-  if (stopWords && stopWords.size > 0) {
+  let normalizedGenericTerms: Set<string> | undefined = genericTerms;
+  if (genericTerms && genericTerms.size > 0) {
     let hasUpper = false;
-    for (const w of stopWords) {
+    for (const w of genericTerms) {
       if (w !== w.toLowerCase()) {
         hasUpper = true;
         break;
       }
     }
     if (hasUpper) {
-      normalizedStopWords = new Set();
-      for (const w of stopWords) {
-        normalizedStopWords.add(w.toLowerCase());
+      normalizedGenericTerms = new Set();
+      for (const w of genericTerms) {
+        normalizedGenericTerms.add(w.toLowerCase());
       }
     }
   }
 
-  const isSignificant = (tok: string) =>
-    (tok.length >= 3 || TWO_LETTER_POLYMERS.has(tok)) && (!normalizedStopWords || !normalizedStopWords.has(tok));
+  const isSignificant = (token: string) => {
+    if (token.length >= 3) {
+      if (normalizedGenericTerms && normalizedGenericTerms.has(token)) return false;
+      return true;
+    }
+    return TWO_LETTER_POLYMERS.has(token);
+  };
   const scannedSignificant = scannedTokens.filter(isSignificant);
 
   const similarMatches: T[] = [];
@@ -101,8 +106,8 @@ export function findSimilarItems<T extends SimilarityItem>(
     const itemClean = itemLower.replace(/[^\p{L}\p{N}]/gu, "");
     const itemTokens = itemLower.split(/[\s\-_./+]+/);
 
-    // a. Clean alphanumeric equality (e.g. "PET-G" -> "petg" === "PETG" -> "petg", "FormLabs" === "Form Labs")
-    if (cleanScanned && itemClean && cleanScanned === itemClean) {
+    // a. Normalized alphanumeric equality
+    if (cleanScanned && cleanScanned === itemClean) {
       similarMatches.push(item);
       continue;
     }
@@ -115,10 +120,10 @@ export function findSimilarItems<T extends SimilarityItem>(
       continue;
     }
 
-    // c. Clean prefix containment
+    // c. Clean prefix containment (require at least 3 chars so 2-letter codes like "PE" don't match "PETG")
     if (
-      cleanScanned.length >= 2 &&
-      itemClean.length >= 2 &&
+      cleanScanned.length >= 3 &&
+      itemClean.length >= 3 &&
       (cleanScanned.startsWith(itemClean) || itemClean.startsWith(cleanScanned))
     ) {
       similarMatches.push(item);

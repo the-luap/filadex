@@ -188,7 +188,9 @@ const createFormSchema = (t: (key: string) => string) => z.object({
   barcode: z.string().optional(),
   density: z.union([
     z.number().positive(),
-    z.string().regex(/^\d+(\.\d+)?$/, t('settings.materials.invalidDensity') || 'Density must be a positive number'),
+    z.string()
+      .regex(/^\d+(\.\d+)?$/, t('settings.materials.invalidDensity') || 'Density must be a positive number')
+      .refine((v) => Number(v) > 0, t('settings.materials.invalidDensity') || 'Density must be a positive number'),
   ]).optional().nullable(),
 });
 
@@ -582,10 +584,10 @@ export function FilamentModal({
     const materialName = form.watch('material');
     const density = materials.find((m) => m.name === materialName)?.density;
     const diameterMm = form.watch('diameter');
-    if (!density || !diameterMm) return null;
+    const densityGCm3 = Number(density);
+    if (!density || isNaN(densityGCm3) || densityGCm3 <= 0 || !diameterMm) return null;
 
     const remainingWeightGrams = Number(calculateRemainingWeight()) * 1000;
-    const densityGCm3 = Number(density);
     const radiusCm = (diameterMm / 10) / 2;
     const crossSectionAreaCm2 = Math.PI * radiusCm * radiusCm;
     const lengthCm = (remainingWeightGrams / densityGCm3) / crossSectionAreaCm2;

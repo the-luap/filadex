@@ -87,6 +87,13 @@ describe("findSimilarMaterials", () => {
     expect(result.exactMatch).toBeUndefined();
     expect(result.similarMatches).toHaveLength(0);
   });
+
+  it("does not trigger prefix match on 2-letter codes like PE vs PETG", () => {
+    const materialsWithPE = [{ id: 10, name: "PE" }];
+    const result = findSimilarMaterials("PETG", materialsWithPE);
+    expect(result.exactMatch).toBeUndefined();
+    expect(result.similarMatches).toHaveLength(0);
+  });
 });
 
 describe("levenshteinDistance", () => {
@@ -97,33 +104,34 @@ describe("levenshteinDistance", () => {
   });
 });
 
-describe("stop words filtering", () => {
-  const stopWords = new Set(["lab", "filament"]);
+describe("generic terms filtering", () => {
+  const genericTerms = new Set(["lab", "filament"]);
 
-  it("does not match on a generic token when it is a stop word", () => {
-    const result = findSimilarManufacturers("Bambu Lab", [{ name: "Form Lab" }], stopWords);
+  it("does not match on a generic token when it is configured as a generic term", () => {
+    const result = findSimilarManufacturers("Bambu Lab", [{ name: "Form Lab" }], genericTerms);
     expect(result.similarMatches).toHaveLength(0);
   });
 
-  it("still matches on non-stop-word tokens", () => {
-    const result = findSimilarManufacturers("Bambu Lab", [{ name: "Bambu Studio" }], stopWords);
+  it("still matches on non-generic tokens", () => {
+    const result = findSimilarManufacturers("Bambu Lab", [{ name: "Bambu Studio" }], genericTerms);
     expect(result.similarMatches.length).toBeGreaterThan(0);
   });
 
   it("still matches via other similarity rules (alphanumeric, prefix, levenshtein)", () => {
-    const result = findSimilarManufacturers("Prusament", [{ name: "Prusa" }], stopWords);
+    const result = findSimilarManufacturers("Prusament", [{ name: "Prusa" }], genericTerms);
     expect(result.similarMatches.length).toBeGreaterThan(0);
   });
 
-  it("works with no stop words (backward compatible)", () => {
+  it("works with no generic terms (backward compatible)", () => {
     const result = findSimilarManufacturers("Bambu Lab", [{ name: "Form Lab" }]);
     expect(result.similarMatches.length).toBeGreaterThan(0);
   });
 
-  it("filters stop words case-insensitively", () => {
-    const mixedStopWords = new Set(["LAB"]);
-    const result = findSimilarManufacturers("Bambu Lab", [{ name: "Form Lab" }], mixedStopWords);
+  it("filters generic terms case-insensitively", () => {
+    const mixedGenericTerms = new Set(["LAB"]);
+    const result = findSimilarManufacturers("Bambu Lab", [{ name: "Form Lab" }], mixedGenericTerms);
     expect(result.similarMatches).toHaveLength(0);
   });
 });
+
 
