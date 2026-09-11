@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageContext } from "../../client/src/i18n";
-import { FilamentModal } from "../../client/src/components/filament-modal";
+import { FilamentModal, escapeRegex } from "../../client/src/components/filament-modal";
 
 // Mock Dialog so children are rendered in SSR / renderToString
 vi.mock("@/components/ui/dialog", () => ({
@@ -143,6 +143,47 @@ describe("FilamentModal", () => {
     );
 
     expect(html).toContain('data-select-item="PEEK-Custom"');
+  });
+});
+
+describe("escapeRegex and word-boundary replacement in similarity prompts", () => {
+  it("escapes all regex special characters", () => {
+    const specialChars = ".*+?^${}()|[]\\";
+    const escaped = escapeRegex(specialChars);
+    expect(escaped).toBe("\\.\\*\\+\\?\\^\\$\\{\\}\\(\\)\\|\\[\\]\\\\");
+  });
+
+  it("safely creates a regex with escaped characters without throwing", () => {
+    const dangerous = "Brand [Plus] (v1.0) {Test}? *+$^|\\";
+    const escaped = escapeRegex(dangerous);
+    expect(() => new RegExp(escaped)).not.toThrow();
+  });
+
+  it("replaces exact word boundaries without corrupting substrings", () => {
+    const scannedManufacturer = "Sun";
+    const replacement = "Sunlu";
+    const currentName = "Sunny Yellow (Sun) Sunlu";
+
+    const pattern = new RegExp(`\\b${escapeRegex(scannedManufacturer)}\\b`, "gi");
+    expect(pattern.test(currentName)).toBe(true);
+    pattern.lastIndex = 0;
+    const result = currentName.replace(pattern, replacement);
+
+    // "Sunny" should remain "Sunny", existing "Sunlu" should not become "Sunlulu", only standalone "Sun" becomes "Sunlu"
+    expect(result).toBe("Sunny Yellow (Sunlu) Sunlu");
+  });
+
+  it("handles case-insensitive word boundary replacement", () => {
+    const scannedMaterial = "pla";
+    const replacement = "PLA";
+    const currentName = "My pla spool (PLA-CF)";
+
+    const pattern = new RegExp(`\\b${escapeRegex(scannedMaterial)}\\b`, "gi");
+    expect(pattern.test(currentName)).toBe(true);
+    pattern.lastIndex = 0;
+    const result = currentName.replace(pattern, replacement);
+
+    expect(result.startsWith("My PLA spool")).toBe(true);
   });
 });
 

@@ -226,6 +226,10 @@ interface Material {
 
 export type CommunityFilamentResult = CommunityCatalogItem;
 
+export function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 interface CustomFieldDefinition {
   id: number;
   name: string;
@@ -1745,8 +1749,10 @@ export function FilamentModal({
                   onClick={() => {
                     form.setValue('manufacturer', sim.name);
                     const currentName = form.getValues('name');
-                    if (currentName.includes(similarManufacturerPrompt.scannedManufacturer)) {
-                      form.setValue('name', currentName.replaceAll(similarManufacturerPrompt.scannedManufacturer, sim.name));
+                    const mfgPattern = new RegExp(`\\b${escapeRegex(similarManufacturerPrompt.scannedManufacturer)}\\b`, 'gi');
+                    if (mfgPattern.test(currentName)) {
+                      mfgPattern.lastIndex = 0; // reset after test()
+                      form.setValue('name', currentName.replace(mfgPattern, sim.name));
                     }
                     setSimilarManufacturerPrompt(null);
                   }}
@@ -1805,8 +1811,10 @@ export function FilamentModal({
                       form.setValue('printTemp', PRINT_TEMPERATURES[sim.name as keyof typeof PRINT_TEMPERATURES]);
                     }
                     const currentName = form.getValues('name');
-                    if (currentName.includes(similarMaterialPrompt.scannedMaterial)) {
-                      form.setValue('name', currentName.replaceAll(similarMaterialPrompt.scannedMaterial, sim.name));
+                    const matPattern = new RegExp(`\\b${escapeRegex(similarMaterialPrompt.scannedMaterial)}\\b`, 'gi');
+                    if (matPattern.test(currentName)) {
+                      matPattern.lastIndex = 0;
+                      form.setValue('name', currentName.replace(matPattern, sim.name));
                     }
                     setSimilarMaterialPrompt(null);
                   }}
