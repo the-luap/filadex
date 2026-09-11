@@ -185,5 +185,35 @@ describe("escapeRegex and word-boundary replacement in similarity prompts", () =
 
     expect(result.startsWith("My PLA spool")).toBe(true);
   });
+
+  it("replaces names with trailing symbols like PLA+ without word-boundary failure", () => {
+    const scanned = "PLA+";
+    const replacement = "PLA";
+    const currentName = "eSUN PLA+ Black";
+
+    const bStart = /^\w/.test(scanned) ? '\\b' : '';
+    const bEnd = /\w$/.test(scanned) ? '\\b' : '';
+    const pattern = new RegExp(`${bStart}${escapeRegex(scanned)}${bEnd}`, 'gi');
+    expect(pattern.test(currentName)).toBe(true);
+    pattern.lastIndex = 0;
+    const result = currentName.replace(pattern, () => replacement);
+
+    expect(result).toBe("eSUN PLA Black");
+  });
+
+  it("safely replaces when replacement string contains dollar signs", () => {
+    const scanned = "PLA";
+    const replacement = "$100 PLA";
+    const currentName = "Generic PLA Black";
+
+    const bStart = /^\w/.test(scanned) ? '\\b' : '';
+    const bEnd = /\w$/.test(scanned) ? '\\b' : '';
+    const pattern = new RegExp(`${bStart}${escapeRegex(scanned)}${bEnd}`, 'gi');
+    expect(pattern.test(currentName)).toBe(true);
+    pattern.lastIndex = 0;
+    const result = currentName.replace(pattern, () => replacement);
+
+    expect(result).toBe("Generic $100 PLA Black");
+  });
 });
 

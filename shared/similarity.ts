@@ -89,6 +89,10 @@ export function findSimilarItems<T extends SimilarityItem>(
     }
   }
 
+  const isSignificant = (tok: string) =>
+    (tok.length >= 3 || TWO_LETTER_POLYMERS.has(tok)) && (!normalizedStopWords || !normalizedStopWords.has(tok));
+  const scannedSignificant = scannedTokens.filter(isSignificant);
+
   const similarMatches: T[] = [];
 
   for (const item of existingItems) {
@@ -104,9 +108,6 @@ export function findSimilarItems<T extends SimilarityItem>(
     }
 
     // b. Token overlap (e.g. "TPU 95A" contains "tpu", "Bambu Lab" contains "bambu", "PA-CF" contains "pa")
-    const isSignificant = (tok: string) =>
-      (tok.length >= 3 || TWO_LETTER_POLYMERS.has(tok)) && (!normalizedStopWords || !normalizedStopWords.has(tok));
-    const scannedSignificant = scannedTokens.filter(isSignificant);
     const itemSignificant = itemTokens.filter(isSignificant);
     const hasSharedToken = scannedSignificant.some((st) => itemSignificant.includes(st));
     if (hasSharedToken) {
@@ -114,7 +115,7 @@ export function findSimilarItems<T extends SimilarityItem>(
       continue;
     }
 
-    // c. Clean prefix or suffix containment
+    // c. Clean prefix containment
     if (
       cleanScanned.length >= 2 &&
       itemClean.length >= 2 &&

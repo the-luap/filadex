@@ -8,7 +8,7 @@
  */
 import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
-import { db, closeDb } from "@db";
+import { db, closeDb, dialect } from "@db";
 import {
   users,
   foldUsername,
@@ -86,11 +86,36 @@ async function seedStarter(): Promise<void> {
 
 async function seedGenericTerms(): Promise<void> {
   // Don't re-seed if any row has ever existed — even if the admin deleted them
-  // all. Auto-increment IDs are never reused, so max(id) > 0 means the table
-  // was populated at some point.
+  // all. Auto-increment IDs are never reused, so surviving rows or sequence
+  // generators indicate the table was populated at some point (ADR-0008).
   const [{ maxId }] = await db.select({ maxId: sql<number>`coalesce(max(${genericTerms.id}), 0)` }).from(genericTerms);
   if (Number(maxId) > 0) {
     return;
+  }
+
+  // If 0 rows survive, check the sequence generator to detect if terms were previously seeded and deleted.
+  try {
+    if ((dialect as string) === "sqlite") {
+      const result: any = await (db as any).execute(sql`SELECT seq FROM sqlite_sequence WHERE name = 'generic_terms'`);
+      const rows = result?.rows ?? (Array.isArray(result) ? result : []);
+      if (rows.length > 0) {
+        const seq = rows[0]?.seq ?? (Array.isArray(rows[0]) ? rows[0][0] : undefined);
+        if (Number(seq) > 0) {
+          return;
+        }
+      }
+    } else {
+      const result: any = await (db as any).execute(sql`SELECT last_value, is_called FROM generic_terms_id_seq`);
+      const rows = result?.rows ?? (Array.isArray(result) ? result : []);
+      if (rows.length > 0) {
+        const isCalled = rows[0]?.is_called ?? (Array.isArray(rows[0]) ? rows[0][1] : undefined);
+        if (isCalled) {
+          return;
+        }
+      }
+    }
+  } catch {
+    // If sequence queries fail (e.g. sequence not yet initialized), fall back gracefully
   }
 
   console.log("Adding default generic terms for similarity matching...");

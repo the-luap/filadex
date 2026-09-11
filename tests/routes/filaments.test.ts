@@ -297,7 +297,7 @@ describe("auto-registration of a declared manufacturer", () => {
       storage.createFilament({
         userId: alice.id,
         name: "Spool 1",
-        manufacturer: "ConcurrentBrand",
+        manufacturer: "concurrentbrand",
         material: "PLA",
         colorName: "Black",
         totalWeight: "1000",
@@ -314,12 +314,14 @@ describe("auto-registration of a declared manufacturer", () => {
       }),
     ]);
 
-    expect(spool1.manufacturer).toBe("ConcurrentBrand");
-    expect(spool2.manufacturer).toBe("ConcurrentBrand");
+    // Both spools should resolve to the same canonical manufacturer name regardless of race winner
+    expect(spool1.manufacturer).toBe(spool2.manufacturer);
+    expect(["concurrentbrand", "ConcurrentBrand"]).toContain(spool1.manufacturer);
 
     const mfgRows = await db.select().from(manufacturers);
-    const matches = mfgRows.filter((m) => m.name === "ConcurrentBrand");
+    const matches = mfgRows.filter((m) => m.name.toLowerCase() === "concurrentbrand");
     expect(matches).toHaveLength(1);
+    expect(matches[0].name).toBe(spool1.manufacturer);
   });
 });
 

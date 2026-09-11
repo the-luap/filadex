@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
+import { sql } from "drizzle-orm";
+import { genericTerms } from "../../shared/schema";
+import { db, dialect } from "../helpers/db";
 import { registerAuthRoutes } from "../../server/routes/auth";
 import { registerSettingsRoutes } from "../../server/routes/settings";
 import { storage } from "../../server/storage";
@@ -154,6 +157,15 @@ describe("POST /api/generic-terms", () => {
     expect(res.status).toBe(400);
   });
 
+  it("rejects whitespace-only word with 400", async () => {
+    const res = await request(app)
+      .post("/api/generic-terms")
+      .set("Cookie", adminCookie)
+      .send({ word: "   " });
+
+    expect(res.status).toBe(400);
+  });
+
   it("imports generic terms via CSV", async () => {
     const csvData = "word\nterm1\nterm2\n";
     const res = await request(app)
@@ -211,5 +223,53 @@ describe("DELETE /api/generic-terms/:id", () => {
       .set("Cookie", adminCookie);
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("generic terms sequence guard (ADR-0008)", () => {
+  it("detects when generic terms were previously populated even if all rows are deleted", async () => {
+    // 1. Initially after reset, table is empty and maxId is 0
+    const [{ initialMax }] = await db
+      .select({ initialMax: sql<number>`coalesce(max(${genericTerms.id}), 0)` })
+      .from(genericTerms);
+    expect(Number(initialMax)).toBe(0);
+
+    // 2. Populate a term
+    await storage.createGenericTerm({ word: "temporary" });
+
+    // 3. Admin deletes the term (surviving rows count is now 0)
+    const terms = await storage.getGenericTerms();
+    for (const term of terms) {
+      await storage.deleteGenericTerm(term.id);
+    }
+
+    const [{ survivingMax }] = await db
+      .select({ survivingMax: sql<number>`coalesce(max(${genericTerms.id}), 0)` })
+      .from(genericTerms);
+    expect(Number(survivingMax)).toBe(0);
+
+    // 4. Sequence generator inspection detects it was previously seeded
+    let sequenceSeeded = false;
+    if ((dialect as string) === "sqlite") {
+      const result: any = await (db as any).execute(
+        sql`SELECT seq FROM sqlite_sequence WHERE name = 'generic_terms'`
+      );
+      const rows = result?.rows ?? (Array.isArray(result) ? result : []);
+      if (rows.length > 0) {
+        const seq = rows[0]?.seq ?? (Array.isArray(rows[0]) ? rows[0][0] : undefined);
+        if (Number(seq) > 0) sequenceSeeded = true;
+      }
+    } else {
+      const result: any = await (db as any).execute(
+        sql`SELECT last_value, is_called FROM generic_terms_id_seq`
+      );
+      const rows = result?.rows ?? (Array.isArray(result) ? result : []);
+      if (rows.length > 0) {
+        const isCalled = rows[0]?.is_called ?? (Array.isArray(rows[0]) ? rows[0][1] : undefined);
+        if (isCalled) sequenceSeeded = true;
+      }
+    }
+
+    expect(sequenceSeeded).toBe(true);
   });
 });

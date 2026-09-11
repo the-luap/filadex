@@ -526,10 +526,14 @@ export const insertStorageLocationSchema = createInsertSchema(storageLocations).
   sortOrder: true,
 });
 
-export const insertGenericTermSchema = createInsertSchema(genericTerms).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertGenericTermSchema = createInsertSchema(genericTerms)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    word: z.string().trim().min(1, "Word is required"),
+  });
 
 // Typen für die neuen Listen
 export type InsertManufacturer = z.infer<typeof insertManufacturerSchema>;
