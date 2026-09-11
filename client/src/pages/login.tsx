@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTranslation } from "@/i18n";
@@ -27,6 +27,12 @@ export default function LoginPage() {
   const { login } = useAuth();
   const { t } = useTranslation();
   const { getErrorMessage } = useErrorTranslation();
+
+  const { data: publicSettings, isLoading: isLoadingSettings } = useQuery<{ registrationEnabled: boolean }>({
+    queryKey: ["/api/system/public-settings"],
+    queryFn: () => apiRequest<{ registrationEnabled: boolean }>("/api/system/public-settings"),
+  });
+  const registrationEnabled = !isLoadingSettings && (publicSettings?.registrationEnabled ?? true);
 
   // Create the schema with translations
   const loginSchema = createLoginSchema(t);
@@ -132,7 +138,9 @@ export default function LoginPage() {
           </Form>
           <div className="flex justify-between text-sm mt-4">
             <a href="/forgot-password" className="text-muted-foreground hover:underline">{t('auth.forgotPassword')}</a>
-            <a href="/register" className="text-muted-foreground hover:underline">{t('auth.createAccount')}</a>
+            {registrationEnabled && (
+              <a href="/register" className="text-muted-foreground hover:underline">{t('auth.createAccount')}</a>
+            )}
           </div>
         </CardContent>
       </Card>

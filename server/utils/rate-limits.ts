@@ -3,6 +3,8 @@ import rateLimit from "express-rate-limit";
 // Per-IP limiters, shared by the routes that need them. All key on req.ip,
 // which is the proxy's address unless TRUST_PROXY is set - see server/index.ts.
 
+const skipIfDisabled = () => process.env.NODE_ENV === "test" && process.env.DISABLE_RATE_LIMITS === "true";
+
 // Public, enumeration-sensitive endpoints: register, forgot-password,
 // resend-verification, check-username.
 export const publicAuthLimiter = rateLimit({
@@ -10,6 +12,7 @@ export const publicAuthLimiter = rateLimit({
   limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipIfDisabled,
   message: { message: "Too many requests, please try again later" },
 });
 
@@ -27,6 +30,7 @@ export const loginLimiter = rateLimit({
   limit: 15,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipIfDisabled,
   skipSuccessfulRequests: true,
   message: { message: "Too many login attempts, please try again later" },
 });
@@ -39,6 +43,7 @@ export const publicReadLimiter = rateLimit({
   limit: 120,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipIfDisabled,
   message: { message: "Too many requests, please try again later" },
 });
 
@@ -49,5 +54,6 @@ export const sensitiveActionLimiter = rateLimit({
   limit: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipIfDisabled,
   message: { message: "Too many requests, please try again later" },
 });

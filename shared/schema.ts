@@ -640,6 +640,21 @@ export const updateBackupSettingsSchema = createInsertSchema(backupSettings)
 export type UpdateBackupSettings = z.infer<typeof updateBackupSettingsSchema>;
 export type BackupSettings = typeof backupSettings.$inferSelect;
 
+// Singleton row (id fixed to 1) holding instance-wide system configuration
+export const systemSettings = table("system_settings", {
+  id: t.int("id").primaryKey().default(1),
+  registrationEnabled: t.bool("registration_enabled").default(true),
+  updatedAt: t.timestamp("updated_at").defaultNow(),
+});
+
+export const updateSystemSettingsSchema = createInsertSchema(systemSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type UpdateSystemSettings = z.infer<typeof updateSystemSettingsSchema>;
+export type SystemSettings = typeof systemSettings.$inferSelect;
+
 // User-submitted requests to add a new catalog entry (manufacturer/material/
 // color/diameter/storage location); reviewed by an admin before the entry
 // becomes real. Keeps the shared catalog tables admin-only while still

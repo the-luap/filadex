@@ -83,8 +83,39 @@ export default function RegisterPage() {
     },
   });
 
+  const { data: publicSettings, isLoading: isLoadingSettings } = useQuery<{ registrationEnabled: boolean }>({
+    queryKey: ["/api/system/public-settings"],
+    queryFn: () => apiRequest<{ registrationEnabled: boolean }>("/api/system/public-settings"),
+  });
+
+  const registrationEnabled = publicSettings?.registrationEnabled ?? true;
+
   function onSubmit(data: RegisterFormValues) {
     registerMutation.mutate(data);
+  }
+
+  if (!isLoadingSettings && !registrationEnabled) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background p-4">
+        <Card className="w-full max-w-[380px]">
+          <CardHeader className="text-center bg-primary dark:bg-primary text-white rounded-t-lg">
+            <div className="flex flex-col items-center">
+              <Logo size={60} color="white" />
+              <CardTitle className="mt-2">Filadex</CardTitle>
+              <CardDescription className="text-white/80">{t('users.registrationDisabledNotice')}</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 text-center space-y-4">
+            <p className="text-muted-foreground text-sm">
+              {t('users.registrationEnabledDescription')}
+            </p>
+            <Button className="w-full" onClick={() => navigate("/login")}>
+              {t('auth.backToLogin')}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (submitted) {

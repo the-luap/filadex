@@ -16,6 +16,7 @@ import {
   catalogRequests, type CatalogRequest,
   emailSettings, type EmailSettings,
   backupSettings, type BackupSettings,
+  systemSettings, type SystemSettings, type UpdateSystemSettings,
   foldUsername,
   diameterValueSchema,
 } from "@shared/schema";
@@ -302,6 +303,8 @@ export interface IStorage {
 
   // System & Backups
   getDialect(): "postgres" | "sqlite";
+  getSystemSettings(): Promise<SystemSettings>;
+  updateSystemSettings(changes: UpdateSystemSettings): Promise<SystemSettings>;
   getBackupSettings(): Promise<BackupSettings | undefined>;
   updateBackupSettings(changes: BackupSettingsChanges): Promise<BackupSettings>;
   createBackup(destinationPath: string): Promise<void>;
@@ -649,6 +652,31 @@ export class DatabaseStorage implements IStorage {
 
   getDialect(): "postgres" | "sqlite" {
     return dialect;
+  }
+
+  async getSystemSettings(): Promise<SystemSettings> {
+    const [settings] = await db.select().from(systemSettings).where(eq(systemSettings.id, 1));
+    if (settings) {
+      return settings;
+    }
+    const [inserted] = await db.insert(systemSettings)
+      .values({ id: 1, registrationEnabled: true, updatedAt: new Date() })
+      .onConflictDoNothing()
+      .returning();
+    if (inserted) {
+      return inserted;
+    }
+    const [reselected] = await db.select().from(systemSettings).where(eq(systemSettings.id, 1));
+    return reselected;
+  }
+
+  async updateSystemSettings(changes: UpdateSystemSettings): Promise<SystemSettings> {
+    await this.getSystemSettings();
+    const [updated] = await db.update(systemSettings)
+      .set({ ...changes, updatedAt: new Date() })
+      .where(eq(systemSettings.id, 1))
+      .returning();
+    return updated;
   }
 
   async getBackupSettings(): Promise<BackupSettings | undefined> {

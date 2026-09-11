@@ -419,7 +419,7 @@ const translations = {
     applyColor: 'Farbe anwenden',
     savingSettings: 'Einstellungen werden gespeichert...',
     cancel: 'Abbrechen',
-    listManagement: 'Listenverwaltung',
+    generalSettings: 'Allgemeine Einstellungen',
     units: {
       title: 'Einheiten & Maße',
       description: 'Konfigurieren Sie die Währung und Temperatureinheiten, die in der gesamten Anwendung verwendet werden',
@@ -755,6 +755,11 @@ const translations = {
     updateUser: 'Benutzer aktualisieren',
     usernameMinLength: 'Benutzername muss mindestens 3 Zeichen lang sein',
     actions: 'Aktionen',
+    registrationEnabled: 'Registrierung neuer Benutzer erlauben',
+    registrationEnabledDescription: 'Wenn deaktiviert, können neue Konten nur manuell von einem Administrator erstellt werden.',
+    registrationDisabledNotice: 'Die Registrierung ist derzeit deaktiviert.',
+    roleUser: 'Benutzer',
+    roleAdmin: 'Administrator',
   },
   statistics: {
     title: 'Statistiken',

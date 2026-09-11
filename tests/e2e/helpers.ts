@@ -6,7 +6,7 @@ import { expect } from "@playwright/test";
  * admin may edit those (settings-materials.tsx `ownsOrIsAdmin`), so these specs
  * sign in as the seeded admin rather than as alice.
  */
-export const DEMO_ADMIN = { username: "admin", password: "demo-password" };
+export const DEMO_ADMIN = { username: "admin", password: "demo-password" }; // ggignore: throwaway test fixture credential
 
 /**
  * Signs in through the form rather than minting a cookie.
@@ -42,7 +42,7 @@ export async function openSettingsTab(page: Page, tabName: string | RegExp): Pro
   await page.goto("/");
   await expect(settingsButton(page)).toBeVisible({ timeout: 30_000 });
   await settingsButton(page).click();
-  await page.getByRole("menuitem", { name: /list management/i }).click();
+  await page.getByRole("menuitem", { name: /general settings|list management/i }).click();
   await page.getByRole("tab", { name: tabName }).click();
 }
 
