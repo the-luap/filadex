@@ -79,6 +79,14 @@ Database or SpoolmanDB) queried to autofill spool and filament type fields
 during entry.
 _Avoid_: External database, Global catalog
 
+**Generic Term**:
+A common industry word (e.g. "Lab", "Filament", "3D") that similarity matching
+ignores when comparing token overlap between a scanned entity and existing
+catalog entries. Managed by administrators in settings; without this exclusion,
+any two manufacturers sharing a generic word would trigger a false similarity
+prompt.
+_Avoid_: Stop word, noise word, excluded token
+
 **Barcode**:
 A machine-readable code (GTIN, EAN, UPC, or vendor barcode) identifying a
 spool or its retail packaging, recorded on the spool.
