@@ -33,7 +33,7 @@ export function registerSystemSettingsRoutes(app: Express): void {
   });
 
   // Update system settings (admin only)
-  app.put("/api/settings/system", sensitiveActionLimiter, authenticate, isAdmin, async (req, res) => {
+  app.put("/api/settings/system", authenticate, isAdmin, sensitiveActionLimiter, async (req, res) => {
     try {
       const validated = updateSystemSettingsSchema.partial().parse(req.body);
       const updated = await storage.updateSystemSettings(validated);

@@ -85,7 +85,6 @@ export default defineConfig({
       NODE_ENV: "production",
       JWT_SECRET: "filadex-e2e-fixed-secret",
       CATALOG_CACHE_DIR: path.join(DB_DIR, "catalogs"),
-      RATE_LIMIT_MULTIPLIER: "50",
     },
   },
 });

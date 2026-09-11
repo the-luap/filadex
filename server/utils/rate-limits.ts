@@ -4,13 +4,12 @@ import rateLimit from "express-rate-limit";
 // which is the proxy's address unless TRUST_PROXY is set - see server/index.ts.
 
 const skipIfDisabled = () => process.env.NODE_ENV === "test" && process.env.DISABLE_RATE_LIMITS === "true";
-const rateLimitMultiplier = Math.max(1, parseInt(process.env.RATE_LIMIT_MULTIPLIER ?? "1", 10) || 1);
 
 // Public, enumeration-sensitive endpoints: register, forgot-password,
 // resend-verification, check-username.
 export const publicAuthLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 20 * rateLimitMultiplier,
+  limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
   skip: skipIfDisabled,
@@ -28,7 +27,7 @@ export const publicAuthLimiter = rateLimit({
 // successes put it one flaky retry away from locking itself out.
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 15 * rateLimitMultiplier,
+  limit: 15,
   standardHeaders: true,
   legacyHeaders: false,
   skip: skipIfDisabled,
@@ -41,7 +40,7 @@ export const loginLimiter = rateLimit({
 // is a small integer and the endpoint otherwise enumerates accounts for free.
 export const publicReadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 120 * rateLimitMultiplier,
+  limit: 120,
   standardHeaders: true,
   legacyHeaders: false,
   skip: skipIfDisabled,
@@ -52,7 +51,7 @@ export const publicReadLimiter = rateLimit({
 // API token creation, backups, cache refresh, test mail.
 export const sensitiveActionLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 30 * rateLimitMultiplier,
+  limit: 30,
   standardHeaders: true,
   legacyHeaders: false,
   skip: skipIfDisabled,
