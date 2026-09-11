@@ -47,6 +47,9 @@ presentation.
   population while guaranteeing all declared manufacturers resolve to catalog entities.
   Uniqueness is enforced via two partial case-insensitive unique indexes on `lower(name)`:
   one for the Global Catalog (`user_id IS NULL`) and one per Personal Catalog (`user_id IS NOT NULL`).
+  During schema migration (PostgreSQL `0012` and SQLite `0006`), any pre-existing case-variant
+  duplicate manufacturers are automatically deduplicated to `min(id)`, allowing smooth upgrades
+  from older releases that permitted exact-case duplicate entries without leaving orphan spools.
 - **Materials**: Following [ADR 0003](file:///home/przemek/work/priv/filadex-oryginal/docs/adr/0003-per-user-material-catalog.md),
   any novel material declared on a spool is auto-registered into the declaring
   user's Personal Catalog (`materials`).
@@ -82,9 +85,9 @@ presentation.
 
 ### 4. Color Template and Hex Code Handling
 
-- Relabeled the color dropdown to "Color Template (optional)".
-- Selecting a template populates the hex code and auto-fills default names.
-- If the user manually tweaks the hex code or color picker, the selected template
+- The color dropdown provides predefined template colors and sets the color code accordingly.
+- The `colorName` field remains required (`color*`), agreeing with the server schema without boundary fallbacks.
+- If the user manually tweaks the hex code or color picker, the selected color
   name is retained, allowing custom shades while preserving familiar color names.
 - Color codes accept existing data lengths (`max(20)`, optional) and normalise hex
   formats on read (e.g. expanding 3-digit `#RGB` or truncating 8-digit `#RRGGBBAA` to `#RRGGBB`),

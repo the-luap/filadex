@@ -172,7 +172,7 @@ const createFormSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('filaments.nameRequired')),
   manufacturer: z.string().optional(),
   material: z.string().min(1, t('filaments.materialRequired')),
-  colorName: z.string().optional(),
+  colorName: z.string().min(1, t('filaments.colorRequired')),
   colorCode: z.string().max(20).optional().nullable(),
   diameter: z.number().optional(),
   printTemp: z.string().optional(),
@@ -497,10 +497,6 @@ export function FilamentModal({
     // Handle custom weight
     if (customWeightVisible && typeof totalWeight === 'number') {
       data.totalWeight = totalWeight;
-    }
-
-    if (!data.colorName || data.colorName.trim() === "") {
-      data.colorName = data.colorCode || "Color";
     }
 
     const withCustomFields = { ...data, customFieldValues };
@@ -1083,7 +1079,7 @@ export function FilamentModal({
                   name="colorName"
                   render={({ field }) => (
                     <FormItem className="md:col-span-2">
-                      <FormLabel>{t('filaments.colorTemplate')}</FormLabel>
+                      <FormLabel>{t('filaments.color')}*</FormLabel>
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value);

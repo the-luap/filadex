@@ -260,7 +260,6 @@ const translations = {
     weightRequired: 'Waga całkowita musi wynosić co najmniej 0,1 kg',
     materialRequired: 'Materiał jest wymagany',
     colorRequired: 'Kolor jest wymagany',
-    colorTemplate: 'Wzornik kolorów',
     colorCodeRequired: 'Kod koloru jest wymagany',
     invalidColorCode: 'Kod koloru musi mieć prawidłowy format szesnastkowy (#RRGGBB)',
     nameRequired: 'Nazwa jest wymagana',

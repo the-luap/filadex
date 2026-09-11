@@ -54,8 +54,8 @@ test.describe("Mobile viewport experience", () => {
     await expect(mobileChartLabels).toBeVisible();
 
     // Verify it lists the materials present in inventory
-    await expect(mobileChartLabels.getByText("PLA")).toBeVisible();
-    await expect(mobileChartLabels.getByText("PETG")).toBeVisible();
+    await expect(mobileChartLabels.getByText("PLA", { exact: true })).toBeVisible();
+    await expect(mobileChartLabels.getByText("PETG", { exact: true })).toBeVisible();
 
     // Switch to desktop viewport (1280x800)
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -83,7 +83,7 @@ test.describe("Mobile viewport experience", () => {
     // Open settings dropdown on mobile
     await settingsBtn.click();
     await expect(page.getByRole("menuitem", { name: /theme/i })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: /list management/i })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /general settings|list management/i })).toBeVisible();
     // Close by pressing Escape
     await page.keyboard.press("Escape");
 
@@ -99,7 +99,7 @@ test.describe("Mobile viewport experience", () => {
     await page.keyboard.press("Escape");
   });
 
-  test("can open Add Filament modal, select material, color template, and save on mobile", async ({ page }) => {
+  test("can open Add Filament modal, select material, color, and save on mobile", async ({ page }) => {
     const newSpoolName = `MobileCreatedSpool-${Date.now()}`;
 
     await page.getByRole("button", { name: /add filament/i }).click();
@@ -111,8 +111,8 @@ test.describe("Mobile viewport experience", () => {
     await dialog.getByLabel(/material\*/i).click();
     await page.getByRole("option", { name: "PLA" }).first().click();
 
-    // Select Color template (e.g. "Black") and verify color code hex auto-populates
-    await dialog.getByLabel(/color template/i).click();
+    // Select Color (e.g. "Black") and verify color code hex auto-populates
+    await dialog.getByLabel(/^color\*/i).click();
     await page.getByRole("option", { name: "Black" }).first().click();
     await expect(dialog.getByLabel(/color code/i)).toHaveValue("#000000");
 

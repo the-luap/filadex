@@ -213,7 +213,7 @@ export function MaterialColorChart({ filaments }: MaterialColorChartProps) {
                 style={{ backgroundColor: MATERIAL_COLORS[index % MATERIAL_COLORS.length] }}
               />
               <span className="font-medium text-neutral-800 dark:text-neutral-200">
-                {group.category} <span className="text-neutral-500 dark:text-neutral-400 font-normal">({percent}%)</span>
+                <span>{group.category}</span> <span className="text-neutral-500 dark:text-neutral-400 font-normal">({percent}%)</span>
               </span>
             </div>
           );

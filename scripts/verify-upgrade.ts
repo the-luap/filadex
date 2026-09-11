@@ -71,6 +71,13 @@ const INTENTIONALLY_DROPPED_TABLES: readonly string[] = [
   "community_filament_cache",
 ];
 
+// Rows a migration deliberately deduplicates. When a migration collapses
+// case-variant duplicates (e.g. 0012 collapsing 'prusa' into 'Prusa'), naming
+// the row predicate here allows check 1 to exclude it from the pre-upgrade snapshot.
+const INTENTIONALLY_DEDUPLICATED_ROWS: Record<string, (row: Record<string, unknown>) => boolean> = {
+  manufacturers: (row) => row.name === "prusa",
+};
+
 type TableShape = { name: string; columns: string[] };
 
 /**
@@ -122,8 +129,9 @@ async function snapshotData(pool: pg.Pool, shape: TableShape[]): Promise<string>
     const usable = table.columns.filter((column) => has.has(column));
     const selection = usable.length > 0 ? usable.map((column) => `"${column}"`).join(", ") : "1";
     const { rows } = await pool.query(`SELECT ${selection} FROM "${table.name}" ORDER BY 1`);
-    out.push(`-- ${table.name} (${rows.length} rows)`);
-    for (const row of rows) {
+    const filteredRows = rows.filter((row) => !INTENTIONALLY_DEDUPLICATED_ROWS[table.name]?.(row));
+    out.push(`-- ${table.name} (${filteredRows.length} rows)`);
+    for (const row of filteredRows) {
       const ordered = Object.keys(row).sort().map((k) => `${k}=${JSON.stringify(row[k])}`);
       out.push("  " + ordered.join(" "));
     }
@@ -301,7 +309,9 @@ async function seedLegacyDatabase(pool: pg.Pool): Promise<void> {
       INSERT INTO manufacturers (name, sort_order) VALUES
         ('Bambu Lab', 1),
         ('Prusament', 2),
-        ('Overture', 3)
+        ('Overture', 3),
+        ('Prusa', 4),
+        ('prusa', 5)
     `);
 
     const { rows: materialsRows } = await client.query<{ id: number; name: string }>(`
@@ -460,6 +470,18 @@ try {
   allPassed = check("upgrade preserved every row unchanged", dataBefore === dataAfter,
     dataBefore === dataAfter ? undefined
       : `  data differs; see ${dataBeforePath} and ${dataAfterPath}`) && allPassed;
+
+  const { rows: deduplicatedPrusa } = await legacy.pool.query(
+    `SELECT id, name FROM manufacturers WHERE name = 'prusa'`
+  );
+  allPassed = check("case-variant duplicate manufacturer 'prusa' was deduplicated", deduplicatedPrusa.length === 0,
+    `  expected 'prusa' to be deleted, found ${deduplicatedPrusa.length} row(s)`) && allPassed;
+
+  const { rows: canonicalPrusa } = await legacy.pool.query(
+    `SELECT id, name FROM manufacturers WHERE name = 'Prusa'`
+  );
+  allPassed = check("canonical manufacturer 'Prusa' was preserved", canonicalPrusa.length === 1 && canonicalPrusa[0].id === 4,
+    `  expected 'Prusa' (id 4) to survive, found: ${JSON.stringify(canonicalPrusa)}`) && allPassed;
 
   const stale = await staleDropEntries(legacy.pool);
   allPassed = check("every column the upgrade was allowed to drop is gone", stale.length === 0,

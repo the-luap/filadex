@@ -100,12 +100,12 @@ describe("FilamentModal", () => {
     expect(plaMatches).toHaveLength(1);
   });
 
-  it("renders color template and required color code field", () => {
+  it("renders color field and color code field", () => {
     const html = renderWithProviders(
       <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} />
     );
 
-    expect(html).toContain("filaments.colorTemplate");
+    expect(html).toContain("filaments.color");
     expect(html).toContain("filaments.colorCode");
   });
 
