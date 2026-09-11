@@ -36,17 +36,24 @@ presentation.
 
 ### 1. Auto-Registration of Unknown Entities on Save
 
-- **Manufacturers**: `ensureDeclaredManufacturerResolves` in [`server/storage.ts`](file:///home/przemek/work/priv/filadex-oryginal/server/storage.ts)
-  queries `manufacturers` case-insensitively using targeted SQL (`lower(name) = lower($1)`).
-  If no match exists, a new manufacturer row is automatically inserted into
-  `manufacturers`.
+- **Manufacturers**: `manufacturers` gains a nullable `user_id` owner column
+  (where `NULL` represents the curated Global Catalog and set values represent a user's
+  Personal Catalog), exactly mirroring `materials` from [ADR 0003](file:///home/przemek/work/priv/filadex-oryginal/docs/adr/0003-per-user-material-catalog.md).
+  When saving a spool, `ensureDeclaredManufacturerResolves` in [`server/storage.ts`](file:///home/przemek/work/priv/filadex-oryginal/server/storage.ts)
+  checks both Global and the declaring user's Personal Catalog case-insensitively.
+  If no match exists, the new manufacturer is auto-registered into the declaring
+  user's **Personal Catalog** (`userId = declaringUser.id`). Non-admin users cannot
+  write to the shared Global Catalog, protecting global catalogs from uncontrolled
+  population while guaranteeing all declared manufacturers resolve to catalog entities.
+  Uniqueness is enforced via two partial case-insensitive unique indexes on `lower(name)`:
+  one for the Global Catalog (`user_id IS NULL`) and one per Personal Catalog (`user_id IS NOT NULL`).
 - **Materials**: Following [ADR 0003](file:///home/przemek/work/priv/filadex-oryginal/docs/adr/0003-per-user-material-catalog.md),
   any novel material declared on a spool is auto-registered into the declaring
   user's Personal Catalog (`materials`).
 - **Scanned Density Persistence**: When a community result or scan payload
-  contains material density, that density is transmitted in the filament payload
-  and saved directly into the newly created `materials` row, avoiding blank
-  density defaults on known catalog imports.
+  contains material density, that density is validated as a positive numeric format
+  in the filament payload and saved directly into the newly created `materials` row,
+  avoiding blank density defaults on known catalog imports.
 
 ### 2. Multi-Tier Fuzzy Similarity Matching
 
@@ -73,13 +80,15 @@ presentation.
 - Fallback `<SelectItem>` rendering and form reset canonicalization ensure Radix UI
   Select triggers never fail to display due to case differences.
 
-### 4. Color Template vs Hex Code Alignment
+### 4. Color Template and Hex Code Handling
 
-- Relabeled the color dropdown to "Color Template (optional)" and made the Hex Code
-  input mandatory (`#RRGGBB`).
+- Relabeled the color dropdown to "Color Template (optional)".
 - Selecting a template populates the hex code and auto-fills default names.
 - If the user manually tweaks the hex code or color picker, the selected template
   name is retained, allowing custom shades while preserving familiar color names.
+- Color codes accept existing data lengths (`max(20)`, optional) and normalise hex
+  formats on read (e.g. expanding 3-digit `#RGB` or truncating 8-digit `#RRGGBBAA` to `#RRGGBB`),
+  avoiding form validation errors when editing existing spools imported from external sources.
 
 ### 5. Responsive Mobile Chart Presentation
 
@@ -94,6 +103,10 @@ presentation.
 - **No Data Loss on Barcode Import**: Scanned spools reliably save their
   manufacturer and material attributes without requiring prior manual setup in
   Settings.
+- **Strict Scope Isolation**: Auto-registered manufacturers are scoped to the
+  declaring user's Personal Catalog. A user can manage and delete their own
+  manufacturers in Settings; another user never sees them in dropdowns or lists.
+  Global manufacturer additions remain admin-curated via Settings or Catalog Requests.
 - **Clean Catalog Hygiene**: Users are prompted before accidental near-duplicate
   manufacturers or materials enter their database.
 - **Mobile First Accessibility**: Spool charts and modal dialogs fit within mobile

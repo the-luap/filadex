@@ -2,6 +2,7 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import { Input } from "@/components/ui/input";
 import { TableCell } from "@/components/ui/table";
 import { useTranslation } from "@/i18n";
+import { useAuth } from "@/lib/auth";
 import { Manufacturer, createManufacturerSchema } from "./settings-types";
 import { SettingsCrudList } from "./settings-crud-list";
 
@@ -13,6 +14,10 @@ Polymaker
 
 export function ManufacturersList() {
   const { t } = useTranslation();
+  const { user, isAdmin } = useAuth();
+
+  const ownsOrIsAdmin = (item: Manufacturer) =>
+    isAdmin || (item.userId !== null && item.userId !== undefined && item.userId === user?.id);
 
   return (
     <SettingsCrudList<Manufacturer, { name: string }>
@@ -26,6 +31,7 @@ export function ManufacturersList() {
       columnHeaders={[t("common.name")]}
       emptyLabelSuffix="noManufacturers"
       getSearchText={(item) => item.name}
+      canDelete={ownsOrIsAdmin}
       renderAddFields={(form) => (
         <FormField
           control={form.control}

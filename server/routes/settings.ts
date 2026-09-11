@@ -38,8 +38,9 @@ export function registerSettingsRoutes(app: Express): void {
     basePath: "/api/manufacturers",
     csvFilename: "manufacturers.csv",
     insertSchema: insertManufacturerSchema,
+    userScoped: true,
     storage: {
-      getAll: () => storage.getManufacturers(),
+      getAll: (userId) => storage.getManufacturers(userId),
       create: (data) => storage.createManufacturer(data),
       delete: (id) => storage.deleteManufacturer(id),
       updateOrder: (id, newOrder) => storage.updateManufacturerOrder(id, newOrder),
@@ -50,20 +51,11 @@ export function registerSettingsRoutes(app: Express): void {
       isHeaderRow: (line) => /name|hersteller|vendor/i.test(line),
       parseLine: simpleNameParseLine,
     },
-    isInUse: (filament: Filament, item) => filament.manufacturer === item.name,
-    // Exact match, matching manufacturers_name_key. Without it a repeat of a
-    // name already in the list reaches the unique index and comes back as a
-    // bare 500 - every install is seeded with a few, so retyping one in the Add
-    // form is the ordinary case rather than an edge one.
-    //
-    // Exactly what the index compares, so this rejects only what the database
-    // was going to reject anyway. Deliberately not caseless and deliberately
-    // not trimmed: `Prusa` alongside `prusa`, and `" Prusa"` alongside
-    // `"Prusa"`, are both accepted today, and refusing either would be a
-    // behaviour change rather than a fix. The CSV import does compare caselessly
-    // (simpleNameParseLine), so the two paths still disagree - see #11, which is
-    // where that decision belongs.
-    duplicateOf: (item, data) => item.name === data.name,
+    isInUse: (filament: Filament, item) =>
+      (filament.manufacturer ?? "").trim().toLowerCase() === item.name.trim().toLowerCase(),
+    // Case-insensitive duplicate check to agree with manufacturers_global_name_lower_idx
+    // and manufacturers_user_name_lower_idx, answering 409 instead of a unique-index 500.
+    duplicateOf: (item, data) => item.name.trim().toLowerCase() === data.name.trim().toLowerCase(),
   });
 
   registerCrudSettingsRoutes<Material, { name: string; density?: string | null; isHygroscopic?: boolean | null }>(app, {
@@ -247,7 +239,6 @@ export function registerSettingsRoutes(app: Express): void {
         return { kind: "create", data: { word } };
       },
     },
-    isInUse: () => false,
     duplicateOf: (item, data) => item.word === data.word.trim().toLowerCase(),
   });
 }

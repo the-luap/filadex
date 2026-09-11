@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageContext } from "../../client/src/i18n";
-import { FilamentModal, escapeRegex } from "../../client/src/components/filament-modal";
+import { FilamentModal, escapeRegex, normalizeHexColor } from "../../client/src/components/filament-modal";
 
 // Mock Dialog so children are rendered in SSR / renderToString
 vi.mock("@/components/ui/dialog", () => ({
@@ -214,6 +214,49 @@ describe("escapeRegex and word-boundary replacement in similarity prompts", () =
     const result = currentName.replace(pattern, () => replacement);
 
     expect(result).toBe("Generic $100 PLA Black");
+  });
+});
+
+describe("normalizeHexColor and colorCode handling", () => {
+  it("normalises 3-digit hex codes to 6-digit uppercase hex", () => {
+    expect(normalizeHexColor("#FFF")).toBe("#FFFFFF");
+    expect(normalizeHexColor("#abc")).toBe("#AABBCC");
+    expect(normalizeHexColor("123")).toBe("#112233");
+  });
+
+  it("truncates 8-digit hex codes to 6-digit uppercase hex", () => {
+    expect(normalizeHexColor("#11223344")).toBe("#112233");
+    expect(normalizeHexColor("#AABBCCDD")).toBe("#AABBCC");
+  });
+
+  it("handles 4-digit hex codes with alpha", () => {
+    expect(normalizeHexColor("#abcd")).toBe("#AABBCC");
+  });
+
+  it("leaves standard 6-digit hex uppercase and returns empty on blank input", () => {
+    expect(normalizeHexColor("#1a2b3c")).toBe("#1A2B3C");
+    expect(normalizeHexColor("")).toBe("");
+    expect(normalizeHexColor(null)).toBe("");
+    expect(normalizeHexColor(undefined)).toBe("");
+  });
+
+  it("renders without error when editing an existing spool with a 3-digit hex color code", () => {
+    const spoolWith3DigitHex: any = {
+      id: 99,
+      name: "Short Hex Spool",
+      manufacturer: "Prusa",
+      material: "PLA",
+      colorName: "White",
+      colorCode: "#FFF",
+      totalWeight: 1,
+      remainingPercentage: 50,
+    };
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={spoolWith3DigitHex} />
+    );
+
+    expect(html).toContain("Short Hex Spool");
   });
 });
 

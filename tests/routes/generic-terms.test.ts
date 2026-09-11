@@ -226,7 +226,7 @@ describe("DELETE /api/generic-terms/:id", () => {
   });
 });
 
-describe("generic terms sequence guard (ADR-0008)", () => {
+describe("generic terms sequence guard (ADR-0009)", () => {
   it("detects when generic terms were previously populated even if all rows are deleted", async () => {
     // 1. Initially after reset, table is empty and maxId is 0
     const [{ initialMax }] = await db
@@ -251,12 +251,11 @@ describe("generic terms sequence guard (ADR-0008)", () => {
     // 4. Sequence generator inspection detects it was previously seeded
     let sequenceSeeded = false;
     if ((dialect as string) === "sqlite") {
-      const result: any = await (db as any).execute(
+      const rows: any = await (db as any).all(
         sql`SELECT seq FROM sqlite_sequence WHERE name = 'generic_terms'`
       );
-      const rows = result?.rows ?? (Array.isArray(result) ? result : []);
-      if (rows.length > 0) {
-        const seq = rows[0]?.seq ?? (Array.isArray(rows[0]) ? rows[0][0] : undefined);
+      if (Array.isArray(rows) && rows.length > 0) {
+        const seq = rows[0]?.seq;
         if (Number(seq) > 0) sequenceSeeded = true;
       }
     } else {

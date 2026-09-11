@@ -17,6 +17,7 @@ export interface CatalogRequest {
 export interface Manufacturer {
   id: number;
   name: string;
+  userId?: number | null;
   createdAt: string;
 }
 

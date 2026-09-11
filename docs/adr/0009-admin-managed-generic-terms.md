@@ -5,7 +5,7 @@ date: 2026-09-11
 
 # Admin-Managed Generic Terms for Similarity Matching
 
-Similarity matching (ADR-0007) compares scanned entities against existing
+Similarity matching (ADR-0008) compares scanned entities against existing
 catalog entries using token overlap. Tokens like "Lab", "Filament", and
 "Materials" are common across unrelated manufacturers and materials, causing
 false-positive similarity prompts on nearly every community import. Rather than

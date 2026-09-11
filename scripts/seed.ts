@@ -87,7 +87,7 @@ async function seedStarter(): Promise<void> {
 async function seedGenericTerms(): Promise<void> {
   // Don't re-seed if any row has ever existed — even if the admin deleted them
   // all. Auto-increment IDs are never reused, so surviving rows or sequence
-  // generators indicate the table was populated at some point (ADR-0008).
+  // generators indicate the table was populated at some point (ADR-0009).
   const [{ maxId }] = await db.select({ maxId: sql<number>`coalesce(max(${genericTerms.id}), 0)` }).from(genericTerms);
   if (Number(maxId) > 0) {
     return;
@@ -96,10 +96,9 @@ async function seedGenericTerms(): Promise<void> {
   // If 0 rows survive, check the sequence generator to detect if terms were previously seeded and deleted.
   try {
     if ((dialect as string) === "sqlite") {
-      const result: any = await (db as any).execute(sql`SELECT seq FROM sqlite_sequence WHERE name = 'generic_terms'`);
-      const rows = result?.rows ?? (Array.isArray(result) ? result : []);
-      if (rows.length > 0) {
-        const seq = rows[0]?.seq ?? (Array.isArray(rows[0]) ? rows[0][0] : undefined);
+      const rows: any = await (db as any).all(sql`SELECT seq FROM sqlite_sequence WHERE name = 'generic_terms'`);
+      if (Array.isArray(rows) && rows.length > 0) {
+        const seq = rows[0]?.seq;
         if (Number(seq) > 0) {
           return;
         }
@@ -114,8 +113,8 @@ async function seedGenericTerms(): Promise<void> {
         }
       }
     }
-  } catch {
-    // If sequence queries fail (e.g. sequence not yet initialized), fall back gracefully
+  } catch (error) {
+    console.warn("Could not inspect sequence generator during generic terms seed:", error);
   }
 
   console.log("Adding default generic terms for similarity matching...");
@@ -358,8 +357,8 @@ async function main() {
     // run, so the run that seeds them is a later one, against a catalog that
     // already exists.
     await seedSampleSpools();
-    await seedGenericTerms();
   }
+  await seedGenericTerms();
 }
 
 main()

@@ -155,7 +155,7 @@ type FilamentTypeFieldsInput = {
 // reuse the same type row instead of duplicating manufacturer/material/etc.
 async function findOrCreateFilamentType(userId: number, fields: FilamentTypeFieldsInput): Promise<number> {
   const resolvedMaterial = await ensureDeclaredMaterialResolves(userId, fields.material, fields.density);
-  const resolvedManufacturer = await ensureDeclaredManufacturerResolves(fields.manufacturer);
+  const resolvedManufacturer = await ensureDeclaredManufacturerResolves(userId, fields.manufacturer);
 
   const manufacturer = resolvedManufacturer ?? null;
   const material = resolvedMaterial || fields.material;
@@ -194,6 +194,9 @@ async function findOrCreateFilamentType(userId: number, fields: FilamentTypeFiel
 const materialInScopeFor = (userId: number) =>
   or(isNull(materials.userId), eq(materials.userId, userId));
 
+const manufacturerInScopeFor = (userId: number) =>
+  or(isNull(manufacturers.userId), eq(manufacturers.userId, userId));
+
 // A declared material that resolves to no Catalog Material is registered into
 // the declaring user's Personal Catalog, so from here on every declared material
 // resolves to a row - the point of docs/adr/0003. This fires on every path
@@ -216,8 +219,9 @@ async function ensureDeclaredMaterialResolves(
   const existing = await storage.resolveMaterial(userId, name);
   if (existing) return existing.name;
 
-  const density = declaredDensity != null && String(declaredDensity).trim() !== ""
-    ? String(declaredDensity)
+  const rawDensity = declaredDensity != null ? String(declaredDensity).trim() : "";
+  const density = rawDensity !== "" && /^\d+(\.\d+)?$/.test(rawDensity)
+    ? rawDensity
     : null;
 
   // Two concurrent requests declaring the same new material both resolve to
@@ -229,31 +233,30 @@ async function ensureDeclaredMaterialResolves(
   return name;
 }
 
-async function ensureDeclaredManufacturerResolves(declared: string | null | undefined): Promise<string | null | undefined> {
+// A declared manufacturer that resolves to no Catalog Manufacturer is registered into
+// the declaring user's Personal Catalog (docs/adr/0008). Direct creations to the shared
+// Global Catalog remain admin-only.
+async function ensureDeclaredManufacturerResolves(
+  userId: number,
+  declared: string | null | undefined
+): Promise<string | null | undefined> {
   if (!declared) return declared;
   const name = declared.trim();
   if (name === "") return name;
 
-  const [existing] = await db
-    .select({ name: manufacturers.name })
-    .from(manufacturers)
-    .where(sql`lower(${manufacturers.name}) = lower(${name})`)
-    .limit(1);
-
+  const existing = await storage.resolveManufacturer(userId, name);
   if (existing) return existing.name;
 
+  // Two concurrent requests declaring the same new manufacturer both resolve to
+  // nothing and both insert; the partial unique index on lower(name) rejects the second.
+  // onConflictDoNothing skips it.
   await db.insert(manufacturers)
-    .values({ name })
+    .values({ userId, name })
     .onConflictDoNothing();
 
-  // If a concurrent request inserted the same name with different casing,
-  // onConflictDoNothing silently skipped our insert. Fetch the canonical
-  // name from whoever won the race rather than returning our input casing.
-  const [canonical] = await db
-    .select({ name: manufacturers.name })
-    .from(manufacturers)
-    .where(sql`lower(${manufacturers.name}) = lower(${name})`)
-    .limit(1);
+  // If a concurrent request inserted the same name (or with different casing),
+  // fetch the canonical name from whoever won the race.
+  const canonical = await storage.resolveManufacturer(userId, name);
 
   return canonical?.name ?? name;
 }
@@ -388,7 +391,8 @@ export interface IStorage {
   touchApiTokenLastUsed(id: number): Promise<void>;
 
   // Manufacturer operations
-  getManufacturers(): Promise<Manufacturer[]>;
+  getManufacturers(userId?: number): Promise<Manufacturer[]>;
+  resolveManufacturer(userId: number, declared: string): Promise<Manufacturer | undefined>;
   createManufacturer(manufacturer: InsertManufacturer): Promise<Manufacturer>;
   deleteManufacturer(id: number): Promise<boolean>;
   updateManufacturerOrder(id: number, newOrder: number): Promise<Manufacturer | undefined>;
@@ -998,14 +1002,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Manufacturer implementations
-  async getManufacturers(): Promise<Manufacturer[]> {
+  async getManufacturers(userId?: number): Promise<Manufacturer[]> {
+    if (userId !== undefined) {
+      return await db.select().from(manufacturers)
+        .where(manufacturerInScopeFor(userId))
+        .orderBy(sql`${manufacturers.userId} IS NOT NULL`, manufacturers.sortOrder, manufacturers.name);
+    }
     return await db.select().from(manufacturers).orderBy(manufacturers.sortOrder, manufacturers.name);
+  }
+
+  async resolveManufacturer(userId: number, declared: string): Promise<Manufacturer | undefined> {
+    const target = declared.trim().toLowerCase();
+    const rows = await db.select().from(manufacturers)
+      .where(manufacturerInScopeFor(userId))
+      // The user's own Personal Catalog row wins when a Global one also matches.
+      .orderBy(sql`${manufacturers.userId} IS NULL`);
+    return rows.find((row) => row.name.trim().toLowerCase() === target);
   }
 
   async createManufacturer(insertManufacturer: InsertManufacturer): Promise<Manufacturer> {
     const [manufacturer] = await db
       .insert(manufacturers)
-      .values(insertManufacturer)
+      .values({ ...insertManufacturer, name: insertManufacturer.name.trim() })
       .returning();
     return manufacturer;
   }

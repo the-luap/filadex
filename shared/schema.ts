@@ -392,7 +392,10 @@ export const filamentWriteSchema = z.object({
   material: z.string().trim().min(1, "material is required").max(100),
   colorName: z.string().max(100),
   colorCode: z.string().max(20).nullable().optional(),
-  density: z.union([z.string(), z.number()]).nullable().optional(),
+  density: z.union([
+    z.number().positive().finite().transform((n) => String(n)),
+    z.string().regex(/^\d+(\.\d+)?$/, "Density must be a positive number"),
+  ]).nullable().optional(),
   printTemp: z.union([z.string().max(50), z.number()]).transform((v) => String(v)).optional(),
   diameter: diameterValueSchema.nullable().optional(),
   totalWeight: numberish(0),
@@ -419,10 +422,21 @@ export const userSharingSchema = z.object({
 // Neue Listen für die Einstellungen
 export const manufacturers = table("manufacturers", {
   id: t.pk("id"),
-  name: t.text("name").notNull().unique("manufacturers_name_key"),
+  name: t.text("name").notNull(),
+  userId: t.fk("user_id"), // NULL = Global Catalog; set = that user's Personal Catalog
   sortOrder: t.int("sort_order").default(999),
   createdAt: t.timestamptz("created_at").defaultNow().notNull()
-});
+}, (table) => [
+  foreignKey({
+    name: "manufacturers_user_id_fkey",
+    columns: [table.userId],
+    foreignColumns: [users.id],
+  }).onDelete("cascade"),
+  uniqueIndex("manufacturers_global_name_lower_idx")
+    .on(sql`lower(${table.name})`).where(sql`${table.userId} IS NULL`),
+  uniqueIndex("manufacturers_user_name_lower_idx")
+    .on(nullableIndexKey(table.userId), sql`lower(${table.name})`).where(sql`${table.userId} IS NOT NULL`),
+]);
 
 export const materials = table("materials", {
   id: t.pk("id"),
@@ -491,6 +505,7 @@ export const insertManufacturerSchema = createInsertSchema(manufacturers).omit({
   id: true,
   createdAt: true,
   sortOrder: true,
+  userId: true,
 });
 
 export const insertMaterialSchema = createInsertSchema(materials).omit({

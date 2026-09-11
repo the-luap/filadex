@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, Drizzle ORM (Postgres + SQLite), React, TanStack Query, Radix UI, Zod, Vitest
 
-**Spec:** Decisions documented in `docs/adr/0008-admin-managed-generic-terms.md` and the grilling session in this conversation.
+**Spec:** Decisions documented in `docs/adr/0009-admin-managed-generic-terms.md` and the grilling session in this conversation.
 
 ## Global Constraints
 

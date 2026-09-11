@@ -42,7 +42,7 @@ export interface SettingsCrudListConfig<T extends { id: number }, FormValues ext
   /** API path, e.g. "/api/manufacturers" */
   endpoint: string;
   /** Entity type sent to /api/catalog-requests when a non-admin submits a request instead of adding directly */
-  entityType?: CatalogRequestEntityType | string;
+  entityType?: CatalogRequestEntityType;
   schema: (t: (key: string) => string) => ZodType<FormValues>;
   defaultValues: FormValues;
   /** Whether items can be drag-reordered via a `${endpoint}/:id/order` PATCH endpoint (table layout only) */

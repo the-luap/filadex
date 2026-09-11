@@ -239,9 +239,14 @@ describe("auto-registration of a declared manufacturer", () => {
     const mfgRows = await db.select().from(manufacturers);
     const found = mfgRows.find((m) => m.name === "NewBrand");
     expect(found).toBeDefined();
+    expect(found?.userId).toBe(alice.id);
 
     const view = await request(app).get("/api/manufacturers").set("Cookie", alice.cookie);
     expect(view.body.map((m: { name: string }) => m.name)).toContain("NewBrand");
+
+    const bob = await newUser("bob_mfg_view");
+    const bobView = await request(app).get("/api/manufacturers").set("Cookie", bob.cookie);
+    expect(bobView.body.map((m: { name: string }) => m.name)).not.toContain("NewBrand");
   });
 
   it("does not duplicate an existing manufacturer when case differs", async () => {
@@ -289,6 +294,24 @@ describe("auto-registration of a declared manufacturer", () => {
     expect(pctg).toBeDefined();
     expect(pctg.density).not.toBeNull();
     expect(Number(pctg.density)).toBe(1.23);
+  });
+
+  it("rejects non-numeric density with 400", async () => {
+    const alice = await newUser("alice_bad_density");
+    const response = await request(app)
+      .post("/api/filaments")
+      .set("Cookie", alice.cookie)
+      .send({
+        name: "Bad Density Spool",
+        material: "NovelMat1",
+        density: "abc",
+        colorName: "Red",
+        colorCode: "#FF0000",
+        totalWeight: 1000,
+        remainingPercentage: 100,
+      });
+
+    expect(response.status).toBe(400);
   });
 
   it("handles concurrent creation of filaments declaring the same new manufacturer", async () => {

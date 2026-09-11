@@ -18,7 +18,6 @@ export function GenericTermsList() {
     <SettingsCrudList<GenericTerm, { word: string }>
       entityKey="generic-terms"
       endpoint="/api/generic-terms"
-      entityType="generic term"
       schema={createGenericTermSchema}
       defaultValues={{ word: "" }}
       layout="table"

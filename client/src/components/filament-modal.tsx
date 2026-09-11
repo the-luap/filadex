@@ -173,10 +173,7 @@ const createFormSchema = (t: (key: string) => string) => z.object({
   manufacturer: z.string().optional(),
   material: z.string().min(1, t('filaments.materialRequired')),
   colorName: z.string().optional(),
-  colorCode: z.string().trim().min(1, t('filaments.colorCodeRequired') || t('filaments.colorRequired')).regex(
-    /^#[0-9A-Fa-f]{6}$/,
-    t('filaments.invalidColorCode') || 'Invalid color code'
-  ),
+  colorCode: z.string().max(20).optional().nullable(),
   diameter: z.number().optional(),
   printTemp: z.string().optional(),
   totalWeight: z.number().min(0.1, t('filaments.weightRequired')),
@@ -189,7 +186,10 @@ const createFormSchema = (t: (key: string) => string) => z.object({
   lastDryingDate: z.date().optional(),
   storageLocation: z.string().optional(),
   barcode: z.string().optional(),
-  density: z.union([z.number(), z.string()]).optional().nullable(),
+  density: z.union([
+    z.number().positive(),
+    z.string().regex(/^\d+(\.\d+)?$/, t('settings.materials.invalidDensity') || 'Density must be a positive number'),
+  ]).optional().nullable(),
 });
 
 // This will be defined in the component
@@ -225,6 +225,29 @@ interface Material {
 }
 
 export type CommunityFilamentResult = CommunityCatalogItem;
+
+export function normalizeHexColor(raw: string | null | undefined): string {
+  if (!raw) return "";
+  let hex = raw.trim();
+  if (!hex) return "";
+  if (!hex.startsWith("#")) hex = "#" + hex;
+  // 3-digit hex: #RGB -> #RRGGBB
+  if (/^#[0-9A-Fa-f]{3}$/.test(hex)) {
+    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`.toUpperCase();
+  }
+  // 4-digit hex: #RGBA -> #RRGGBB
+  if (/^#[0-9A-Fa-f]{4}$/.test(hex)) {
+    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`.toUpperCase();
+  }
+  // 8-digit hex: #RRGGBBAA -> #RRGGBB
+  if (/^#[0-9A-Fa-f]{8}$/.test(hex)) {
+    return hex.slice(0, 7).toUpperCase();
+  }
+  if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+    return hex.toUpperCase();
+  }
+  return hex;
+}
 
 export function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -380,7 +403,7 @@ export function FilamentModal({
       manufacturer: filament?.manufacturer || "",
       material: filament?.material || "",
       colorName: filament?.colorName || "",
-      colorCode: filament?.colorCode || "#000000",
+      colorCode: normalizeHexColor(filament?.colorCode) || "#000000",
       diameter: filament?.diameter ? Number(filament.diameter) : 1.75,
       printTemp: filament?.printTemp || "",
       totalWeight: filament?.totalWeight ? Number(filament.totalWeight) : 1,
@@ -414,7 +437,7 @@ export function FilamentModal({
         manufacturer: canonicalMfg,
         material: canonicalMaterial,
         colorName: filament.colorName,
-        colorCode: filament.colorCode || "#000000",
+        colorCode: normalizeHexColor(filament.colorCode) || "#000000",
         diameter: Number(filament.diameter),
         printTemp: filament.printTemp || "",
         totalWeight: Number(filament.totalWeight),
@@ -477,7 +500,7 @@ export function FilamentModal({
     }
 
     if (!data.colorName || data.colorName.trim() === "") {
-      data.colorName = data.colorCode;
+      data.colorName = data.colorCode || "Color";
     }
 
     const withCustomFields = { ...data, customFieldValues };
@@ -523,7 +546,7 @@ export function FilamentModal({
       form.setValue('material', '');
     }
     form.setValue('colorName', result.colorName);
-    if (result.colorCode) form.setValue('colorCode', result.colorCode);
+    if (result.colorCode) form.setValue('colorCode', normalizeHexColor(result.colorCode));
     if (result.density) form.setValue('density', result.density);
     if (result.diameter) form.setValue('diameter', Number(result.diameter));
     if (result.extruderTemp) {
@@ -630,7 +653,7 @@ export function FilamentModal({
       }
     }
     if (data.colorName) form.setValue('colorName', data.colorName);
-    if (data.colorCode) form.setValue('colorCode', data.colorCode);
+    if (data.colorCode) form.setValue('colorCode', normalizeHexColor(data.colorCode));
     if (data.density) form.setValue('density', data.density);
     if (data.diameter) form.setValue('diameter', Number(data.diameter));
     if (data.printTemp) form.setValue('printTemp', data.printTemp);
@@ -1164,7 +1187,7 @@ export function FilamentModal({
                   name="colorCode"
                   render={({ field }) => (
                     <FormItem className="md:col-span-2">
-                      <FormLabel>{t('filaments.colorCode')}*</FormLabel>
+                      <FormLabel>{t('filaments.colorCode')}</FormLabel>
                       <FormControl>
                         <div className="flex items-center">
                           <Input
