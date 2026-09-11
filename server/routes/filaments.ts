@@ -293,6 +293,7 @@ export function registerFilamentRoutes(app: Express): void {
         material: data.material,
         colorName: data.colorName,
         colorCode: data.colorCode,
+        density: data.density !== undefined && data.density !== null ? data.density.toString() : undefined,
         printTemp: data.printTemp,
         diameter: data.diameter !== undefined && data.diameter !== null ? data.diameter.toString() : undefined,
         totalWeight: data.totalWeight,

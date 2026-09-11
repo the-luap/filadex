@@ -102,7 +102,7 @@ test.describe("Community Catalog on Add Filament Modal", () => {
     await page.getByRole("option", { name: "PLA" }).first().click();
 
     // Select Color
-    await dialog.getByLabel(/color\*/i).click();
+    await dialog.getByLabel(/color template|color\*/i).click();
     await page.getByRole("option", { name: "Black" }).first().click();
 
     // Fill Name after material/color so auto-generation does not overwrite custom name
@@ -126,4 +126,116 @@ test.describe("Community Catalog on Add Filament Modal", () => {
     await expect(dialog).toBeHidden();
     await expect(page.getByText(uniqueSpoolName)).toBeVisible();
   });
+
+  test("shows similarity alert when community filament has a similar material", async ({ page }) => {
+    await page.route("**/api/community-filaments/search*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          {
+            id: "ofd-test-mat-sim",
+            source: "ofd",
+            manufacturer: "Bambu Lab",
+            name: "eSUN PLA+",
+            material: "PLA+",
+            colorName: "Black",
+            colorCode: "#000000",
+            density: 1.24,
+            diameter: 1.75,
+            weightGrams: 1000,
+            spoolRefill: false,
+            extruderTemp: 215,
+            bedTemp: 55,
+            gtin: "6975337038888",
+          },
+        ]),
+      });
+    });
+
+    await page.getByRole("button", { name: /add filament/i }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+
+    const searchInput = dialog.getByPlaceholder(/search catalog/i);
+    await searchInput.fill("PLA+");
+
+    const resultButton = dialog.getByRole("button", { name: /esun pla\+/i });
+    await expect(resultButton).toBeVisible();
+    await resultButton.click();
+
+    // Similar material alert appears
+    await expect(page.getByRole("heading", { name: /similar material found/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /use "pla"/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /create "pla\+"/i })).toBeVisible();
+
+    // Click 'Use "PLA"'
+    await page.getByRole("button", { name: /use "pla"/i }).click();
+
+    // Verify material in dialog is now PLA
+    await expect(dialog.getByRole("combobox", { name: /material\*/i })).toHaveText(/pla/i);
+  });
+
+  test("shows similarity alert when community filament has a similar manufacturer and updates fields", async ({ page }) => {
+    // Mock manufacturers list to include Prusament
+    await page.route("**/api/manufacturers", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          { id: 101, name: "Prusament" },
+        ]),
+      });
+    });
+
+    await page.route("**/api/community-filaments/search*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          {
+            id: "ofd-test-mfg-sim",
+            source: "ofd",
+            manufacturer: "Prusa",
+            name: "Galaxy Black",
+            material: "PLA",
+            colorName: "Galaxy Black",
+            colorCode: "#111111",
+            density: 1.24,
+            diameter: 1.75,
+            weightGrams: 1000,
+            spoolRefill: false,
+            extruderTemp: 215,
+            bedTemp: 60,
+            gtin: "6975337037777",
+          },
+        ]),
+      });
+    });
+
+    await page.getByRole("button", { name: /add filament/i }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+
+    const searchInput = dialog.getByPlaceholder(/search catalog/i);
+    await searchInput.fill("Prusa");
+
+    const resultButton = dialog.getByRole("button", { name: /prusa.*galaxy black/i });
+    await expect(resultButton).toBeVisible();
+    await resultButton.click();
+
+    // Similar manufacturer alert appears
+    await expect(page.getByRole("heading", { name: /similar manufacturer found/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /use "prusament"/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /create "prusa"/i })).toBeVisible();
+
+    // Click 'Use "Prusament"'
+    await page.getByRole("button", { name: /use "prusament"/i }).click();
+
+    // Verify manufacturer in dialog is now Prusament
+    await expect(dialog.getByRole("combobox", { name: /manufacturer/i })).toHaveText(/prusament/i);
+    // Verify filament name was updated with the selected manufacturer
+    await expect(dialog.getByLabel(/name\*/i)).toHaveValue("Galaxy Black (Prusament)");
+  });
 });
+

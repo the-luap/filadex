@@ -6,6 +6,7 @@ import {
   colors, type Color, type InsertColor,
   diameters, type Diameter, type InsertDiameter,
   storageLocations, type StorageLocation, type InsertStorageLocation,
+  genericTerms, type GenericTerm, type InsertGenericTerm,
   filamentUsageLog, type FilamentUsageLog,
   customFieldDefinitions, type CustomFieldDefinition, type InsertCustomFieldDefinition,
   apiTokens, type ApiToken
@@ -145,6 +146,7 @@ type FilamentTypeFieldsInput = {
   colorCode?: string | null;
   diameter?: string | null;
   printTemp?: string | null;
+  density?: string | number | null;
 };
 
 // Finds an existing filamentTypes row matching all product-identity fields
@@ -152,16 +154,18 @@ type FilamentTypeFieldsInput = {
 // of the filament-type/spool-instance split: identical spools bought again
 // reuse the same type row instead of duplicating manufacturer/material/etc.
 async function findOrCreateFilamentType(userId: number, fields: FilamentTypeFieldsInput): Promise<number> {
-  await ensureDeclaredMaterialResolves(userId, fields.material);
+  const resolvedMaterial = await ensureDeclaredMaterialResolves(userId, fields.material, fields.density);
+  const resolvedManufacturer = await ensureDeclaredManufacturerResolves(userId, fields.manufacturer);
 
-  const manufacturer = fields.manufacturer ?? null;
+  const manufacturer = resolvedManufacturer ?? null;
+  const material = resolvedMaterial || fields.material;
   const colorCode = fields.colorCode ?? null;
   const diameter = fields.diameter ?? null;
   const printTemp = fields.printTemp ?? null;
 
   const conditions = [
     eq(filamentTypes.userId, userId),
-    eq(filamentTypes.material, fields.material),
+    eq(filamentTypes.material, material),
     eq(filamentTypes.colorName, fields.colorName),
     manufacturer !== null ? eq(filamentTypes.manufacturer, manufacturer) : isNull(filamentTypes.manufacturer),
     colorCode !== null ? eq(filamentTypes.colorCode, colorCode) : isNull(filamentTypes.colorCode),
@@ -175,7 +179,7 @@ async function findOrCreateFilamentType(userId: number, fields: FilamentTypeFiel
   const [created] = await db.insert(filamentTypes).values({
     userId,
     manufacturer,
-    material: fields.material,
+    material,
     colorName: fields.colorName,
     colorCode,
     diameter,
@@ -190,14 +194,20 @@ async function findOrCreateFilamentType(userId: number, fields: FilamentTypeFiel
 const materialInScopeFor = (userId: number) =>
   or(isNull(materials.userId), eq(materials.userId, userId));
 
+const manufacturerInScopeFor = (userId: number) =>
+  or(isNull(manufacturers.userId), eq(manufacturers.userId, userId));
+
 // A declared material that resolves to no Catalog Material is registered into
 // the declaring user's Personal Catalog, so from here on every declared material
 // resolves to a row - the point of docs/adr/0003. This fires on every path
 // through find-or-create: manual create, edit, CSV import, Spoolman import. The
-// name is stored exactly as the user typed it; density and is_hygroscopic stay
-// at their neutral defaults, and phase 2 makes the row visible to fill in or
-// delete.
-async function ensureDeclaredMaterialResolves(userId: number, declared: string): Promise<void> {
+// name is stored exactly as the user typed it; density is populated if supplied
+// (e.g. from community scan), and is_hygroscopic stays at false until updated.
+async function ensureDeclaredMaterialResolves(
+  userId: number,
+  declared: string,
+  declaredDensity?: string | number | null
+): Promise<string> {
   // Stored the way the catalog matches it, so ` PETG` and `PETG ` register one
   // row rather than two that look identical in the settings list.
   const name = catalogName(declared);
@@ -205,15 +215,50 @@ async function ensureDeclaredMaterialResolves(userId: number, declared: string):
   // Blank is not a material to register. The Spool form requires one, but an
   // import or a direct API call can leave it empty, and a nameless Catalog
   // Material sitting in the owner's settings list helps nobody.
-  if (name === "") return;
-  if (await storage.resolveMaterial(userId, name)) return;
+  if (name === "") return name;
+  const existing = await storage.resolveMaterial(userId, name);
+  if (existing) return existing.name;
+
+  const rawDensity = declaredDensity != null ? String(declaredDensity).trim() : "";
+  const density = rawDensity !== "" && /^\d+(\.\d+)?$/.test(rawDensity) && Number(rawDensity) > 0
+    ? rawDensity
+    : null;
 
   // Two concurrent requests declaring the same new material both resolve to
   // nothing and both insert; the partial unique index rejects the second. Let
   // it be a no-op rather than a 500 - the row exists either way afterwards.
   await db.insert(materials)
-    .values({ userId, name, density: null, isHygroscopic: false })
+    .values({ userId, name, density, isHygroscopic: false })
     .onConflictDoNothing();
+  return name;
+}
+
+// A declared manufacturer that resolves to no Catalog Manufacturer is registered into
+// the declaring user's Personal Catalog (docs/adr/0008). Direct creations to the shared
+// Global Catalog remain admin-only.
+async function ensureDeclaredManufacturerResolves(
+  userId: number,
+  declared: string | null | undefined
+): Promise<string | null | undefined> {
+  if (!declared) return declared;
+  const name = declared.trim();
+  if (name === "") return name;
+
+  const existing = await storage.resolveManufacturer(userId, name);
+  if (existing) return existing.name;
+
+  // Two concurrent requests declaring the same new manufacturer both resolve to
+  // nothing and both insert; the partial unique index on lower(name) rejects the second.
+  // onConflictDoNothing skips it.
+  await db.insert(manufacturers)
+    .values({ userId, name })
+    .onConflictDoNothing();
+
+  // If a concurrent request inserted the same name (or with different casing),
+  // fetch the canonical name from whoever won the race.
+  const canonical = await storage.resolveManufacturer(userId, name);
+
+  return canonical?.name ?? name;
 }
 
 // Selection shape shared by every filament read - the spool instance's own
@@ -346,7 +391,8 @@ export interface IStorage {
   touchApiTokenLastUsed(id: number): Promise<void>;
 
   // Manufacturer operations
-  getManufacturers(): Promise<Manufacturer[]>;
+  getManufacturers(userId?: number): Promise<Manufacturer[]>;
+  resolveManufacturer(userId: number, declared: string): Promise<Manufacturer | undefined>;
   createManufacturer(manufacturer: InsertManufacturer): Promise<Manufacturer>;
   deleteManufacturer(id: number): Promise<boolean>;
   updateManufacturerOrder(id: number, newOrder: number): Promise<Manufacturer | undefined>;
@@ -382,6 +428,11 @@ export interface IStorage {
   createStorageLocation(location: InsertStorageLocation): Promise<StorageLocation>;
   deleteStorageLocation(id: number): Promise<boolean>;
   updateStorageLocationOrder(id: number, newOrder: number): Promise<StorageLocation | undefined>;
+
+  // Generic term operations
+  getGenericTerms(): Promise<GenericTerm[]>;
+  createGenericTerm(term: InsertGenericTerm): Promise<GenericTerm>;
+  deleteGenericTerm(id: number): Promise<boolean>;
 }
 
 // Database Storage implementation using PostgreSQL
@@ -783,7 +834,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFilament(insertFilament: InsertFilament): Promise<Filament> {
-    const { manufacturer, material, colorName, colorCode, diameter, printTemp, ...spoolFields } = insertFilament;
+    const { manufacturer, material, colorName, colorCode, diameter, printTemp, density, ...spoolFields } = insertFilament;
     if (spoolFields.userId == null) {
       throw new Error("createFilament requires a userId");
     }
@@ -792,7 +843,7 @@ export class DatabaseStorage implements IStorage {
     if (diameter != null) diameterValueSchema.parse(diameter);
 
     const filamentTypeId = await findOrCreateFilamentType(spoolFields.userId, {
-      manufacturer, material, colorName, colorCode, diameter, printTemp,
+      manufacturer, material, colorName, colorCode, diameter, printTemp, density,
     });
     const [created] = await db.insert(filaments).values({ ...spoolFields, filamentTypeId }).returning();
 
@@ -806,7 +857,7 @@ export class DatabaseStorage implements IStorage {
       const existing = await this.getFilament(id, userId);
       if (!existing) return undefined;
 
-      const { manufacturer, material, colorName, colorCode, diameter, printTemp, ...spoolFields } = updateFilament;
+      const { manufacturer, material, colorName, colorCode, diameter, printTemp, density, ...spoolFields } = updateFilament;
       if (diameter != null) diameterValueSchema.parse(diameter);
       const typeFieldsChanged = [manufacturer, material, colorName, colorCode, diameter, printTemp]
         .some((value) => value !== undefined);
@@ -820,7 +871,12 @@ export class DatabaseStorage implements IStorage {
           colorCode: colorCode !== undefined ? colorCode : existing.colorCode,
           diameter: diameter !== undefined ? diameter : existing.diameter,
           printTemp: printTemp !== undefined ? printTemp : existing.printTemp,
+          density,
         });
+      }
+
+      if (Object.keys(dbUpdate).length === 0) {
+        return existing;
       }
 
       const [updated] = await db
@@ -951,14 +1007,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Manufacturer implementations
-  async getManufacturers(): Promise<Manufacturer[]> {
+  async getManufacturers(userId?: number): Promise<Manufacturer[]> {
+    if (userId !== undefined) {
+      return await db.select().from(manufacturers)
+        .where(manufacturerInScopeFor(userId))
+        .orderBy(sql`${manufacturers.userId} IS NOT NULL`, manufacturers.sortOrder, manufacturers.name);
+    }
     return await db.select().from(manufacturers).orderBy(manufacturers.sortOrder, manufacturers.name);
+  }
+
+  async resolveManufacturer(userId: number, declared: string): Promise<Manufacturer | undefined> {
+    const target = declared.trim().toLowerCase();
+    const rows = await db.select().from(manufacturers)
+      .where(manufacturerInScopeFor(userId))
+      // The user's own Personal Catalog row wins when a Global one also matches.
+      .orderBy(sql`${manufacturers.userId} IS NULL`);
+    return rows.find((row) => row.name.trim().toLowerCase() === target);
   }
 
   async createManufacturer(insertManufacturer: InsertManufacturer): Promise<Manufacturer> {
     const [manufacturer] = await db
       .insert(manufacturers)
-      .values(insertManufacturer)
+      .values({ ...insertManufacturer, name: insertManufacturer.name.trim() })
       .returning();
     return manufacturer;
   }
@@ -1124,6 +1194,27 @@ export class DatabaseStorage implements IStorage {
       .where(eq(storageLocations.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  // Generic term implementations
+  async getGenericTerms(): Promise<GenericTerm[]> {
+    return await db.select().from(genericTerms).orderBy(genericTerms.word);
+  }
+
+  async createGenericTerm(insertTerm: InsertGenericTerm): Promise<GenericTerm> {
+    const [term] = await db
+      .insert(genericTerms)
+      .values({ ...insertTerm, word: insertTerm.word.trim().toLowerCase() })
+      .returning();
+    return term;
+  }
+
+  async deleteGenericTerm(id: number): Promise<boolean> {
+    const [deleted] = await db
+      .delete(genericTerms)
+      .where(eq(genericTerms.id, id))
+      .returning();
+    return !!deleted;
   }
 }
 

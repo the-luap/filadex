@@ -64,7 +64,7 @@ export interface CrudEntityConfig<T extends { id: number; userId?: number | null
     parseLine: (line: string, existing: T[]) => ImportOutcome<InsertT>;
   };
   /** Whether a given filament is using this settings item (blocks delete) */
-  isInUse: (filament: Filament, item: T) => boolean;
+  isInUse?: (filament: Filament, item: T) => boolean;
   /**
    * Whether an existing row already holds what a create is asking for, so POST
    * can answer 409 instead of letting the database's unique index surface as a
@@ -217,14 +217,16 @@ export function registerCrudSettingsRoutes<T extends { id: number; userId?: numb
       // spools decide whether it is in use. Checking only the admin's own let
       // a material other people's spools referenced be deleted, and its
       // cascade took their per-material sharing rows with it.
-      const isGlobalRow = !userScoped || (item as { userId?: number | null }).userId == null;
-      const filaments = isGlobalRow
-        ? await storage.getFilamentsOfAllUsers()
-        : await storage.getFilaments(req.userId);
-      if (filaments.some((f) => isInUse(f, item))) {
-        return res.status(400).json({
-          message: `Cannot delete ${entityName} that is in use by filaments`,
-        });
+      if (isInUse) {
+        const isGlobalRow = !userScoped || (item as { userId?: number | null }).userId == null;
+        const filaments = isGlobalRow
+          ? await storage.getFilamentsOfAllUsers()
+          : await storage.getFilaments(req.userId);
+        if (filaments.some((f) => isInUse(f, item))) {
+          return res.status(400).json({
+            message: `Cannot delete ${entityName} that is in use by filaments`,
+          });
+        }
       }
 
       const success = await entityStorage.delete(id);

@@ -300,6 +300,7 @@ type FilamentTypeInsertFields = {
   colorCode?: string | null;
   diameter?: string | null;
   printTemp?: string | null;
+  density?: string | number | null;
 };
 
 export type Filament = Omit<typeof filaments.$inferSelect, "filamentTypeId"> & FilamentTypeSelectFields & {
@@ -391,6 +392,12 @@ export const filamentWriteSchema = z.object({
   material: z.string().trim().min(1, "material is required").max(100),
   colorName: z.string().max(100),
   colorCode: z.string().max(20).nullable().optional(),
+  density: z.union([
+    z.number().positive().finite().transform((n) => String(n)),
+    z.string()
+      .regex(/^\d+(\.\d+)?$/, "Density must be a positive number")
+      .refine((v) => Number(v) > 0, "Density must be a positive number"),
+  ]).nullable().optional(),
   printTemp: z.union([z.string().max(50), z.number()]).transform((v) => String(v)).optional(),
   diameter: diameterValueSchema.nullable().optional(),
   totalWeight: numberish(0),
@@ -417,10 +424,21 @@ export const userSharingSchema = z.object({
 // Neue Listen für die Einstellungen
 export const manufacturers = table("manufacturers", {
   id: t.pk("id"),
-  name: t.text("name").notNull().unique("manufacturers_name_key"),
+  name: t.text("name").notNull(),
+  userId: t.fk("user_id"), // NULL = Global Catalog; set = that user's Personal Catalog
   sortOrder: t.int("sort_order").default(999),
   createdAt: t.timestamptz("created_at").defaultNow().notNull()
-});
+}, (table) => [
+  foreignKey({
+    name: "manufacturers_user_id_fkey",
+    columns: [table.userId],
+    foreignColumns: [users.id],
+  }).onDelete("cascade"),
+  uniqueIndex("manufacturers_global_name_lower_idx")
+    .on(sql`lower(${table.name})`).where(sql`${table.userId} IS NULL`),
+  uniqueIndex("manufacturers_user_name_lower_idx")
+    .on(nullableIndexKey(table.userId), sql`lower(${table.name})`).where(sql`${table.userId} IS NOT NULL`),
+]);
 
 export const materials = table("materials", {
   id: t.pk("id"),
@@ -478,11 +496,18 @@ export const storageLocations = table("storage_locations", {
   createdAt: t.timestamptz("created_at").defaultNow().notNull()
 });
 
+export const genericTerms = table("generic_terms", {
+  id: t.pk("id"),
+  word: t.text("word").notNull().unique("generic_terms_word_key"),
+  createdAt: t.timestamptz("created_at").defaultNow().notNull()
+});
+
 // Insert-Schemas für die neuen Listen
 export const insertManufacturerSchema = createInsertSchema(manufacturers).omit({
   id: true,
   createdAt: true,
   sortOrder: true,
+  userId: true,
 });
 
 export const insertMaterialSchema = createInsertSchema(materials).omit({
@@ -518,6 +543,15 @@ export const insertStorageLocationSchema = createInsertSchema(storageLocations).
   sortOrder: true,
 });
 
+export const insertGenericTermSchema = createInsertSchema(genericTerms)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    word: z.string().trim().min(1, "Word is required"),
+  });
+
 // Typen für die neuen Listen
 export type InsertManufacturer = z.infer<typeof insertManufacturerSchema>;
 export type Manufacturer = typeof manufacturers.$inferSelect;
@@ -552,6 +586,9 @@ export type Diameter = typeof diameters.$inferSelect;
 
 export type InsertStorageLocation = z.infer<typeof insertStorageLocationSchema>;
 export type StorageLocation = typeof storageLocations.$inferSelect;
+
+export type InsertGenericTerm = z.infer<typeof insertGenericTermSchema>;
+export type GenericTerm = typeof genericTerms.$inferSelect;
 
 // User sharing settings
 export const userSharing = table("user_sharing", {

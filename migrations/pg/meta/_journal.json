@@ -78,6 +78,20 @@
       "when": 1788885572561,
       "tag": "0010_jazzy_korvac",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789140398563,
+      "tag": "0011_wonderful_wild_pack",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789142003300,
+      "tag": "0012_slow_plazm",
+      "breakpoints": true
     }
   ]
 }

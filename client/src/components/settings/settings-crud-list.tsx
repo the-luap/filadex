@@ -42,7 +42,7 @@ export interface SettingsCrudListConfig<T extends { id: number }, FormValues ext
   /** API path, e.g. "/api/manufacturers" */
   endpoint: string;
   /** Entity type sent to /api/catalog-requests when a non-admin submits a request instead of adding directly */
-  entityType: CatalogRequestEntityType;
+  entityType?: CatalogRequestEntityType;
   schema: (t: (key: string) => string) => ZodType<FormValues>;
   defaultValues: FormValues;
   /** Whether items can be drag-reordered via a `${endpoint}/:id/order` PATCH endpoint (table layout only) */
@@ -88,7 +88,8 @@ export function SettingsCrudList<T extends { id: number }, FormValues extends Re
 
   const { t } = useTranslation();
   const { isAdmin } = useAuth();
-  const label = (suffix: string) => t(`settings.${entityKey}.${suffix}`);
+  const normalizedKey = entityKey.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  const label = (suffix: string) => t(`settings.${normalizedKey}.${suffix}`);
   const canReorder = reorderable && isAdmin;
   const canDeleteItem = canDelete ?? (() => isAdmin);
 
@@ -248,7 +249,7 @@ export function SettingsCrudList<T extends { id: number }, FormValues extends Re
                     <AlertDialogHeader>
                       <AlertDialogTitle>{label("deleteAllConfirmTitle")}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        {t(`settings.${entityKey}.deleteAllConfirmDescription`, { count: items.length })}
+                        {t(`settings.${normalizedKey}.deleteAllConfirmDescription`, { count: items.length })}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

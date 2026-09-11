@@ -15,7 +15,7 @@ import { registerAuthRoutes } from "../../server/routes/auth";
 import { registerSettingsRoutes } from "../../server/routes/settings";
 import { storage } from "../../server/storage";
 import { db } from "../helpers/db";
-import { materials, users } from "../../shared/schema";
+import { manufacturers, materials, users } from "../../shared/schema";
 import { createApp, loginAs, registerAndVerify, bootstrapAdmin } from "../helpers/app";
 
 let app: Express;
@@ -402,13 +402,19 @@ describe("dismissing the needs-attention flag", () => {
 });
 
 describe("the non-scoped entities go through the same factory unchanged", () => {
-  it("lets any authenticated user list manufacturers", async () => {
+  it("shows a non-admin the Global Catalog plus their own Personal Catalog, and no one else's", async () => {
     await storage.createManufacturer({ name: "Bambu Lab" });
     const alice = await newUser("alice");
+    const bob = await newUser("bob");
+    await db.insert(manufacturers).values([
+      { userId: alice.id, name: "AliceMfg" },
+      { userId: bob.id, name: "BobMfg" },
+    ]);
 
     const res = await request(app).get("/api/manufacturers").set("Cookie", alice.cookie);
 
-    expect(names(res.body)).toEqual(["Bambu Lab"]);
+    expect(res.status).toBe(200);
+    expect(names(res.body)).toEqual(["AliceMfg", "Bambu Lab"]);
   });
 
   it("still refuses a non-admin creating a manufacturer", async () => {
@@ -419,13 +425,44 @@ describe("the non-scoped entities go through the same factory unchanged", () => 
     expect(res.status).toBe(403);
   });
 
-  it("still refuses a non-admin deleting a manufacturer", async () => {
+  it("still refuses a non-admin deleting a Global manufacturer", async () => {
     const manufacturer = await storage.createManufacturer({ name: "Bambu Lab" });
     const alice = await newUser("alice");
 
     const res = await request(app).delete(`/api/manufacturers/${manufacturer.id}`).set("Cookie", alice.cookie);
 
     expect(res.status).toBe(403);
+  });
+
+  it("lets a user delete a manufacturer in their own Personal Catalog", async () => {
+    const alice = await newUser("alice");
+    const [row] = await db.insert(manufacturers).values({ userId: alice.id, name: "MyBrand" }).returning();
+
+    const res = await request(app).delete(`/api/manufacturers/${row.id}`).set("Cookie", alice.cookie);
+
+    expect(res.status).toBe(204);
+    const remaining = await db.select().from(manufacturers).where(eq(manufacturers.id, row.id));
+    expect(remaining).toHaveLength(0);
+  });
+
+  it("does not let a user reach or delete another user's Personal Catalog manufacturer", async () => {
+    const alice = await newUser("alice");
+    const bob = await newUser("bob");
+    const [bobRow] = await db.insert(manufacturers).values({ userId: bob.id, name: "BobBrand" }).returning();
+
+    const res = await request(app).delete(`/api/manufacturers/${bobRow.id}`).set("Cookie", alice.cookie);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("refuses creating duplicate manufacturer (case-insensitive) with 409", async () => {
+    await storage.createManufacturer({ name: "Prusa" });
+
+    const resExact = await request(app).post("/api/manufacturers").set("Cookie", adminCookie).send({ name: "Prusa" });
+    expect(resExact.status).toBe(409);
+
+    const resCase = await request(app).post("/api/manufacturers").set("Cookie", adminCookie).send({ name: "prusa" });
+    expect(resCase.status).toBe(409);
   });
 });
 
@@ -496,7 +533,6 @@ describe("catalog matching agrees across dialects", () => {
 // makes two colours the same is a product question rather than a bug.
 describe("duplicate creates on the exact-match settings entities", () => {
   const cases = [
-    { label: "manufacturer", path: "/api/manufacturers", create: (name: string) => storage.createManufacturer({ name }) },
     { label: "storage location", path: "/api/storage-locations", create: (name: string) => storage.createStorageLocation({ name }) },
   ];
 

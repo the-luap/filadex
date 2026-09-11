@@ -13,5 +13,6 @@ export { ImportExportCard } from "./settings-import-export-card";
 export { EmailSettingsCard } from "./settings-email";
 export { CatalogRequestsReview } from "./settings-catalog-requests";
 export { BackupsSettings } from "./settings-backups";
+export { GenericTermsList } from "./settings-generic-terms";
 export * from "./settings-types";
 

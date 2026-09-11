@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Filament, type CommunityCatalogItem } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -131,6 +131,14 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -157,6 +165,7 @@ import { QRScanner } from "./qr-scanner";
 import { NFCScanner } from "./nfc-scanner";
 import { useUnits } from "@/lib/use-units";
 import { formatCurrency, getTemperatureUnitSymbol } from "@/lib/units";
+import { findSimilarManufacturers, findSimilarMaterials } from "@shared/similarity";
 
 // Create a custom schema for the form with translations
 const createFormSchema = (t: (key: string) => string) => z.object({
@@ -164,7 +173,7 @@ const createFormSchema = (t: (key: string) => string) => z.object({
   manufacturer: z.string().optional(),
   material: z.string().min(1, t('filaments.materialRequired')),
   colorName: z.string().min(1, t('filaments.colorRequired')),
-  colorCode: z.string().optional(),
+  colorCode: z.string().max(20).optional().nullable(),
   diameter: z.number().optional(),
   printTemp: z.string().optional(),
   totalWeight: z.number().min(0.1, t('filaments.weightRequired')),
@@ -177,6 +186,12 @@ const createFormSchema = (t: (key: string) => string) => z.object({
   lastDryingDate: z.date().optional(),
   storageLocation: z.string().optional(),
   barcode: z.string().optional(),
+  density: z.union([
+    z.number().positive(),
+    z.string()
+      .regex(/^\d+(\.\d+)?$/, t('settings.materials.invalidDensity') || 'Density must be a positive number')
+      .refine((v) => Number(v) > 0, t('settings.materials.invalidDensity') || 'Density must be a positive number'),
+  ]).optional().nullable(),
 });
 
 // This will be defined in the component
@@ -213,6 +228,33 @@ interface Material {
 
 export type CommunityFilamentResult = CommunityCatalogItem;
 
+export function normalizeHexColor(raw: string | null | undefined): string {
+  if (!raw) return "";
+  let hex = raw.trim();
+  if (!hex) return "";
+  if (!hex.startsWith("#")) hex = "#" + hex;
+  // 3-digit hex: #RGB -> #RRGGBB
+  if (/^#[0-9A-Fa-f]{3}$/.test(hex)) {
+    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`.toUpperCase();
+  }
+  // 4-digit hex: #RGBA -> #RRGGBB
+  if (/^#[0-9A-Fa-f]{4}$/.test(hex)) {
+    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`.toUpperCase();
+  }
+  // 8-digit hex: #RRGGBBAA -> #RRGGBB
+  if (/^#[0-9A-Fa-f]{8}$/.test(hex)) {
+    return hex.slice(0, 7).toUpperCase();
+  }
+  if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+    return hex.toUpperCase();
+  }
+  return hex;
+}
+
+export function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 interface CustomFieldDefinition {
   id: number;
   name: string;
@@ -248,6 +290,14 @@ export function FilamentModal({
   const [usageNote, setUsageNote] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
+  const [similarManufacturerPrompt, setSimilarManufacturerPrompt] = useState<{
+    scannedManufacturer: string;
+    similar: { id?: number; name: string }[];
+  } | null>(null);
+  const [similarMaterialPrompt, setSimilarMaterialPrompt] = useState<{
+    scannedMaterial: string;
+    similar: { id?: number; name: string }[];
+  } | null>(null);
   const [communitySearchQuery, setCommunitySearchQuery] = useState("");
   const [catalogSource, setCatalogSource] = useState<"ofd" | "spoolmandb">(() => {
     if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
@@ -310,6 +360,16 @@ export function FilamentModal({
     enabled: isOpen
   });
 
+  const allAvailableMaterials = useMemo(() => {
+    const list: { id?: number; name: string }[] = materials.map((m) => ({ id: m.id, name: m.name }));
+    for (const mt of materialTypes) {
+      if (!list.some((existing) => existing.name.toLowerCase() === mt.value.toLowerCase())) {
+        list.push({ name: mt.value });
+      }
+    }
+    return list;
+  }, [materials, materialTypes]);
+
   const { data: diameters = [] } = useQuery({
     queryKey: ['/api/diameters'],
     queryFn: () => apiRequest<{id: number, value: string}[]>('/api/diameters'),
@@ -326,6 +386,17 @@ export function FilamentModal({
   // Extract storage location names
   const storageLocations = storageLocationData.map(loc => loc.name);
 
+  const { data: genericTermsData = [] } = useQuery({
+    queryKey: ["/api/generic-terms"],
+    queryFn: () => apiRequest<{ id: number; word: string }[]>("/api/generic-terms"),
+    enabled: isOpen,
+  });
+
+  const genericStopWords = useMemo(
+    () => new Set(genericTermsData.map((t) => t.word)),
+    [genericTermsData]
+  );
+
   // Setup form with default values or editing values
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -334,7 +405,7 @@ export function FilamentModal({
       manufacturer: filament?.manufacturer || "",
       material: filament?.material || "",
       colorName: filament?.colorName || "",
-      colorCode: filament?.colorCode || "#000000",
+      colorCode: normalizeHexColor(filament?.colorCode) || "#000000",
       diameter: filament?.diameter ? Number(filament.diameter) : 1.75,
       printTemp: filament?.printTemp || "",
       totalWeight: filament?.totalWeight ? Number(filament.totalWeight) : 1,
@@ -346,19 +417,29 @@ export function FilamentModal({
       dryerCount: filament?.dryerCount || 0,
       lastDryingDate: filament?.lastDryingDate ? new Date(filament.lastDryingDate) : undefined,
       storageLocation: filament?.storageLocation || "",
-      barcode: filament?.barcode || ""
+      barcode: filament?.barcode || "",
+      density: undefined,
     },
   });
 
   // Update form when filament changes
   useEffect(() => {
     if (filament) {
+      const matchingMaterial = materials.find(m => m.name.toLowerCase() === filament.material.toLowerCase())
+        || materialTypes.find(m => m.value.toLowerCase() === filament.material.toLowerCase());
+      const canonicalMaterial = matchingMaterial ? ((matchingMaterial as any).name || (matchingMaterial as any).value) : filament.material;
+
+      const matchingMfg = filament.manufacturer
+        ? manufacturers.find(m => m.name.toLowerCase() === filament.manufacturer!.toLowerCase())
+        : undefined;
+      const canonicalMfg = matchingMfg ? matchingMfg.name : (filament.manufacturer || "");
+
       form.reset({
         name: filament.name,
-        manufacturer: filament.manufacturer || "",
-        material: filament.material,
+        manufacturer: canonicalMfg,
+        material: canonicalMaterial,
         colorName: filament.colorName,
-        colorCode: filament.colorCode || "#000000",
+        colorCode: normalizeHexColor(filament.colorCode) || "#000000",
         diameter: Number(filament.diameter),
         printTemp: filament.printTemp || "",
         totalWeight: Number(filament.totalWeight),
@@ -370,7 +451,8 @@ export function FilamentModal({
         dryerCount: filament.dryerCount || 0,
         lastDryingDate: filament.lastDryingDate ? new Date(filament.lastDryingDate) : undefined,
         storageLocation: filament.storageLocation || "",
-        barcode: filament.barcode || ""
+        barcode: filament.barcode || "",
+        density: undefined,
       });
 
       setRemainingPercentage(Number(filament.remainingPercentage));
@@ -398,7 +480,8 @@ export function FilamentModal({
         dryerCount: 0,
         lastDryingDate: undefined,
         storageLocation: "",
-        barcode: ""
+        barcode: "",
+        density: undefined,
       });
       setRemainingPercentage(100);
       setTotalWeight(1);
@@ -407,6 +490,8 @@ export function FilamentModal({
     setUsageNote("");
     setShowHistory(false);
     setCustomFieldValues((filament?.customFieldValues as Record<string, any>) || {});
+    // Only synchronize form state when the active filament changes to avoid overwriting user edits on query refetches
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filament, form]);
 
   // Handle form submission
@@ -422,17 +507,52 @@ export function FilamentModal({
 
   // Pre-fill the form from a picked community database entry
   const handleUseCommunityResult = (result: CommunityFilamentResult) => {
-    form.setValue('manufacturer', result.manufacturer);
-    form.setValue('material', result.material);
+    let resolvedManufacturer = result.manufacturer;
+    if (result.manufacturer) {
+      const match = findSimilarManufacturers(result.manufacturer, manufacturers, genericStopWords);
+      if (match.exactMatch) {
+        resolvedManufacturer = match.exactMatch.name;
+        form.setValue('manufacturer', resolvedManufacturer);
+      } else if (match.similarMatches.length > 0) {
+        resolvedManufacturer = result.manufacturer;
+        form.setValue('manufacturer', resolvedManufacturer);
+        setSimilarManufacturerPrompt({
+          scannedManufacturer: result.manufacturer,
+          similar: match.similarMatches,
+        });
+      } else {
+        form.setValue('manufacturer', resolvedManufacturer);
+      }
+    } else {
+      form.setValue('manufacturer', '');
+    }
+
+    if (result.material) {
+      const matMatch = findSimilarMaterials(result.material, allAvailableMaterials, genericStopWords);
+      if (matMatch.exactMatch) {
+        form.setValue('material', matMatch.exactMatch.name);
+      } else if (matMatch.similarMatches.length > 0) {
+        form.setValue('material', result.material);
+        setSimilarMaterialPrompt({
+          scannedMaterial: result.material,
+          similar: matMatch.similarMatches,
+        });
+      } else {
+        form.setValue('material', result.material);
+      }
+    } else {
+      form.setValue('material', '');
+    }
     form.setValue('colorName', result.colorName);
-    if (result.colorCode) form.setValue('colorCode', result.colorCode);
+    if (result.colorCode) form.setValue('colorCode', normalizeHexColor(result.colorCode));
+    if (result.density) form.setValue('density', result.density);
     if (result.diameter) form.setValue('diameter', Number(result.diameter));
     if (result.extruderTemp) {
       form.setValue('printTemp', result.bedTemp
         ? `${result.extruderTemp}°C / Bed ${result.bedTemp}°C`
         : `${result.extruderTemp}°C`);
     }
-    const mfgText = result.manufacturer ? ` (${result.manufacturer})` : '';
+    const mfgText = resolvedManufacturer ? ` (${resolvedManufacturer})` : '';
     const cleanName = result.colorName && result.name.toLowerCase().includes(result.colorName.toLowerCase())
       ? result.name
       : `${result.name} ${result.colorName || ''}`.trim();
@@ -464,10 +584,10 @@ export function FilamentModal({
     const materialName = form.watch('material');
     const density = materials.find((m) => m.name === materialName)?.density;
     const diameterMm = form.watch('diameter');
-    if (!density || !diameterMm) return null;
+    const densityGCm3 = Number(density);
+    if (!density || isNaN(densityGCm3) || densityGCm3 <= 0 || !diameterMm) return null;
 
     const remainingWeightGrams = Number(calculateRemainingWeight()) * 1000;
-    const densityGCm3 = Number(density);
     const radiusCm = (diameterMm / 10) / 2;
     const crossSectionAreaCm2 = Math.PI * radiusCm * radiusCm;
     const lengthCm = (remainingWeightGrams / densityGCm3) / crossSectionAreaCm2;
@@ -502,10 +622,37 @@ export function FilamentModal({
     if (!data.name || !data.material) return;
 
     form.setValue('name', data.name);
-    if (data.manufacturer) form.setValue('manufacturer', data.manufacturer);
-    if (data.material) form.setValue('material', data.material);
+    if (data.manufacturer) {
+      const match = findSimilarManufacturers(data.manufacturer, manufacturers, genericStopWords);
+      if (match.exactMatch) {
+        form.setValue('manufacturer', match.exactMatch.name);
+      } else if (match.similarMatches.length > 0) {
+        form.setValue('manufacturer', data.manufacturer);
+        setSimilarManufacturerPrompt({
+          scannedManufacturer: data.manufacturer,
+          similar: match.similarMatches,
+        });
+      } else {
+        form.setValue('manufacturer', data.manufacturer);
+      }
+    }
+    if (data.material) {
+      const matMatch = findSimilarMaterials(data.material, allAvailableMaterials, genericStopWords);
+      if (matMatch.exactMatch) {
+        form.setValue('material', matMatch.exactMatch.name);
+      } else if (matMatch.similarMatches.length > 0) {
+        form.setValue('material', data.material);
+        setSimilarMaterialPrompt({
+          scannedMaterial: data.material,
+          similar: matMatch.similarMatches,
+        });
+      } else {
+        form.setValue('material', data.material);
+      }
+    }
     if (data.colorName) form.setValue('colorName', data.colorName);
-    if (data.colorCode) form.setValue('colorCode', data.colorCode);
+    if (data.colorCode) form.setValue('colorCode', normalizeHexColor(data.colorCode));
+    if (data.density) form.setValue('density', data.density);
     if (data.diameter) form.setValue('diameter', Number(data.diameter));
     if (data.printTemp) form.setValue('printTemp', data.printTemp);
     if (data.barcode) form.setValue('barcode', data.barcode);
@@ -836,6 +983,12 @@ export function FilamentModal({
                               {manufacturer.name}
                             </SelectItem>
                           ))}
+                          {Boolean(field.value) &&
+                            !manufacturers.some(m => m.name === field.value) && (
+                              <SelectItem key={field.value} value={field.value!}>
+                                {field.value}
+                              </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -896,12 +1049,26 @@ export function FilamentModal({
                               {material.name}
                             </SelectItem>
                           ))}
-                          {/* Add predefined material types */}
-                          {materialTypes.map((material) => (
-                            <SelectItem key={material.value} value={material.value}>
-                              {material.label}
-                            </SelectItem>
-                          ))}
+                          {/* Add predefined material types that don't already exist in database */}
+                          {materialTypes
+                            .filter(predefined =>
+                              !materials.some(dbMat =>
+                                dbMat.name.toLowerCase() === predefined.value.toLowerCase() ||
+                                dbMat.name.toLowerCase() === predefined.label.toLowerCase()
+                              )
+                            )
+                            .map((material) => (
+                              <SelectItem key={material.value} value={material.value}>
+                                {material.label}
+                              </SelectItem>
+                            ))}
+                          {Boolean(field.value) &&
+                            !materials.some(m => m.name === field.value) &&
+                            !materialTypes.some(m => m.value === field.value) && (
+                              <SelectItem key={field.value} value={field.value!}>
+                                {field.value}
+                              </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -918,15 +1085,15 @@ export function FilamentModal({
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value);
-                          // Automatically set color code
-                          const colorObj = colors.find(c => c.name === value);
+                          // Automatically set color code from database or predefined colors
+                          const colorObj = colors.find(c => c.name === value) || colorsList.find(c => c.name === value);
                           if (colorObj) {
-                            form.setValue('colorCode', colorObj.code);
+                            form.setValue('colorCode', colorObj.code, { shouldValidate: true, shouldDirty: true });
                           }
                           // Automatically update name if material and color are present
                           const material = form.getValues('material');
                           const manufacturer = form.getValues('manufacturer');
-                          if (material && value) {
+                          if (material && value && value !== "Custom") {
                             const mfgText = manufacturer ? ` ${manufacturer}` : '';
                             form.setValue('name', `${material} ${value}${mfgText}`);
                           }
@@ -1020,21 +1187,23 @@ export function FilamentModal({
                     <FormItem className="md:col-span-2">
                       <FormLabel>{t('filaments.colorCode')}</FormLabel>
                       <FormControl>
-                        <div className="flex">
+                        <div className="flex items-center">
                           <Input
                             type="color"
-                            className="h-10 w-10 p-0.5 border border-neutral-200 rounded-md cursor-pointer"
-                            {...field}
+                            title={t('filaments.colorCode')}
+                            className="h-10 w-10 p-0.5 border border-neutral-200 rounded-md cursor-pointer shrink-0"
+                            value={field.value && /^#[0-9A-Fa-f]{6}$/.test(field.value) ? field.value : "#000000"}
+                            onChange={(e) => {
+                              field.onChange(e.target.value);
+                            }}
                           />
                           <Input
                             className="flex-grow ml-2"
                             placeholder="#000000"
-                            value={field.value}
+                            aria-label={t('filaments.colorCode')}
+                            value={field.value || ""}
                             onChange={(e) => {
-                              // Validate hex color code format
-                              if (e.target.value.match(/^#[0-9A-F]{6}$/i) || e.target.value === "") {
-                                field.onChange(e.target.value);
-                              }
+                              field.onChange(e.target.value);
                             }}
                           />
                         </div>
@@ -1565,6 +1734,133 @@ export function FilamentModal({
           </div>
         </DialogContent>
       </Dialog>
+
+      {similarManufacturerPrompt && (
+        <AlertDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setSimilarManufacturerPrompt(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('scanner.similarManufacturerTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('scanner.similarManufacturerDescription', {
+                  scanned: similarManufacturerPrompt.scannedManufacturer,
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex flex-col gap-2 my-2 max-h-[50vh] overflow-y-auto pr-1">
+              <Button
+                variant="outline"
+                className="justify-start text-left h-auto py-2 px-3 whitespace-normal"
+                onClick={() => {
+                  form.setValue('manufacturer', similarManufacturerPrompt.scannedManufacturer);
+                  setSimilarManufacturerPrompt(null);
+                }}
+              >
+                {t('scanner.createNewManufacturer', { name: similarManufacturerPrompt.scannedManufacturer })}
+              </Button>
+              {similarManufacturerPrompt.similar.map((sim) => (
+                <Button
+                  key={sim.id ?? sim.name}
+                  variant="secondary"
+                  className="justify-start text-left h-auto py-2 px-3 whitespace-normal"
+                  onClick={() => {
+                    form.setValue('manufacturer', sim.name);
+                    const currentName = form.getValues('name');
+                    const scanned = similarManufacturerPrompt.scannedManufacturer;
+                    const bStart = /^\w/.test(scanned) ? '\\b' : '';
+                    const bEnd = /\w$/.test(scanned) ? '\\b' : '';
+                    const pattern = new RegExp(`${bStart}${escapeRegex(scanned)}${bEnd}`, 'gi');
+                    if (pattern.test(currentName)) {
+                      pattern.lastIndex = 0;
+                      form.setValue('name', currentName.replace(pattern, () => sim.name));
+                    }
+                    setSimilarManufacturerPrompt(null);
+                  }}
+                >
+                  {t('scanner.useExistingManufacturer', { name: sim.name })}
+                </Button>
+              ))}
+            </div>
+            <AlertDialogFooter>
+              <Button
+                variant="ghost"
+                onClick={() => setSimilarManufacturerPrompt(null)}
+              >
+                {t('common.cancel')}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {!similarManufacturerPrompt && similarMaterialPrompt && (
+        <AlertDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setSimilarMaterialPrompt(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('scanner.similarMaterialTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('scanner.similarMaterialDescription', {
+                  scanned: similarMaterialPrompt.scannedMaterial,
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex flex-col gap-2 my-2 max-h-[50vh] overflow-y-auto pr-1">
+              <Button
+                variant="outline"
+                className="justify-start text-left h-auto py-2 px-3 whitespace-normal"
+                onClick={() => {
+                  form.setValue('material', similarMaterialPrompt.scannedMaterial);
+                  setSimilarMaterialPrompt(null);
+                }}
+              >
+                {t('scanner.createNewMaterial', { name: similarMaterialPrompt.scannedMaterial })}
+              </Button>
+              {similarMaterialPrompt.similar.map((sim) => (
+                <Button
+                  key={sim.id ?? sim.name}
+                  variant="secondary"
+                  className="justify-start text-left h-auto py-2 px-3 whitespace-normal"
+                  onClick={() => {
+                    form.setValue('material', sim.name);
+                    if (!form.getValues('printTemp') && sim.name in PRINT_TEMPERATURES) {
+                      form.setValue('printTemp', PRINT_TEMPERATURES[sim.name as keyof typeof PRINT_TEMPERATURES]);
+                    }
+                    const currentName = form.getValues('name');
+                    const scanned = similarMaterialPrompt.scannedMaterial;
+                    const bStart = /^\w/.test(scanned) ? '\\b' : '';
+                    const bEnd = /\w$/.test(scanned) ? '\\b' : '';
+                    const pattern = new RegExp(`${bStart}${escapeRegex(scanned)}${bEnd}`, 'gi');
+                    if (pattern.test(currentName)) {
+                      pattern.lastIndex = 0;
+                      form.setValue('name', currentName.replace(pattern, () => sim.name));
+                    }
+                    setSimilarMaterialPrompt(null);
+                  }}
+                >
+                  {t('scanner.useExistingMaterial', { name: sim.name })}
+                </Button>
+              ))}
+            </div>
+            <AlertDialogFooter>
+              <Button
+                variant="ghost"
+                onClick={() => setSimilarMaterialPrompt(null)}
+              >
+                {t('common.cancel')}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 }

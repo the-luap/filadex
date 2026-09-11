@@ -17,6 +17,7 @@ import {
   CatalogRequestsReview,
   BackupsSettings
 } from "./settings";
+import { GenericTermsList } from "./settings/settings-generic-terms";
 import { useAuth } from "@/lib/auth";
 import {
   Tabs,
@@ -112,6 +113,9 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: SettingsDialo
               {isAdmin && (
                 <TabsTrigger value="community-filaments" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.communityFilaments.title')}</TabsTrigger>
               )}
+              {isAdmin && (
+                <TabsTrigger value="generic-terms" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.genericTerms.title')}</TabsTrigger>
+              )}
               {isAdmin && isSqlite && (
                 <TabsTrigger value="backups" className="text-xs sm:text-sm whitespace-nowrap">{t('settings.backups.title')}</TabsTrigger>
               )}
@@ -175,6 +179,12 @@ export function SettingsDialog({ open, onOpenChange, initialTab }: SettingsDialo
           {isAdmin && (
             <TabsContent value="community-filaments">
               <CommunityFilamentsSettings />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="generic-terms">
+              <GenericTermsList />
             </TabsContent>
           )}
 

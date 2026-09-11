@@ -17,6 +17,7 @@ export interface CatalogRequest {
 export interface Manufacturer {
   id: number;
   name: string;
+  userId?: number | null;
   createdAt: string;
 }
 
@@ -53,6 +54,12 @@ export interface StorageLocation {
   createdAt: string;
 }
 
+export interface GenericTerm {
+  id: number;
+  word: string;
+  createdAt: string;
+}
+
 // Validation schemas with translations
 export const createManufacturerSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('settings.manufacturers.nameRequired'))
@@ -75,5 +82,9 @@ export const createDiameterSchema = (t: (key: string) => string) => z.object({
 
 export const createStorageLocationSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('settings.storageLocations.nameRequired'))
+});
+
+export const createGenericTermSchema = (t: (key: string) => string) => z.object({
+  word: z.string().min(1, t('settings.genericTerms.wordRequired'))
 });
 
