@@ -26,6 +26,7 @@ import {
   filamentUsageLog,
   customFieldDefinitions,
   apiTokens,
+  genericTerms,
 } from "@shared/schema";
 
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -82,6 +83,27 @@ async function seedStarter(): Promise<void> {
 
   console.log("Basic starter selection options inserted.");
 }
+
+async function seedGenericTerms(): Promise<void> {
+  // Don't re-seed if any row has ever existed — even if the admin deleted them
+  // all. Auto-increment IDs are never reused, so max(id) > 0 means the table
+  // was populated at some point.
+  const [{ maxId }] = await db.select({ maxId: sql<number>`coalesce(max(${genericTerms.id}), 0)` }).from(genericTerms);
+  if (Number(maxId) > 0) {
+    return;
+  }
+
+  console.log("Adding default generic terms for similarity matching...");
+  const defaults = [
+    "lab", "labs", "filament", "filaments", "3d", "polymers",
+    "material", "materials", "printing", "print", "studio", "maker",
+  ];
+  await db.insert(genericTerms)
+    .values(defaults.map((word) => ({ word })))
+    .onConflictDoNothing();
+  console.log(`Inserted ${defaults.length} default generic terms.`);
+}
+
 
 /**
  * The four sample spools init-data.ts created under INIT_SAMPLE_DATA, kept on
@@ -311,6 +333,7 @@ async function main() {
     // run, so the run that seeds them is a later one, against a catalog that
     // already exists.
     await seedSampleSpools();
+    await seedGenericTerms();
   }
 }
 
