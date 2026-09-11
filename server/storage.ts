@@ -6,6 +6,7 @@ import {
   colors, type Color, type InsertColor,
   diameters, type Diameter, type InsertDiameter,
   storageLocations, type StorageLocation, type InsertStorageLocation,
+  genericTerms, type GenericTerm, type InsertGenericTerm,
   filamentUsageLog, type FilamentUsageLog,
   customFieldDefinitions, type CustomFieldDefinition, type InsertCustomFieldDefinition,
   apiTokens, type ApiToken
@@ -413,6 +414,11 @@ export interface IStorage {
   createStorageLocation(location: InsertStorageLocation): Promise<StorageLocation>;
   deleteStorageLocation(id: number): Promise<boolean>;
   updateStorageLocationOrder(id: number, newOrder: number): Promise<StorageLocation | undefined>;
+
+  // Generic term operations
+  getGenericTerms(): Promise<GenericTerm[]>;
+  createGenericTerm(term: InsertGenericTerm): Promise<GenericTerm>;
+  deleteGenericTerm(id: number): Promise<boolean>;
 }
 
 // Database Storage implementation using PostgreSQL
@@ -1155,6 +1161,27 @@ export class DatabaseStorage implements IStorage {
       .where(eq(storageLocations.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  // Generic term implementations
+  async getGenericTerms(): Promise<GenericTerm[]> {
+    return await db.select().from(genericTerms).orderBy(genericTerms.word);
+  }
+
+  async createGenericTerm(insertTerm: InsertGenericTerm): Promise<GenericTerm> {
+    const [term] = await db
+      .insert(genericTerms)
+      .values({ ...insertTerm, word: insertTerm.word.trim().toLowerCase() })
+      .returning();
+    return term;
+  }
+
+  async deleteGenericTerm(id: number): Promise<boolean> {
+    const [deleted] = await db
+      .delete(genericTerms)
+      .where(eq(genericTerms.id, id))
+      .returning();
+    return !!deleted;
   }
 }
 

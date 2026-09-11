@@ -7,11 +7,13 @@ import {
   insertColorSchema,
   insertDiameterSchema,
   insertStorageLocationSchema,
+  insertGenericTermSchema,
   type Manufacturer,
   type Material,
   type Color,
   type Diameter,
   type StorageLocation,
+  type GenericTerm,
   type Filament,
 } from "@shared/schema";
 import { parseCSVLine, escapeCsvField } from "../utils/csv-parser";
@@ -219,5 +221,33 @@ export function registerSettingsRoutes(app: Express): void {
     // Exact match, matching storage_locations_name_key - same reasoning as
     // manufacturers above, including why it is neither caseless nor trimmed.
     duplicateOf: (item, data) => item.name === data.name,
+  });
+
+  registerCrudSettingsRoutes<GenericTerm, { word: string }>(app, {
+    entityName: "generic term",
+    basePath: "/api/generic-terms",
+    csvFilename: "generic-terms.csv",
+    insertSchema: insertGenericTermSchema,
+    storage: {
+      getAll: () => storage.getGenericTerms(),
+      create: (data) => storage.createGenericTerm(data),
+      delete: (id) => storage.deleteGenericTerm(id),
+    },
+    csv: {
+      exportHeader: "word",
+      exportRow: (item) => `${escapeCsvField(item.word)}\n`,
+      isHeaderRow: (line) => /word|term|generic/i.test(line),
+      parseLine: (line, existing) => {
+        const [rawWord] = parseCSVLine(line);
+        const word = rawWord?.trim().toLowerCase();
+        if (!word) return { kind: "skip" };
+        if (existing.some((e) => e.word.toLowerCase() === word)) {
+          return { kind: "duplicate" };
+        }
+        return { kind: "create", data: { word } };
+      },
+    },
+    isInUse: () => false,
+    duplicateOf: (item, data) => item.word === data.word.trim().toLowerCase(),
   });
 }

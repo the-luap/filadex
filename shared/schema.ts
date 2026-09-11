@@ -480,6 +480,12 @@ export const storageLocations = table("storage_locations", {
   createdAt: t.timestamptz("created_at").defaultNow().notNull()
 });
 
+export const genericTerms = table("generic_terms", {
+  id: t.pk("id"),
+  word: t.text("word").notNull().unique("generic_terms_word_key"),
+  createdAt: t.timestamptz("created_at").defaultNow().notNull()
+});
+
 // Insert-Schemas für die neuen Listen
 export const insertManufacturerSchema = createInsertSchema(manufacturers).omit({
   id: true,
@@ -520,6 +526,11 @@ export const insertStorageLocationSchema = createInsertSchema(storageLocations).
   sortOrder: true,
 });
 
+export const insertGenericTermSchema = createInsertSchema(genericTerms).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Typen für die neuen Listen
 export type InsertManufacturer = z.infer<typeof insertManufacturerSchema>;
 export type Manufacturer = typeof manufacturers.$inferSelect;
@@ -554,6 +565,9 @@ export type Diameter = typeof diameters.$inferSelect;
 
 export type InsertStorageLocation = z.infer<typeof insertStorageLocationSchema>;
 export type StorageLocation = typeof storageLocations.$inferSelect;
+
+export type InsertGenericTerm = z.infer<typeof insertGenericTermSchema>;
+export type GenericTerm = typeof genericTerms.$inferSelect;
 
 // User sharing settings
 export const userSharing = table("user_sharing", {
