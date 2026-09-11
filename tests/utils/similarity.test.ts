@@ -96,3 +96,34 @@ describe("levenshteinDistance", () => {
     expect(levenshteinDistance("polymaker", "polymakr")).toBe(1);
   });
 });
+
+describe("stop words filtering", () => {
+  const stopWords = new Set(["lab", "filament"]);
+
+  it("does not match on a generic token when it is a stop word", () => {
+    const result = findSimilarManufacturers("Bambu Lab", [{ name: "Form Lab" }], stopWords);
+    expect(result.similarMatches).toHaveLength(0);
+  });
+
+  it("still matches on non-stop-word tokens", () => {
+    const result = findSimilarManufacturers("Bambu Lab", [{ name: "Bambu Studio" }], stopWords);
+    expect(result.similarMatches.length).toBeGreaterThan(0);
+  });
+
+  it("still matches via other similarity rules (alphanumeric, prefix, levenshtein)", () => {
+    const result = findSimilarManufacturers("Prusament", [{ name: "Prusa" }], stopWords);
+    expect(result.similarMatches.length).toBeGreaterThan(0);
+  });
+
+  it("works with no stop words (backward compatible)", () => {
+    const result = findSimilarManufacturers("Bambu Lab", [{ name: "Form Lab" }]);
+    expect(result.similarMatches.length).toBeGreaterThan(0);
+  });
+
+  it("filters stop words case-insensitively", () => {
+    const mixedStopWords = new Set(["LAB"]);
+    const result = findSimilarManufacturers("Bambu Lab", [{ name: "Form Lab" }], mixedStopWords);
+    expect(result.similarMatches).toHaveLength(0);
+  });
+});
+

@@ -357,6 +357,17 @@ export function FilamentModal({
   // Extract storage location names
   const storageLocations = storageLocationData.map(loc => loc.name);
 
+  const { data: genericTermsData = [] } = useQuery({
+    queryKey: ["/api/generic-terms"],
+    queryFn: () => apiRequest<{ id: number; word: string }[]>("/api/generic-terms"),
+    enabled: isOpen,
+  });
+
+  const genericStopWords = useMemo(
+    () => new Set(genericTermsData.map((t) => t.word)),
+    [genericTermsData]
+  );
+
   // Setup form with default values or editing values
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -473,7 +484,7 @@ export function FilamentModal({
   const handleUseCommunityResult = (result: CommunityFilamentResult) => {
     let resolvedManufacturer = result.manufacturer;
     if (result.manufacturer) {
-      const match = findSimilarManufacturers(result.manufacturer, manufacturers);
+      const match = findSimilarManufacturers(result.manufacturer, manufacturers, genericStopWords);
       if (match.exactMatch) {
         resolvedManufacturer = match.exactMatch.name;
         form.setValue('manufacturer', resolvedManufacturer);
@@ -492,7 +503,7 @@ export function FilamentModal({
     }
 
     if (result.material) {
-      const matMatch = findSimilarMaterials(result.material, allAvailableMaterials);
+      const matMatch = findSimilarMaterials(result.material, allAvailableMaterials, genericStopWords);
       if (matMatch.exactMatch) {
         form.setValue('material', matMatch.exactMatch.name);
       } else if (matMatch.similarMatches.length > 0) {
@@ -587,7 +598,7 @@ export function FilamentModal({
 
     form.setValue('name', data.name);
     if (data.manufacturer) {
-      const match = findSimilarManufacturers(data.manufacturer, manufacturers);
+      const match = findSimilarManufacturers(data.manufacturer, manufacturers, genericStopWords);
       if (match.exactMatch) {
         form.setValue('manufacturer', match.exactMatch.name);
       } else if (match.similarMatches.length > 0) {
@@ -601,7 +612,7 @@ export function FilamentModal({
       }
     }
     if (data.material) {
-      const matMatch = findSimilarMaterials(data.material, allAvailableMaterials);
+      const matMatch = findSimilarMaterials(data.material, allAvailableMaterials, genericStopWords);
       if (matMatch.exactMatch) {
         form.setValue('material', matMatch.exactMatch.name);
       } else if (matMatch.similarMatches.length > 0) {

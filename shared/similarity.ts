@@ -41,7 +41,6 @@ export interface SimilarityResult<T extends SimilarityItem> {
 }
 
 const TWO_LETTER_POLYMERS = new Set(["pa", "pc", "pp", "pe", "pi", "ps", "pu"]);
-const isSignificantToken = (t: string) => t.length >= 3 || TWO_LETTER_POLYMERS.has(t);
 
 /**
  * Finds exact or similar items (manufacturers, materials) from an existing list.
@@ -53,7 +52,8 @@ const isSignificantToken = (t: string) => t.length >= 3 || TWO_LETTER_POLYMERS.h
  */
 export function findSimilarItems<T extends SimilarityItem>(
   scannedName: string,
-  existingItems: T[]
+  existingItems: T[],
+  stopWords?: Set<string>
 ): SimilarityResult<T> {
   const trimmed = scannedName.trim();
   const lower = trimmed.toLowerCase();
@@ -70,7 +70,24 @@ export function findSimilarItems<T extends SimilarityItem>(
   }
 
   const cleanScanned = lower.replace(/[^\p{L}\p{N}]/gu, "");
-  const scannedTokens = lower.split(/[\s\-_./+]+/).filter(isSignificantToken);
+  const scannedTokens = lower.split(/[\s\-_./+]+/);
+
+  let normalizedStopWords: Set<string> | undefined = stopWords;
+  if (stopWords && stopWords.size > 0) {
+    let hasUpper = false;
+    for (const w of stopWords) {
+      if (w !== w.toLowerCase()) {
+        hasUpper = true;
+        break;
+      }
+    }
+    if (hasUpper) {
+      normalizedStopWords = new Set();
+      for (const w of stopWords) {
+        normalizedStopWords.add(w.toLowerCase());
+      }
+    }
+  }
 
   const similarMatches: T[] = [];
 
@@ -78,7 +95,7 @@ export function findSimilarItems<T extends SimilarityItem>(
     const itemTrimmed = item.name.trim();
     const itemLower = itemTrimmed.toLowerCase();
     const itemClean = itemLower.replace(/[^\p{L}\p{N}]/gu, "");
-    const itemTokens = itemLower.split(/[\s\-_./+]+/).filter(isSignificantToken);
+    const itemTokens = itemLower.split(/[\s\-_./+]+/);
 
     // a. Clean alphanumeric equality (e.g. "PET-G" -> "petg" === "PETG" -> "petg", "FormLabs" === "Form Labs")
     if (cleanScanned && itemClean && cleanScanned === itemClean) {
@@ -87,7 +104,11 @@ export function findSimilarItems<T extends SimilarityItem>(
     }
 
     // b. Token overlap (e.g. "TPU 95A" contains "tpu", "Bambu Lab" contains "bambu", "PA-CF" contains "pa")
-    const hasSharedToken = scannedTokens.some((st) => itemTokens.includes(st));
+    const isSignificant = (tok: string) =>
+      (tok.length >= 3 || TWO_LETTER_POLYMERS.has(tok)) && (!normalizedStopWords || !normalizedStopWords.has(tok));
+    const scannedSignificant = scannedTokens.filter(isSignificant);
+    const itemSignificant = itemTokens.filter(isSignificant);
+    const hasSharedToken = scannedSignificant.some((st) => itemSignificant.includes(st));
     if (hasSharedToken) {
       similarMatches.push(item);
       continue;
