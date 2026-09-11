@@ -245,7 +245,17 @@ async function ensureDeclaredManufacturerResolves(declared: string | null | unde
   await db.insert(manufacturers)
     .values({ name })
     .onConflictDoNothing();
-  return name;
+
+  // If a concurrent request inserted the same name with different casing,
+  // onConflictDoNothing silently skipped our insert. Fetch the canonical
+  // name from whoever won the race rather than returning our input casing.
+  const [canonical] = await db
+    .select({ name: manufacturers.name })
+    .from(manufacturers)
+    .where(sql`lower(${manufacturers.name}) = lower(${name})`)
+    .limit(1);
+
+  return canonical?.name ?? name;
 }
 
 // Selection shape shared by every filament read - the spool instance's own

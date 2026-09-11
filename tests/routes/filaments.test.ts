@@ -290,5 +290,36 @@ describe("auto-registration of a declared manufacturer", () => {
     expect(pctg.density).not.toBeNull();
     expect(Number(pctg.density)).toBe(1.23);
   });
+
+  it("handles concurrent creation of filaments declaring the same new manufacturer", async () => {
+    const alice = await newUser("alice_mfg_concurrent");
+    const [spool1, spool2] = await Promise.all([
+      storage.createFilament({
+        userId: alice.id,
+        name: "Spool 1",
+        manufacturer: "ConcurrentBrand",
+        material: "PLA",
+        colorName: "Black",
+        totalWeight: "1000",
+        remainingPercentage: "80",
+      }),
+      storage.createFilament({
+        userId: alice.id,
+        name: "Spool 2",
+        manufacturer: "ConcurrentBrand",
+        material: "PLA",
+        colorName: "White",
+        totalWeight: "1000",
+        remainingPercentage: "80",
+      }),
+    ]);
+
+    expect(spool1.manufacturer).toBe("ConcurrentBrand");
+    expect(spool2.manufacturer).toBe("ConcurrentBrand");
+
+    const mfgRows = await db.select().from(manufacturers);
+    const matches = mfgRows.filter((m) => m.name === "ConcurrentBrand");
+    expect(matches).toHaveLength(1);
+  });
 });
 
