@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageContext } from "../../client/src/i18n";
-import { FilamentModal, escapeRegex, normalizeHexColor, stripParentheticalAnnotations } from "../../client/src/components/filament-modal";
+import { FilamentModal, escapeRegex, findMatchingManufacturer, normalizeHexColor, stripParentheticalAnnotations } from "../../client/src/components/filament-modal";
 
 // Mock Dialog so children are rendered in SSR / renderToString
 vi.mock("@/components/ui/dialog", () => ({
@@ -264,6 +264,13 @@ describe("FilamentModal", () => {
   });
 
   it("does not append manufacturer to name when pre-filled with manufacturer", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["/api/manufacturers"], [
+      { id: 1, name: "Bambu Lab" },
+    ]);
+
     const template: any = {
       id: 0,
       name: "PLA Basic Black",
@@ -276,13 +283,15 @@ describe("FilamentModal", () => {
     };
 
     const html = renderWithProviders(
-      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={template} />
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={template} />,
+      queryClient
     );
 
     expect(html).toContain('value="PLA Basic Black"');
     expect(html).not.toContain('value="PLA Basic Black (Bambu Lab)"');
     expect(html).not.toContain('value="PLA Basic Black Bambu Lab"');
     expect(html).toContain('data-select-value="Bambu Lab"');
+    expect(html).not.toContain('filaments.customManufacturerName');
   });
 
   it("renders color field and color code field", () => {
@@ -294,7 +303,14 @@ describe("FilamentModal", () => {
     expect(html).toContain("filaments.colorCode");
   });
 
-  it("renders select item for a manufacturer not yet present in predefined list", () => {
+  it("selects 'Other' manufacturer and displays custom manufacturer input when manufacturer is not in database", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["/api/manufacturers"], [
+      { id: 1, name: "Prusa" },
+    ]);
+
     const template: any = {
       id: 1,
       name: "Special Spool",
@@ -306,10 +322,42 @@ describe("FilamentModal", () => {
     };
 
     const html = renderWithProviders(
-      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={template} />
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={template} />,
+      queryClient
     );
 
-    expect(html).toContain('data-select-item="UniqueManufacturerBrand"');
+    expect(html).toContain('data-select-value="Other"');
+    expect(html).toContain('data-select-item="Other"');
+    expect(html).toContain('filaments.customManufacturerName');
+    expect(html).toContain('value="UniqueManufacturerBrand"');
+  });
+
+  it("selects matched manufacturer from database and hides custom manufacturer input", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["/api/manufacturers"], [
+      { id: 1, name: "Prusa" },
+      { id: 2, name: "Bambu Lab" },
+    ]);
+
+    const template: any = {
+      id: 1,
+      name: "Galaxy Black Spool",
+      manufacturer: "Prusa",
+      material: "PLA",
+      colorCode: "#ff0000",
+      totalWeight: 1,
+      remainingPercentage: 100,
+    };
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={template} />,
+      queryClient
+    );
+
+    expect(html).toContain('data-select-value="Prusa"');
+    expect(html).not.toContain('filaments.customManufacturerName');
   });
 
   it("renders select item for a custom material not yet present in predefined list", () => {
@@ -451,6 +499,32 @@ describe("normalizeHexColor and colorCode handling", () => {
       expect(stripParentheticalAnnotations("PLA (Polylactic Acid)")).toBe("PLA");
       expect(stripParentheticalAnnotations("PETG")).toBe("PETG");
       expect(stripParentheticalAnnotations("PLA Silk")).toBe("PLA Silk");
+    });
+  });
+
+  describe("findMatchingManufacturer", () => {
+    const dbManufacturers = [
+      { id: 1, name: "Prusa Research" },
+      { id: 2, name: "Bambu Lab" },
+      { id: 3, name: "eSUN" },
+    ];
+
+    it("matches exact name case-insensitively", () => {
+      expect(findMatchingManufacturer("bambu lab", dbManufacturers)?.name).toBe("Bambu Lab");
+      expect(findMatchingManufacturer("ESUN", dbManufacturers)?.name).toBe("eSUN");
+    });
+
+    it("matches stripping parenthetical annotations", () => {
+      const dbWithParens = [{ id: 1, name: "Prusa (Research)" }];
+      expect(findMatchingManufacturer("Prusa", dbWithParens)?.name).toBe("Prusa (Research)");
+      expect(findMatchingManufacturer("Prusa (Research)", [{ id: 1, name: "Prusa" }])?.name).toBe("Prusa");
+    });
+
+    it("returns undefined for unknown manufacturer or empty/null input", () => {
+      expect(findMatchingManufacturer("NonExistentMfg", dbManufacturers)).toBeUndefined();
+      expect(findMatchingManufacturer("", dbManufacturers)).toBeUndefined();
+      expect(findMatchingManufacturer(null, dbManufacturers)).toBeUndefined();
+      expect(findMatchingManufacturer(undefined, dbManufacturers)).toBeUndefined();
     });
   });
 });

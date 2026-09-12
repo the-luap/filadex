@@ -289,6 +289,28 @@ export function findMatchingColor(
   return undefined;
 }
 
+export function findMatchingManufacturer(
+  scannedManufacturer: string | null | undefined,
+  dbManufacturers: { id?: number; name: string }[]
+): { id?: number; name: string } | undefined {
+  if (!scannedManufacturer) return undefined;
+  const lower = scannedManufacturer.trim().toLowerCase();
+  if (!lower) return undefined;
+
+  // 1. Exact case-insensitive match on DB manufacturers
+  const exact = dbManufacturers.find(m => m.name.trim().toLowerCase() === lower);
+  if (exact) return exact;
+
+  // 2. Match stripping parenthetical annotations, e.g. "Prusa" vs "Prusa (Research)"
+  const strippedLower = stripParentheticalAnnotations(lower).toLowerCase();
+  if (strippedLower) {
+    const parenMatch = dbManufacturers.find(m => stripParentheticalAnnotations(m.name).toLowerCase() === strippedLower);
+    if (parenMatch) return parenMatch;
+  }
+
+  return undefined;
+}
+
 interface CustomFieldDefinition {
   id: number;
   name: string;
@@ -404,6 +426,16 @@ export function FilamentModal({
     return match ? "" : filament.colorName;
   });
 
+  const [isCustomManufacturer, setIsCustomManufacturer] = useState(() => {
+    if (!filament?.manufacturer) return false;
+    return !findMatchingManufacturer(filament.manufacturer, manufacturers);
+  });
+  const [customManufacturerName, setCustomManufacturerName] = useState(() => {
+    if (!filament?.manufacturer) return "";
+    const match = findMatchingManufacturer(filament.manufacturer, manufacturers);
+    return match ? "" : filament.manufacturer;
+  });
+
   const allAvailableMaterials = useMemo(() => {
     const list: { id?: number; name: string }[] = materials.map((m) => ({ id: m.id, name: m.name }));
     for (const mt of materialTypes) {
@@ -510,6 +542,26 @@ export function FilamentModal({
     return result;
   }, [manufacturers]);
 
+  const applyManufacturerData = (mfgName: string | null | undefined) => {
+    if (!mfgName || !mfgName.trim()) {
+      setIsCustomManufacturer(false);
+      setCustomManufacturerName("");
+      form.setValue('manufacturer', '');
+      return;
+    }
+    const match = findMatchingManufacturer(mfgName, manufacturers);
+    if (match) {
+      setIsCustomManufacturer(false);
+      setCustomManufacturerName("");
+      form.setValue('manufacturer', match.name, { shouldValidate: true, shouldDirty: true });
+    } else {
+      setIsCustomManufacturer(true);
+      const customName = mfgName.trim();
+      setCustomManufacturerName(customName);
+      form.setValue('manufacturer', customName, { shouldValidate: true, shouldDirty: true });
+    }
+  };
+
   const applyColorData = (name: string | null | undefined, hexCode?: string | null) => {
     const normalizedHex = hexCode ? normalizeHexColor(hexCode) : undefined;
     const match = findMatchingColor(name, colors, colorsList);
@@ -535,7 +587,9 @@ export function FilamentModal({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: filament?.name || "",
-      manufacturer: filament?.manufacturer || "",
+      manufacturer: (filament?.manufacturer
+        ? (findMatchingManufacturer(filament.manufacturer, manufacturers)?.name || filament.manufacturer)
+        : ""),
       material: filament?.material || "",
       colorName: (filament?.colorName
         ? (findMatchingColor(filament.colorName, colors, colorsList)?.name || filament.colorName)
@@ -564,10 +618,18 @@ export function FilamentModal({
         || materialTypes.find(m => m.value.toLowerCase() === filament.material.toLowerCase());
       const canonicalMaterial = matchingMaterial ? ((matchingMaterial as any).name || (matchingMaterial as any).value) : filament.material;
 
-      const matchingMfg = filament.manufacturer
-        ? manufacturers.find(m => m.name.toLowerCase() === filament.manufacturer!.toLowerCase())
-        : undefined;
-      const canonicalMfg = matchingMfg ? matchingMfg.name : (filament.manufacturer || "");
+      const mfgMatch = findMatchingManufacturer(filament.manufacturer, manufacturers);
+      const canonicalMfg = mfgMatch ? mfgMatch.name : (filament.manufacturer || "");
+      if (mfgMatch) {
+        setIsCustomManufacturer(false);
+        setCustomManufacturerName("");
+      } else if (filament.manufacturer) {
+        setIsCustomManufacturer(true);
+        setCustomManufacturerName(filament.manufacturer);
+      } else {
+        setIsCustomManufacturer(false);
+        setCustomManufacturerName("");
+      }
 
       const colorMatch = findMatchingColor(filament.colorName, colors, colorsList);
       const canonicalColor = colorMatch ? colorMatch.name : (filament.colorName || "");
@@ -613,6 +675,8 @@ export function FilamentModal({
     } else {
       setIsCustomColor(false);
       setCustomColorName("");
+      setIsCustomManufacturer(false);
+      setCustomManufacturerName("");
       form.reset({
         name: "",
         manufacturer: "",
@@ -657,6 +721,19 @@ export function FilamentModal({
     }
   }, [colors, filament, isCustomColor, colorsList, form]);
 
+  // If modal was opened with a filament whose manufacturer is in the database,
+  // re-evaluate when manufacturers query finishes loading so it doesn't stay stuck as "Other"
+  useEffect(() => {
+    if (filament && filament.manufacturer && isCustomManufacturer && !form.formState.dirtyFields.manufacturer) {
+      const match = findMatchingManufacturer(filament.manufacturer, manufacturers);
+      if (match) {
+        setIsCustomManufacturer(false);
+        setCustomManufacturerName("");
+        form.setValue('manufacturer', match.name, { shouldValidate: true });
+      }
+    }
+  }, [manufacturers, filament, isCustomManufacturer, form]);
+
   // Handle form submission
   const onSubmit = (data: FormValues) => {
     // Handle custom weight
@@ -670,24 +747,21 @@ export function FilamentModal({
 
   // Pre-fill the form from a picked community database entry
   const handleUseCommunityResult = (result: CommunityFilamentResult) => {
-    let resolvedManufacturer = result.manufacturer;
     if (result.manufacturer) {
       const match = findSimilarManufacturers(result.manufacturer, manufacturers, genericStopWords);
       if (match.exactMatch) {
-        resolvedManufacturer = match.exactMatch.name;
-        form.setValue('manufacturer', resolvedManufacturer);
+        applyManufacturerData(match.exactMatch.name);
       } else if (match.similarMatches.length > 0) {
-        resolvedManufacturer = result.manufacturer;
-        form.setValue('manufacturer', resolvedManufacturer);
+        applyManufacturerData(result.manufacturer);
         setSimilarManufacturerPrompt({
           scannedManufacturer: result.manufacturer,
           similar: match.similarMatches,
         });
       } else {
-        form.setValue('manufacturer', resolvedManufacturer);
+        applyManufacturerData(result.manufacturer);
       }
     } else {
-      form.setValue('manufacturer', '');
+      applyManufacturerData('');
     }
 
     if (result.material) {
@@ -771,10 +845,10 @@ export function FilamentModal({
 
   // Handle custom weight input
   const handleCustomWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value)) {
-      setTotalWeight(value);
-      form.setValue('totalWeight', value);
+    const value = e.target.value;
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setTotalWeight(value === '' ? '' : parseFloat(value) || 0);
+      form.setValue('totalWeight', value === '' ? 0 : parseFloat(value) || 0);
     }
   };
 
@@ -786,15 +860,15 @@ export function FilamentModal({
     if (data.manufacturer) {
       const match = findSimilarManufacturers(data.manufacturer, manufacturers, genericStopWords);
       if (match.exactMatch) {
-        form.setValue('manufacturer', match.exactMatch.name);
+        applyManufacturerData(match.exactMatch.name);
       } else if (match.similarMatches.length > 0) {
-        form.setValue('manufacturer', data.manufacturer);
+        applyManufacturerData(data.manufacturer);
         setSimilarManufacturerPrompt({
           scannedManufacturer: data.manufacturer,
           similar: match.similarMatches,
         });
       } else {
-        form.setValue('manufacturer', data.manufacturer);
+        applyManufacturerData(data.manufacturer);
       }
     }
     if (data.material) {
@@ -1107,17 +1181,29 @@ export function FilamentModal({
                   control={form.control}
                   name="manufacturer"
                   render={({ field }) => {
-                    const canonicalMfg = field.value
-                      ? (uniqueManufacturers.find(m => m.name.toLowerCase() === field.value!.toLowerCase())?.name || field.value)
-                      : "";
+                    const matchingMfg = field.value
+                      ? uniqueManufacturers.find(m => m.name.toLowerCase() === field.value!.toLowerCase())
+                      : undefined;
+                    const isOther = isCustomManufacturer || (Boolean(field.value) && !matchingMfg);
+                    const selectValue = isOther ? "Other" : (matchingMfg ? matchingMfg.name : "");
                     return (
                     <FormItem>
                       <FormLabel>{t('filaments.manufacturer')}</FormLabel>
                       <Select
-                        onValueChange={(val) => {
-                          field.onChange(val);
+                        onValueChange={(value) => {
+                          if (value === "Other") {
+                            setIsCustomManufacturer(true);
+                            field.onChange(customManufacturerName);
+                            form.setValue('manufacturer', customManufacturerName, { shouldValidate: true, shouldDirty: true });
+                          } else {
+                            setIsCustomManufacturer(false);
+                            setCustomManufacturerName("");
+                            field.onChange(value);
+                            form.setValue('manufacturer', value, { shouldValidate: true, shouldDirty: true });
+                          }
                         }}
-                        value={canonicalMfg}
+                        defaultValue={isOther ? "Other" : selectValue}
+                        value={isOther ? "Other" : selectValue}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -1135,9 +1221,20 @@ export function FilamentModal({
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                   e.preventDefault();
-                                  const value = (e.target as HTMLInputElement).value;
+                                  const value = (e.target as HTMLInputElement).value?.trim();
                                   if (value) {
-                                    field.onChange(value);
+                                    const match = findMatchingManufacturer(value, uniqueManufacturers);
+                                    if (match) {
+                                      setIsCustomManufacturer(false);
+                                      setCustomManufacturerName("");
+                                      field.onChange(match.name);
+                                      form.setValue('manufacturer', match.name, { shouldValidate: true, shouldDirty: true });
+                                    } else {
+                                      setIsCustomManufacturer(true);
+                                      setCustomManufacturerName(value);
+                                      field.onChange(value);
+                                      form.setValue('manufacturer', value, { shouldValidate: true, shouldDirty: true });
+                                    }
                                   }
                                 }
                               }}
@@ -1151,14 +1248,24 @@ export function FilamentModal({
                               {manufacturer.name}
                             </SelectItem>
                           ))}
-                          {Boolean(canonicalMfg) &&
-                            !uniqueManufacturers.some(m => m.name.toLowerCase() === canonicalMfg.toLowerCase()) && (
-                              <SelectItem key={canonicalMfg} value={canonicalMfg}>
-                                {canonicalMfg}
-                              </SelectItem>
-                          )}
+                          <SelectItem value="Other">
+                            {t('filaments.otherManufacturer') || t('common.other') || 'Other'}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
+                      {isOther && (
+                        <div className="mt-2">
+                          <Input
+                            placeholder={t('filaments.customManufacturerName') || t('filaments.otherManufacturer') || 'Other'}
+                            value={customManufacturerName}
+                            onChange={(e) => {
+                              setCustomManufacturerName(e.target.value);
+                              field.onChange(e.target.value);
+                              form.setValue('manufacturer', e.target.value, { shouldValidate: true, shouldDirty: true });
+                            }}
+                          />
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   );
@@ -1919,7 +2026,7 @@ export function FilamentModal({
                 variant="outline"
                 className="justify-start text-left h-auto py-2 px-3 whitespace-normal"
                 onClick={() => {
-                  form.setValue('manufacturer', similarManufacturerPrompt.scannedManufacturer);
+                  applyManufacturerData(similarManufacturerPrompt.scannedManufacturer);
                   setSimilarManufacturerPrompt(null);
                 }}
               >
@@ -1931,7 +2038,7 @@ export function FilamentModal({
                   variant="secondary"
                   className="justify-start text-left h-auto py-2 px-3 whitespace-normal"
                   onClick={() => {
-                    form.setValue('manufacturer', sim.name);
+                    applyManufacturerData(sim.name);
                     const currentName = form.getValues('name');
                     const scanned = similarManufacturerPrompt.scannedManufacturer;
                     const bStart = /^\w/.test(scanned) ? '\\b' : '';
