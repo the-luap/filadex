@@ -161,11 +161,10 @@ describe("FilamentModal", () => {
     expect(petgMatches).toHaveLength(1);
   });
 
-  it("symmetrically prioritizes unannotated PA over PA (Nylon) regardless of database order", () => {
+  it("preserves both PA (Nylon) and PA when both are in the database", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    // PA (Nylon) placed before PA intentionally
     queryClient.setQueryData(["/api/materials"], [
       { id: 10, name: "PA (Nylon)" },
       { id: 5, name: "PA" },
@@ -178,7 +177,25 @@ describe("FilamentModal", () => {
 
     const paMatches = html.match(/data-select-item="PA"/g);
     expect(paMatches).toHaveLength(1);
-    expect(html).not.toContain('data-select-item="PA (Nylon)"');
+    expect(html).toContain('data-select-item="PA (Nylon)"');
+  });
+
+  it("preserves PLA (Silk) and PLA when both are in the database", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["/api/materials"], [
+      { id: 1, name: "PLA (Silk)" },
+      { id: 2, name: "PLA" },
+    ]);
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} />,
+      queryClient
+    );
+
+    expect(html).toContain('data-select-item="PLA (Silk)"');
+    expect(html).toContain('data-select-item="PLA"');
   });
 
   it("canonicalizes colorName to matched catalog name (e.g. 'Black' for 'black' or 'Black (Bambu Lab)')", () => {
@@ -261,6 +278,34 @@ describe("FilamentModal", () => {
     expect(html).toContain('data-select-value="Custom"');
     expect(html).toContain('filaments.customColorName');
     expect(html).toContain('value="Sapphire Blue"');
+  });
+
+  it("does not clear an existing chosen color when template or scan has no recognizable color", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["/api/colors"], [
+      { id: 1, name: "Red", code: "#FF0000" },
+    ]);
+
+    const spoolWithColor: any = {
+      id: 1,
+      name: "Existing Spool",
+      manufacturer: "Bambu Lab",
+      material: "PLA",
+      colorName: "Red",
+      colorCode: "#FF0000",
+      totalWeight: 1,
+      remainingPercentage: 100,
+    };
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={spoolWithColor} />,
+      queryClient
+    );
+
+    expect(html).toContain('data-select-value="Red"');
+    expect(html).not.toContain('data-select-value="Custom"');
   });
 
   it("does not append manufacturer to name when pre-filled with manufacturer", () => {
@@ -607,10 +652,11 @@ describe("normalizeHexColor and colorCode handling", () => {
       expect(findMatchingManufacturer("ESUN", dbManufacturers)?.name).toBe("eSUN");
     });
 
-    it("matches stripping parenthetical annotations", () => {
+    it("does not rewrite distinct manufacturer names with parentheticals", () => {
       const dbWithParens = [{ id: 1, name: "Prusa (Research)" }];
-      expect(findMatchingManufacturer("Prusa", dbWithParens)?.name).toBe("Prusa (Research)");
-      expect(findMatchingManufacturer("Prusa (Research)", [{ id: 1, name: "Prusa" }])?.name).toBe("Prusa");
+      expect(findMatchingManufacturer("Prusa", dbWithParens)).toBeUndefined();
+      expect(findMatchingManufacturer("Prusa (Research)", [{ id: 1, name: "Prusa" }])).toBeUndefined();
+      expect(findMatchingManufacturer("Prusa (Research)", dbWithParens)?.name).toBe("Prusa (Research)");
     });
 
     it("returns undefined for unknown manufacturer or empty/null input", () => {
@@ -618,6 +664,31 @@ describe("normalizeHexColor and colorCode handling", () => {
       expect(findMatchingManufacturer("", dbManufacturers)).toBeUndefined();
       expect(findMatchingManufacturer(null, dbManufacturers)).toBeUndefined();
       expect(findMatchingManufacturer(undefined, dbManufacturers)).toBeUndefined();
+    });
+  });
+
+  describe("findMatchingMaterial", () => {
+    const available = [
+      { id: 1, value: "PLA", name: "PLA", label: "PLA" },
+      { id: 2, value: "PLA (Silk)", name: "PLA (Silk)", label: "PLA (Silk)" },
+    ];
+
+    it("matches exact name case-insensitively", () => {
+      expect(findMatchingMaterial("pla", available)?.value).toBe("PLA");
+      expect(findMatchingMaterial("PLA (SILK)", available)?.value).toBe("PLA (Silk)");
+    });
+
+    it("does not rewrite distinct material names with parentheticals", () => {
+      expect(findMatchingMaterial("PLA (Silk)", [{ value: "PLA", name: "PLA" }])).toBeUndefined();
+      expect(findMatchingMaterial("PA", [{ value: "PA (Nylon)", name: "PA (Nylon)" }])).toBeUndefined();
+    });
+
+    it("returns undefined for unknown material or empty/null/custom input", () => {
+      expect(findMatchingMaterial("Custom", available)).toBeUndefined();
+      expect(findMatchingMaterial("UnknownMat", available)).toBeUndefined();
+      expect(findMatchingMaterial("", available)).toBeUndefined();
+      expect(findMatchingMaterial(null, available)).toBeUndefined();
+      expect(findMatchingMaterial(undefined, available)).toBeUndefined();
     });
   });
 });

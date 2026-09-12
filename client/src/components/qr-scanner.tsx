@@ -100,20 +100,62 @@ export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
 
   // Farb-Codes erkennen
   let colorName = '';
-  let colorCode = '#000000'; // Standard Schwarz
+  let colorCode: string | undefined = undefined;
 
   const colorToken = parts.length > 2 ? parts.slice(2).join('-').toUpperCase() : '';
   const matSuffix = materialCode.replace(/^(PLA|ABS|PETG?|TPU|PA|ASA|PCTG|PVA|PC|HIPS)(-CF|-HF)?/i, '');
 
+  const COLOR_NAME_MAP: Record<string, { name: string; code: string }> = {
+    'BLACK': { name: 'Black', code: '#000000' },
+    'WHITE': { name: 'White', code: '#FFFFFF' },
+    'RED': { name: 'Red', code: '#C12E1F' },
+    'BLUE': { name: 'Blue', code: '#0A2989' },
+    'GREEN': { name: 'Green', code: '#00AE42' },
+    'YELLOW': { name: 'Yellow', code: '#FCE300' },
+    'GRAY': { name: 'Gray', code: '#545454' },
+    'GREY': { name: 'Gray', code: '#545454' },
+    'ORANGE': { name: 'Orange', code: '#FA6607' },
+    'BROWN': { name: 'Brown', code: '#8B4513' },
+    'PURPLE': { name: 'Purple', code: '#800080' },
+    'PINK': { name: 'Pink', code: '#FFC0CB' },
+    'SILVER': { name: 'Silver', code: '#C0C0C0' },
+    'GOLD': { name: 'Gold', code: '#FFD700' },
+    'BEIGE': { name: 'Beige', code: '#F5F5DC' },
+    'IVORY': { name: 'Ivory', code: '#FFFFF0' },
+    'CYAN': { name: 'Cyan', code: '#00FFFF' },
+    'MAGENTA': { name: 'Magenta', code: '#FF00FF' },
+  };
+
+  const TWO_LETTER_MAP: Record<string, { name: string; code: string }> = {
+    'BK': { name: 'Black', code: '#000000' },
+    '01': { name: 'Black', code: '#000000' },
+    'WH': { name: 'White', code: '#FFFFFF' },
+    '02': { name: 'White', code: '#FFFFFF' },
+    'RD': { name: 'Red', code: '#C12E1F' },
+    '03': { name: 'Red', code: '#C12E1F' },
+    'BL': { name: 'Blue', code: '#0A2989' },
+    '04': { name: 'Blue', code: '#0A2989' },
+    'GN': { name: 'Green', code: '#00AE42' },
+    '05': { name: 'Green', code: '#00AE42' },
+    'YL': { name: 'Yellow', code: '#FCE300' },
+    '06': { name: 'Yellow', code: '#FCE300' },
+    'GY': { name: 'Gray', code: '#545454' },
+    '07': { name: 'Gray', code: '#545454' },
+    'OR': { name: 'Orange', code: '#FA6607' },
+    '08': { name: 'Orange', code: '#FA6607' },
+  };
+
   const matchColorCode = (token: string) => {
-    if (token.includes('BK') || token.startsWith('01')) return { name: 'Black', code: '#000000' };
-    if (token.includes('WH') || token.startsWith('02')) return { name: 'White', code: '#FFFFFF' };
-    if (token.includes('RD') || token.startsWith('03')) return { name: 'Red', code: '#C12E1F' };
-    if (token.includes('BL') || token.startsWith('04')) return { name: 'Blue', code: '#0A2989' };
-    if (token.includes('GN') || token.startsWith('05')) return { name: 'Green', code: '#00AE42' };
-    if (token.includes('YL') || token.startsWith('06')) return { name: 'Yellow', code: '#FCE300' };
-    if (token.includes('GY') || token.startsWith('07')) return { name: 'Gray', code: '#545454' };
-    if (token.includes('OR') || token.startsWith('08')) return { name: 'Orange', code: '#FA6607' };
+    if (!token) return null;
+    const segments = token.split(/[^A-Z0-9]+/).filter(Boolean);
+    // 1. Try full-word color name first
+    for (const seg of segments) {
+      if (COLOR_NAME_MAP[seg]) return COLOR_NAME_MAP[seg];
+    }
+    // 2. Try anchored two-letter or two-digit codes
+    for (const seg of segments) {
+      if (TWO_LETTER_MAP[seg]) return TWO_LETTER_MAP[seg];
+    }
     return null;
   };
 
@@ -123,6 +165,10 @@ export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
     colorCode = match.code;
   } else if (colorToken && !/^\d{5,}$/.test(colorToken)) {
     colorName = parts[2];
+    const fullWordMatch = COLOR_NAME_MAP[colorName.toUpperCase()];
+    if (fullWordMatch) {
+      colorCode = fullWordMatch.code;
+    }
   }
 
   // Standard-Drucktemperaturen für Bambu Lab Materialien
@@ -192,7 +238,7 @@ export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
     name: nameWithColor,
     material: material,
     colorName: colorName || undefined,
-    colorCode: colorCode,
+    colorCode: colorName ? colorCode : undefined,
     manufacturer: "Bambu Lab",
     diameter: 1.75, // Standard für Bambu Lab
     totalWeight: 1, // Standard-Gewicht (1kg) für Bambu Lab Spulen
@@ -224,10 +270,10 @@ export const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
     material = 'asa';
   } else if (upper.startsWith('PA')) {
     material = 'pa';
-  } else if (upper.startsWith('PC')) {
-    material = 'pc';
   } else if (upper.startsWith('PCTG')) {
     material = 'pctg';
+  } else if (upper.startsWith('PC')) {
+    material = 'pc';
   } else if (upper.startsWith('PVA')) {
     material = 'pva';
   } else if (upper.startsWith('HIPS')) {
@@ -258,7 +304,7 @@ export const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
   }
 
   // Versuche, die Farbe zu extrahieren - extrahiere alles zwischen Material und Gewicht
-  const materialRegex = /^(PLA|ABS|PETG|TPU|PA|ASA|PC|PCTG|PVA|HIPS)(-CF|-HF)?\s+/i;
+  const materialRegex = /^(PLA|ABS|PETG|TPU|PA|ASA|PCTG|PC|PVA|HIPS)(-CF|-HF)?\s+/i;
   const materialMatch = text.match(materialRegex);
 
   if (materialMatch && weightMatch) {
@@ -271,7 +317,7 @@ export const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
   }
 
   // Bestimme einen passenden HEX-Farbcode basierend auf der Farbbeschreibung
-  let colorCode = '#FFFFFF';
+  let colorCode: string | undefined = undefined;
 
   if (colorName) {
     const lowerColorName = colorName.toLowerCase();
@@ -354,7 +400,9 @@ export const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
     'pa-cf': 'PA-CF',
     'asa': 'ASA',
     'pc': 'PC',
-    'pc-cf': 'PC-CF'
+    'pc-cf': 'PC-CF',
+    'pctg': 'PCTG',
+    'pva': 'PVA'
   };
 
   const materialLabel = materialMap[material] || material.toUpperCase();
@@ -364,7 +412,7 @@ export const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
     name: cleanName,
     material: material,
     colorName: colorName || undefined,
-    colorCode: colorCode,
+    colorCode: colorName ? colorCode : undefined,
     manufacturer: "Bambu Lab",
     diameter: 1.75, // Standard für Bambu Lab
     totalWeight: weight || 1, // Standardgewicht oder extrahiertes Gewicht

@@ -33,22 +33,7 @@ const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 10
 const dateDaysAgo = (days: number) => daysAgo(days).toISOString().slice(0, 10);
 
 async function seedStarter(): Promise<void> {
-  // Check 1: systemSettings row with id = 1
-  try {
-    const [systemRow] = await db
-      .select({ id: systemSettings.id })
-      .from(systemSettings)
-      .where(eq(systemSettings.id, 1))
-      .limit(1);
-    if (systemRow) {
-      console.log("System settings already initialized, skipping starter initialization.");
-      return;
-    }
-  } catch (err) {
-    // If systemSettings query fails (e.g. table not yet migrated), fall through to count checks
-  }
-
-  // Check 2: existing rows in any of the starter tables
+  // Check 1: existing rows in any of the starter tables
   const [mfgCount] = await db.select({ count: sql<number>`count(*)` }).from(manufacturers);
   const [matCount] = await db.select({ count: sql<number>`count(*)` }).from(materials);
   const [colCount] = await db.select({ count: sql<number>`count(*)` }).from(colors);
@@ -63,7 +48,7 @@ async function seedStarter(): Promise<void> {
     return;
   }
 
-  // Check 3: If 0 rows survive, check sequence generators to detect if starter
+  // Check 2: If 0 rows survive, check sequence generators to detect if starter
   // data was previously seeded and later deleted by an admin.
   try {
     if ((dialect as string) === "sqlite") {
@@ -79,11 +64,11 @@ async function seedStarter(): Promise<void> {
       }
     } else {
       const result: any = await (db as any).execute(
-        sql`SELECT sequencename, last_value, is_called FROM pg_sequences WHERE sequencename IN ('manufacturers_id_seq', 'materials_id_seq', 'colors_id_seq', 'storage_locations_id_seq')`
+        sql`SELECT sequencename, last_value FROM pg_sequences WHERE sequencename IN ('manufacturers_id_seq', 'materials_id_seq', 'colors_id_seq', 'storage_locations_id_seq')`
       );
       const rows = result?.rows ?? (Array.isArray(result) ? result : []);
       if (rows.length > 0) {
-        const hasSeq = rows.some((r: any) => Boolean(r?.is_called) || Number(r?.last_value) > 1);
+        const hasSeq = rows.some((r: any) => r?.last_value !== null && Number(r?.last_value) > 1);
         if (hasSeq) {
           console.log("Sequence generator indicates starter data was previously seeded, skipping starter initialization.");
           return;

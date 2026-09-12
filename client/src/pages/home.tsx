@@ -291,9 +291,18 @@ export default function Home() {
   }, [filaments]);
 
   const applyCommunityItem = (result: CommunityCatalogItem, code: string) => {
-    const cleanName = result.colorName && result.name.toLowerCase().includes(result.colorName.toLowerCase())
-      ? result.name
-      : `${result.name} ${result.colorName || ''}`.trim();
+    let baseName = result.name || '';
+    if (result.manufacturer && baseName.toLowerCase().startsWith(result.manufacturer.toLowerCase())) {
+      baseName = baseName.slice(result.manufacturer.length).trim();
+    }
+    const hasMaterial = result.material && baseName.toLowerCase().includes(result.material.toLowerCase());
+    const nameWithMaterial = (!hasMaterial && result.material)
+      ? `${result.material} ${baseName}`.trim()
+      : baseName;
+    const hasColor = result.colorName && nameWithMaterial.toLowerCase().includes(result.colorName.toLowerCase());
+    const cleanName = (!hasColor && result.colorName)
+      ? `${nameWithMaterial} ${result.colorName}`.trim()
+      : nameWithMaterial;
     const kg = result.weightGrams ? Number((result.weightGrams / 1000).toFixed(2)) : 1;
     setSelectedFilament(undefined);
     setCopyFromFilament({
@@ -456,9 +465,8 @@ export default function Home() {
           title: t('common.error') || 'Error',
           description: t('scanner.lookupError', { code }) || err?.message || 'Failed to search community catalog',
         });
-        return;
       }
-      // Not found in OFD
+      // Not found in OFD or error -> open add modal prefilled with barcode
     }
 
     // Not found anywhere -> open add modal prefilled with barcode

@@ -13,12 +13,42 @@ describe("qr-scanner Bambu Lab parsing", () => {
     const cfResult = processBambuLabBarcode("BBL-PLACF-BK-123456");
     expect(cfResult.material).toBe("pla-cf");
     expect(cfResult.colorName).toBe("Black");
+    expect(cfResult.colorCode).toBe("#000000");
     expect(cfResult.name).toBe("PLA-CF Black");
     expect(cfResult.manufacturer).toBe("Bambu Lab");
 
     const serialResult = processBambuLabBarcode("BBL-PLA-901234");
     expect(serialResult.material).toBe("pla");
-    expect(serialResult.colorName).not.toBe("Black");
+    expect(serialResult.colorName).toBeUndefined();
+    expect(serialResult.colorCode).toBeUndefined();
+  });
+
+  it("correctly identifies full-word colors like BLACK and IVORY without substring hits", () => {
+    const blackResult = processBambuLabBarcode("BBL-PLA-BLACK");
+    expect(blackResult.colorName).toBe("Black");
+    expect(blackResult.colorCode).toBe("#000000");
+    expect(blackResult.name).toBe("PLA Black");
+
+    const ivoryResult = processBambuLabBarcode("BBL-PLA-IVORY");
+    expect(ivoryResult.colorName).toBe("Ivory");
+    expect(ivoryResult.name).toBe("PLA Ivory");
+
+    const blueResult = processBambuLabBarcode("BBL-PLA-BL");
+    expect(blueResult.colorName).toBe("Blue");
+    expect(blueResult.colorCode).toBe("#0A2989");
+
+    const orangeResult = processBambuLabBarcode("BBL-PLA-OR");
+    expect(orangeResult.colorName).toBe("Orange");
+    expect(orangeResult.colorCode).toBe("#FA6607");
+  });
+
+  it("parses PCTG QR codes correctly as PCTG with correct print temp and name", () => {
+    const pctgResult = processBambuLabQRCode("[BBL]PCTG Black 1KG");
+    expect(pctgResult.material).toBe("pctg");
+    expect(pctgResult.name).toBe("PCTG Black");
+    expect(pctgResult.printTemp).toBe("250-270");
+    expect(pctgResult.colorName).toBe("Black");
+    expect(pctgResult.colorCode).toBe("#000000");
   });
 
   it("preserves color modifiers like 'Matte' in processBambuLabQRCode and does not append manufacturer", () => {

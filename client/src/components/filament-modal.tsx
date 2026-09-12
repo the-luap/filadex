@@ -317,18 +317,8 @@ export function findMatchingManufacturer(
   const lower = scannedManufacturer.trim().toLowerCase();
   if (!lower || lower === "other") return undefined;
 
-  // 1. Exact case-insensitive match on DB manufacturers
-  const exact = dbManufacturers.find(m => m.name.trim().toLowerCase() === lower);
-  if (exact) return exact;
-
-  // 2. Match stripping parenthetical annotations, e.g. "Prusa" vs "Prusa (Research)"
-  const strippedLower = stripParentheticalAnnotations(lower).toLowerCase();
-  if (strippedLower) {
-    const parenMatch = dbManufacturers.find(m => stripParentheticalAnnotations(m.name).toLowerCase() === strippedLower);
-    if (parenMatch) return parenMatch;
-  }
-
-  return undefined;
+  // Exact case-insensitive match on DB manufacturers
+  return dbManufacturers.find(m => m.name.trim().toLowerCase() === lower);
 }
 
 export function findMatchingMaterial(
@@ -339,7 +329,7 @@ export function findMatchingMaterial(
   const lower = scannedMaterial.trim().toLowerCase();
   if (!lower || lower === "custom") return undefined;
 
-  // 1. Exact case-insensitive match on value or name or label
+  // Exact case-insensitive match on value or name or label
   const exact = availableMaterials.find(m => {
     const v = (m.value ?? m.name ?? "").trim().toLowerCase();
     const l = (m.label ?? "").trim().toLowerCase();
@@ -348,20 +338,6 @@ export function findMatchingMaterial(
   if (exact) {
     const val = exact.value ?? exact.name!;
     return { value: val, label: exact.label ?? val };
-  }
-
-  // 2. Match stripping parenthetical annotations, e.g. "PA" vs "PA (Nylon)"
-  const strippedLower = stripParentheticalAnnotations(lower).toLowerCase();
-  if (strippedLower) {
-    const parenMatch = availableMaterials.find(m => {
-      const v = stripParentheticalAnnotations(m.value ?? m.name ?? "").toLowerCase();
-      const l = stripParentheticalAnnotations(m.label ?? "").toLowerCase();
-      return (Boolean(v) && v === strippedLower) || (Boolean(l) && l === strippedLower);
-    });
-    if (parenMatch) {
-      const val = parenMatch.value ?? parenMatch.name!;
-      return { value: val, label: parenMatch.label ?? val };
-    }
   }
 
   return undefined;
@@ -484,21 +460,18 @@ export function FilamentModal({
 
   const uniqueMaterialOptions = useMemo(() => {
     const seen = new Set<string>();
+    const seenParenKeys = new Set<string>();
     const options: { value: string; label: string; id?: number }[] = [];
 
     const normalize = (s: string) => s.trim().toLowerCase();
 
-    // Prioritize shorter/unannotated canonical names first (e.g. "PA" before "PA (Nylon)")
-    const sortedMaterials = [...materials].sort((a, b) => a.name.length - b.name.length);
-
-    // 1. Add database materials (deduplicated by normalized parenthetical-stripped form and full name)
-    for (const mat of sortedMaterials) {
+    // 1. Add database materials (all distinct database materials are preserved)
+    for (const mat of materials) {
       const key = normalize(mat.name);
-      const parenKey = normalize(stripParentheticalAnnotations(mat.name));
-      const isParenDupe = parenKey ? seen.has(parenKey) : false;
-      if (key !== "custom" && !isParenDupe && !seen.has(key)) {
-        if (parenKey) seen.add(parenKey);
+      if (key !== "custom" && !seen.has(key)) {
         seen.add(key);
+        const parenKey = normalize(stripParentheticalAnnotations(mat.name));
+        if (parenKey) seenParenKeys.add(parenKey);
         options.push({ value: mat.name, label: mat.name, id: mat.id });
       }
     }
@@ -513,13 +486,13 @@ export function FilamentModal({
         valKey !== "custom" &&
         !seen.has(valKey) &&
         !seen.has(labelKey) &&
-        !(valParen && seen.has(valParen)) &&
-        !(labelParen && seen.has(labelParen))
+        !(valParen && (seen.has(valParen) || seenParenKeys.has(valParen))) &&
+        !(labelParen && (seen.has(labelParen) || seenParenKeys.has(labelParen)))
       ) {
         seen.add(valKey);
         seen.add(labelKey);
-        if (valParen) seen.add(valParen);
-        if (labelParen) seen.add(labelParen);
+        if (valParen) seenParenKeys.add(valParen);
+        if (labelParen) seenParenKeys.add(labelParen);
         options.push({ value: predefined.value, label: predefined.label });
       }
     }
@@ -653,8 +626,15 @@ export function FilamentModal({
   };
 
   const applyColorData = (name: string | null | undefined, hexCode?: string | null) => {
+    const trimmedName = name ? name.trim() : "";
     const normalizedHex = hexCode ? normalizeHexColor(hexCode) : undefined;
-    const match = findMatchingColor(name, colors, colorsList);
+    if (!trimmedName) {
+      if (normalizedHex) {
+        form.setValue('colorCode', normalizedHex, { shouldValidate: true, shouldDirty: true });
+      }
+      return;
+    }
+    const match = findMatchingColor(trimmedName, colors, colorsList);
     if (match) {
       setIsCustomColor(false);
       setCustomColorName("");
@@ -663,9 +643,8 @@ export function FilamentModal({
     } else {
       // Unrecognized color -> select Custom, pre-fill custom color name with scanned name
       setIsCustomColor(true);
-      const customName = name ? name.trim() : "";
-      setCustomColorName(customName);
-      form.setValue('colorName', customName, { shouldValidate: true, shouldDirty: true });
+      setCustomColorName(trimmedName);
+      form.setValue('colorName', trimmedName, { shouldValidate: true, shouldDirty: true });
       if (normalizedHex) {
         form.setValue('colorCode', normalizedHex, { shouldValidate: true, shouldDirty: true });
       }
@@ -917,9 +896,18 @@ export function FilamentModal({
         ? `${result.extruderTemp}°C / Bed ${result.bedTemp}°C`
         : `${result.extruderTemp}°C`);
     }
-    const cleanName = result.colorName && result.name.toLowerCase().includes(result.colorName.toLowerCase())
-      ? result.name
-      : `${result.name} ${result.colorName || ''}`.trim();
+    let baseName = result.name || '';
+    if (result.manufacturer && baseName.toLowerCase().startsWith(result.manufacturer.toLowerCase())) {
+      baseName = baseName.slice(result.manufacturer.length).trim();
+    }
+    const hasMaterial = result.material && baseName.toLowerCase().includes(result.material.toLowerCase());
+    const nameWithMaterial = (!hasMaterial && result.material)
+      ? `${result.material} ${baseName}`.trim()
+      : baseName;
+    const hasColor = result.colorName && nameWithMaterial.toLowerCase().includes(result.colorName.toLowerCase());
+    const cleanName = (!hasColor && result.colorName)
+      ? `${nameWithMaterial} ${result.colorName}`.trim()
+      : nameWithMaterial;
     form.setValue('name', cleanName);
     if (result.gtin) {
       form.setValue('barcode', result.gtin);
@@ -955,7 +943,8 @@ export function FilamentModal({
     const radiusCm = (diameterMm / 10) / 2;
     const crossSectionAreaCm2 = Math.PI * radiusCm * radiusCm;
     const lengthCm = (remainingWeightGrams / densityGCm3) / crossSectionAreaCm2;
-    return (lengthCm / 100).toFixed(1);
+    const lengthMeters = lengthCm / 100;
+    return lengthMeters.toFixed(1);
   };
 
   // Handle total weight selection
@@ -981,11 +970,9 @@ export function FilamentModal({
     }
   };
 
-  // Applies scanned filament data (from QR code or NFC tag) to the form; shared by both scan sources
+  // Fill in scanned filament data into form
   const applyScannedFilamentData = (data: any) => {
-    if (!data.name || !data.material) return;
-
-    form.setValue('name', data.name);
+    if (data.name) form.setValue('name', data.name);
     if (data.manufacturer) {
       const match = findSimilarManufacturers(data.manufacturer, manufacturers, genericStopWords);
       if (match.exactMatch) {
@@ -1014,8 +1001,10 @@ export function FilamentModal({
         applyMaterialData(data.material);
       }
     }
-    if (data.colorName || data.colorCode) {
+    if (data.colorName) {
       applyColorData(data.colorName, data.colorCode);
+    } else if (data.colorCode && normalizeHexColor(data.colorCode)) {
+      form.setValue('colorCode', normalizeHexColor(data.colorCode)!, { shouldValidate: true, shouldDirty: true });
     }
     if (data.density) form.setValue('density', data.density);
     if (data.diameter) form.setValue('diameter', Number(data.diameter));
@@ -1084,6 +1073,9 @@ export function FilamentModal({
 
     // Case 2: 1D/2D Barcode GTIN lookup
     const code = (parsed && typeof parsed === "object" && parsed.barcode ? parsed.barcode : decodedText).trim();
+    if (code) {
+      form.setValue('barcode', code, { shouldValidate: true, shouldDirty: true });
+    }
     try {
       const currentDiameter = form.getValues('diameter');
       const currentWeight = form.getValues('totalWeight');
