@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageContext } from "../../client/src/i18n";
-import { FilamentModal, escapeRegex, findMatchingManufacturer, normalizeHexColor, stripParentheticalAnnotations } from "../../client/src/components/filament-modal";
+import { FilamentModal, escapeRegex, findMatchingManufacturer, findMatchingMaterial, normalizeHexColor, stripParentheticalAnnotations } from "../../client/src/components/filament-modal";
 
 // Mock Dialog so children are rendered in SSR / renderToString
 vi.mock("@/components/ui/dialog", () => ({
@@ -330,6 +330,7 @@ describe("FilamentModal", () => {
     expect(html).toContain('data-select-item="Other"');
     expect(html).toContain('filaments.customManufacturerName');
     expect(html).toContain('value="UniqueManufacturerBrand"');
+    expect(html).toContain('filaments.saveManufacturerToCollection');
   });
 
   it("selects matched manufacturer from database and hides custom manufacturer input", () => {
@@ -358,9 +359,10 @@ describe("FilamentModal", () => {
 
     expect(html).toContain('data-select-value="Prusa"');
     expect(html).not.toContain('filaments.customManufacturerName');
+    expect(html).not.toContain('filaments.saveManufacturerToCollection');
   });
 
-  it("renders select item for a custom material not yet present in predefined list", () => {
+  it("selects Custom and shows custom material input and persistence checkbox when material is unrecognized", () => {
     const template: any = {
       id: 1,
       name: "Special Spool",
@@ -375,7 +377,55 @@ describe("FilamentModal", () => {
       <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={template} />
     );
 
-    expect(html).toContain('data-select-item="PEEK-Custom"');
+    expect(html).toContain('data-select-value="Custom"');
+    expect(html).toContain('data-select-item="Custom"');
+    expect(html).toContain('filaments.customMaterialName');
+    expect(html).toContain('value="PEEK-Custom"');
+    expect(html).toContain('filaments.saveMaterialToCollection');
+  });
+
+  it("selects matched material and hides custom material input", () => {
+    const template: any = {
+      id: 1,
+      name: "Special Spool",
+      manufacturer: "Bambu Lab",
+      material: "PETG",
+      colorCode: "#ff0000",
+      totalWeight: 1,
+      remainingPercentage: 100,
+    };
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={template} />
+    );
+
+    expect(html).toContain('data-select-value="PETG"');
+    expect(html).not.toContain('filaments.customMaterialName');
+    expect(html).not.toContain('filaments.saveMaterialToCollection');
+  });
+});
+
+describe("findMatchingMaterial", () => {
+  const materials = [
+    { id: 1, value: "PLA", label: "PLA" },
+    { id: 2, value: "PETG", label: "PETG" },
+    { id: 3, value: "PA", label: "PA (Nylon)" },
+  ];
+
+  it("matches exact name case-insensitively", () => {
+    expect(findMatchingMaterial("pla", materials)?.value).toBe("PLA");
+    expect(findMatchingMaterial("PETG", materials)?.value).toBe("PETG");
+  });
+
+  it("matches stripping parenthetical annotations", () => {
+    expect(findMatchingMaterial("PA (Nylon)", materials)?.value).toBe("PA");
+    expect(findMatchingMaterial("pa", materials)?.value).toBe("PA");
+  });
+
+  it("returns undefined for unknown material", () => {
+    expect(findMatchingMaterial("WoodPLA", materials)).toBeUndefined();
+    expect(findMatchingMaterial(null, materials)).toBeUndefined();
+    expect(findMatchingMaterial("Custom", materials)).toBeUndefined();
   });
 });
 

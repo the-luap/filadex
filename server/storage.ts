@@ -147,6 +147,8 @@ type FilamentTypeFieldsInput = {
   diameter?: string | null;
   printTemp?: string | null;
   density?: string | number | null;
+  saveManufacturer?: boolean;
+  saveMaterial?: boolean;
 };
 
 // Finds an existing filamentTypes row matching all product-identity fields
@@ -154,8 +156,15 @@ type FilamentTypeFieldsInput = {
 // of the filament-type/spool-instance split: identical spools bought again
 // reuse the same type row instead of duplicating manufacturer/material/etc.
 async function findOrCreateFilamentType(userId: number, fields: FilamentTypeFieldsInput): Promise<number> {
-  const resolvedMaterial = await ensureDeclaredMaterialResolves(userId, fields.material, fields.density);
-  const resolvedManufacturer = await ensureDeclaredManufacturerResolves(userId, fields.manufacturer);
+  const saveMaterial = fields.saveMaterial !== false;
+  const saveManufacturer = fields.saveManufacturer !== false;
+
+  const resolvedMaterial = saveMaterial
+    ? await ensureDeclaredMaterialResolves(userId, fields.material, fields.density)
+    : (fields.material ? catalogName(fields.material) : fields.material);
+  const resolvedManufacturer = saveManufacturer
+    ? await ensureDeclaredManufacturerResolves(userId, fields.manufacturer)
+    : (fields.manufacturer ? fields.manufacturer.trim() : null);
 
   const manufacturer = resolvedManufacturer ?? null;
   const material = resolvedMaterial || fields.material;
@@ -834,7 +843,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFilament(insertFilament: InsertFilament): Promise<Filament> {
-    const { manufacturer, material, colorName, colorCode, diameter, printTemp, density, ...spoolFields } = insertFilament;
+    const { manufacturer, material, colorName, colorCode, diameter, printTemp, density, saveManufacturer, saveMaterial, ...spoolFields } = insertFilament;
     if (spoolFields.userId == null) {
       throw new Error("createFilament requires a userId");
     }
@@ -843,7 +852,7 @@ export class DatabaseStorage implements IStorage {
     if (diameter != null) diameterValueSchema.parse(diameter);
 
     const filamentTypeId = await findOrCreateFilamentType(spoolFields.userId, {
-      manufacturer, material, colorName, colorCode, diameter, printTemp, density,
+      manufacturer, material, colorName, colorCode, diameter, printTemp, density, saveManufacturer, saveMaterial,
     });
     const [created] = await db.insert(filaments).values({ ...spoolFields, filamentTypeId }).returning();
 
@@ -857,7 +866,7 @@ export class DatabaseStorage implements IStorage {
       const existing = await this.getFilament(id, userId);
       if (!existing) return undefined;
 
-      const { manufacturer, material, colorName, colorCode, diameter, printTemp, density, ...spoolFields } = updateFilament;
+      const { manufacturer, material, colorName, colorCode, diameter, printTemp, density, saveManufacturer, saveMaterial, ...spoolFields } = updateFilament;
       if (diameter != null) diameterValueSchema.parse(diameter);
       const typeFieldsChanged = [manufacturer, material, colorName, colorCode, diameter, printTemp]
         .some((value) => value !== undefined);
@@ -872,6 +881,8 @@ export class DatabaseStorage implements IStorage {
           diameter: diameter !== undefined ? diameter : existing.diameter,
           printTemp: printTemp !== undefined ? printTemp : existing.printTemp,
           density,
+          saveManufacturer,
+          saveMaterial,
         });
       }
 
