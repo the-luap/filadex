@@ -27,7 +27,7 @@ export function formatCommunityCatalogFilamentName(result: Partial<CommunityCata
   if (manufacturer && baseName.toLowerCase().startsWith(manufacturer.toLowerCase())) {
     const rest = baseName.slice(manufacturer.length);
     if (!rest || /^[\s\-_/]/.test(rest)) {
-      baseName = rest.trim();
+      baseName = rest.replace(/^[\s\-_/]+/, '').trim();
     }
   }
 

@@ -34,6 +34,14 @@ describe("community-catalog name formatting", () => {
         colorName: "Sapphire Blue",
       });
       expect(formatted).toBe("PolyTerra PLA Sapphire Blue");
+
+      const formattedWithHyphen = formatCommunityCatalogFilamentName({
+        manufacturer: "Polymaker",
+        name: "Polymaker - PolyTerra PLA Sapphire Blue",
+        material: "PLA",
+        colorName: "Sapphire Blue",
+      });
+      expect(formattedWithHyphen).toBe("PolyTerra PLA Sapphire Blue");
     });
 
     it("does not strip manufacturer prefix when it is a substring of another word", () => {

@@ -68,6 +68,8 @@ async function seedStarter(): Promise<void> {
       );
       const rows = result?.rows ?? (Array.isArray(result) ? result : []);
       if (rows.length > 0) {
+        // Starter data inserts 10+ rows per table; last_value is NULL for uncalled sequences
+        // or > 1 once starter rows have been generated, distinguishing seeded DBs from fresh ones.
         const hasSeq = rows.some((r: any) => r?.last_value !== null && Number(r?.last_value) > 1);
         if (hasSeq) {
           console.log("Sequence generator indicates starter data was previously seeded, skipping starter initialization.");
