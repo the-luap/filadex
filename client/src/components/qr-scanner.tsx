@@ -64,7 +64,7 @@ export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
   }
 
   const materialCode = parts[1].toUpperCase();
-  let material = '';
+  let material: string;
 
   // Material-Codes erkennen
   if (materialCode.startsWith('PLA')) {
@@ -126,7 +126,7 @@ export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
   }
 
   // Standard-Drucktemperaturen für Bambu Lab Materialien
-  let printTemp = '';
+  let printTemp: string;
   switch (material) {
     case 'pla':
     case 'pla-cf':
@@ -139,6 +139,7 @@ export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
       break;
     case 'petg':
     case 'petg-cf':
+    case 'petg-hf':
       printTemp = '230-260';
       break;
     case 'tpu':
@@ -173,6 +174,7 @@ export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
     'abs-cf': 'ABS-CF',
     'petg': 'PETG',
     'petg-cf': 'PETG-CF',
+    'petg-hf': 'PETG-HF',
     'tpu': 'TPU',
     'pa': 'PA',
     'pa-cf': 'PA-CF',
@@ -298,7 +300,7 @@ export const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
   }
 
   // Standard-Drucktemperaturen für Bambu Lab Materialien
-  let printTemp = '';
+  let printTemp: string;
   switch (material) {
     case 'pla':
     case 'pla-cf':
@@ -311,6 +313,7 @@ export const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
       break;
     case 'petg':
     case 'petg-cf':
+    case 'petg-hf':
       printTemp = '230-260';
       break;
     case 'tpu':
@@ -345,6 +348,7 @@ export const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
     'abs-cf': 'ABS-CF',
     'petg': 'PETG',
     'petg-cf': 'PETG-CF',
+    'petg-hf': 'PETG-HF',
     'tpu': 'TPU',
     'pa': 'PA',
     'pa-cf': 'PA-CF',

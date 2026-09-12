@@ -447,13 +447,16 @@ export function FilamentModal({
 
     const normalize = (s: string) => s.trim().toLowerCase();
 
-    // 1. Add database materials (deduplicated by normalized name and stripped paren)
-    for (const mat of materials) {
+    // Prioritize shorter/unannotated canonical names first (e.g. "PA" before "PA (Nylon)")
+    const sortedMaterials = [...materials].sort((a, b) => a.name.length - b.name.length);
+
+    // 1. Add database materials (deduplicated by normalized parenthetical-stripped form and full name)
+    for (const mat of sortedMaterials) {
       const key = normalize(mat.name);
       const parenKey = normalize(stripParentheticalAnnotations(mat.name));
-      if (!seen.has(key)) {
+      if (!seen.has(parenKey) && !seen.has(key)) {
+        seen.add(parenKey);
         seen.add(key);
-        if (parenKey) seen.add(parenKey);
         options.push({ value: mat.name, label: mat.name, id: mat.id });
       }
     }
@@ -534,7 +537,9 @@ export function FilamentModal({
       name: filament?.name || "",
       manufacturer: filament?.manufacturer || "",
       material: filament?.material || "",
-      colorName: filament?.colorName || "",
+      colorName: (filament?.colorName
+        ? (findMatchingColor(filament.colorName, colors, colorsList)?.name || filament.colorName)
+        : ""),
       colorCode: normalizeHexColor(filament?.colorCode) || "#000000",
       diameter: filament?.diameter ? Number(filament.diameter) : 1.75,
       printTemp: filament?.printTemp || "",
@@ -565,6 +570,7 @@ export function FilamentModal({
       const canonicalMfg = matchingMfg ? matchingMfg.name : (filament.manufacturer || "");
 
       const colorMatch = findMatchingColor(filament.colorName, colors, colorsList);
+      const canonicalColor = colorMatch ? colorMatch.name : (filament.colorName || "");
       if (colorMatch) {
         setIsCustomColor(false);
         setCustomColorName("");
@@ -580,7 +586,7 @@ export function FilamentModal({
         name: filament.name,
         manufacturer: canonicalMfg,
         material: canonicalMaterial,
-        colorName: filament.colorName,
+        colorName: canonicalColor,
         colorCode: normalizeHexColor(filament.colorCode) || "#000000",
         diameter: Number(filament.diameter),
         printTemp: filament.printTemp || "",
@@ -646,9 +652,10 @@ export function FilamentModal({
       if (match) {
         setIsCustomColor(false);
         setCustomColorName("");
+        form.setValue('colorName', match.name, { shouldValidate: true });
       }
     }
-  }, [colors, filament, isCustomColor, colorsList, form.formState.dirtyFields.colorName]);
+  }, [colors, filament, isCustomColor, colorsList, form]);
 
   // Handle form submission
   const onSubmit = (data: FormValues) => {

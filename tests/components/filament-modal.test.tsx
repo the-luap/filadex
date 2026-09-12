@@ -161,6 +161,54 @@ describe("FilamentModal", () => {
     expect(petgMatches).toHaveLength(1);
   });
 
+  it("symmetrically prioritizes unannotated PA over PA (Nylon) regardless of database order", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    // PA (Nylon) placed before PA intentionally
+    queryClient.setQueryData(["/api/materials"], [
+      { id: 10, name: "PA (Nylon)" },
+      { id: 5, name: "PA" },
+    ]);
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} />,
+      queryClient
+    );
+
+    const paMatches = html.match(/data-select-item="PA"/g);
+    expect(paMatches).toHaveLength(1);
+    expect(html).not.toContain('data-select-item="PA (Nylon)"');
+  });
+
+  it("canonicalizes colorName to matched catalog name (e.g. 'Black' for 'black' or 'Black (Bambu Lab)')", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["/api/colors"], [
+      { id: 1, name: "Black", code: "#000000" },
+    ]);
+
+    const template: any = {
+      id: 1,
+      name: "PLA Basic Black",
+      manufacturer: "Bambu Lab",
+      material: "PLA",
+      colorName: "Black (Bambu Lab)",
+      colorCode: "#000000",
+      totalWeight: 1,
+      remainingPercentage: 100,
+    };
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={template} />,
+      queryClient
+    );
+
+    expect(html).toContain('data-select-value="Black"');
+    expect(html).toContain('data-select-item="Black"');
+  });
+
   it("auto-matches recognized color on scanned or templated filament", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
