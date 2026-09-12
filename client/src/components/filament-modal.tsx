@@ -197,6 +197,27 @@ const createFormSchema = (t: (key: string) => string) => z.object({
 type FormSchema = ReturnType<typeof createFormSchema>;
 type FormValues = z.infer<FormSchema>;
 
+export const DEFAULT_FORM_VALUES: FormValues = {
+  name: "",
+  manufacturer: "",
+  material: "",
+  colorName: "",
+  colorCode: "#000000",
+  diameter: 1.75,
+  printTemp: "",
+  totalWeight: 1,
+  remainingPercentage: 100,
+  purchaseDate: undefined,
+  purchasePrice: undefined,
+  status: undefined as any,
+  spoolType: undefined as any,
+  dryerCount: 0,
+  lastDryingDate: undefined,
+  storageLocation: "",
+  barcode: "",
+  density: undefined,
+};
+
 interface FilamentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -654,6 +675,7 @@ export function FilamentModal({
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      ...DEFAULT_FORM_VALUES,
       name: filament?.name || "",
       manufacturer: (filament?.manufacturer
         ? (findMatchingManufacturer(filament.manufacturer, manufacturers)?.name || filament.manufacturer)
@@ -690,26 +712,7 @@ export function FilamentModal({
     setIsCustomMaterial(false);
     setCustomMaterialName("");
     setSaveCustomMaterial(true);
-    form.reset({
-      name: "",
-      manufacturer: "",
-      material: "",
-      colorName: "",
-      colorCode: "#000000",
-      diameter: 1.75,
-      printTemp: "",
-      totalWeight: 1,
-      remainingPercentage: 100,
-      purchaseDate: undefined,
-      purchasePrice: undefined,
-      status: undefined,
-      spoolType: undefined,
-      dryerCount: 0,
-      lastDryingDate: undefined,
-      storageLocation: "",
-      barcode: "",
-      density: undefined,
-    });
+    form.reset(DEFAULT_FORM_VALUES);
     setRemainingPercentage(100);
     setTotalWeight(1);
     setCustomWeightVisible(false);
@@ -723,11 +726,6 @@ export function FilamentModal({
     setCommunitySearchQuery("");
     setSimilarManufacturerPrompt(null);
     setSimilarMaterialPrompt(null);
-  };
-
-  const handleClose = () => {
-    resetToDefaults();
-    onClose();
   };
 
   // Update form when modal opens/closes or filament changes
@@ -1217,7 +1215,7 @@ export function FilamentModal({
         </Dialog>
       )}
 
-      <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent
           className="max-w-[95vw] sm:max-w-[90vw] md:max-w-4xl lg:max-w-5xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0 dark:bg-neutral-900 bg-white"
           aria-describedby="filament-form-description"
@@ -2191,7 +2189,7 @@ export function FilamentModal({
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleClose}
+                onClick={onClose}
               >
                 {t('common.cancel')}
               </Button>

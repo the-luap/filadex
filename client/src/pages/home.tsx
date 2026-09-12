@@ -101,6 +101,8 @@ export default function Home() {
       queryClient.invalidateQueries({ queryKey: ['/api/materials'] });
 
       setShowAddModal(false);
+      setSelectedFilament(undefined);
+      setCopyFromFilament(undefined);
       toast({
         title: t('common.success'),
         description: t('filaments.addSuccess'),
@@ -131,6 +133,7 @@ export default function Home() {
 
       setShowAddModal(false);
       setSelectedFilament(undefined);
+      setCopyFromFilament(undefined);
       toast({
         title: t('common.success'),
         description: t('filaments.updateSuccess'),
@@ -588,6 +591,7 @@ export default function Home() {
       <Header
         onAddFilament={() => {
           setSelectedFilament(undefined);
+          setCopyFromFilament(undefined);
           setShowAddModal(true);
         }}
       />
