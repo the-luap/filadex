@@ -681,8 +681,62 @@ export function FilamentModal({
     },
   });
 
-  // Update form when filament changes
+  const resetToDefaults = () => {
+    setIsCustomColor(false);
+    setCustomColorName("");
+    setIsCustomManufacturer(false);
+    setCustomManufacturerName("");
+    setSaveCustomManufacturer(true);
+    setIsCustomMaterial(false);
+    setCustomMaterialName("");
+    setSaveCustomMaterial(true);
+    form.reset({
+      name: "",
+      manufacturer: "",
+      material: "",
+      colorName: "",
+      colorCode: "#000000",
+      diameter: 1.75,
+      printTemp: "",
+      totalWeight: 1,
+      remainingPercentage: 100,
+      purchaseDate: undefined,
+      purchasePrice: undefined,
+      status: undefined,
+      spoolType: undefined,
+      dryerCount: 0,
+      lastDryingDate: undefined,
+      storageLocation: "",
+      barcode: "",
+      density: undefined,
+    });
+    setRemainingPercentage(100);
+    setTotalWeight(1);
+    setCustomWeightVisible(false);
+    setUsageNote("");
+    setShowHistory(false);
+    setCustomFieldValues({});
+    setShowQRScanner(false);
+    setShowNFCScanner(false);
+    setVariantCandidates(null);
+    setVariantCandidateBarcode("");
+    setCommunitySearchQuery("");
+    setSimilarManufacturerPrompt(null);
+    setSimilarMaterialPrompt(null);
+  };
+
+  const handleClose = () => {
+    resetToDefaults();
+    onClose();
+  };
+
+  // Update form when modal opens/closes or filament changes
   useEffect(() => {
+    if (!isOpen) {
+      resetToDefaults();
+      return;
+    }
+
     if (filament) {
       const matMatch = findMatchingMaterial(filament.material, uniqueMaterialOptions);
       const canonicalMaterial = matMatch ? matMatch.value : (filament.material || "");
@@ -753,45 +807,15 @@ export function FilamentModal({
       if (!STANDARD_WEIGHTS.includes(Number(filament.totalWeight))) {
         setCustomWeightVisible(true);
       }
+      setUsageNote("");
+      setShowHistory(false);
+      setCustomFieldValues((filament?.customFieldValues as Record<string, any>) || {});
     } else {
-      setIsCustomColor(false);
-      setCustomColorName("");
-      setIsCustomManufacturer(false);
-      setCustomManufacturerName("");
-      setSaveCustomManufacturer(true);
-      setIsCustomMaterial(false);
-      setCustomMaterialName("");
-      setSaveCustomMaterial(true);
-      form.reset({
-        name: "",
-        manufacturer: "",
-        material: "",
-        colorName: "",
-        colorCode: "#000000",
-        diameter: 1.75,
-        printTemp: "",
-        totalWeight: 1,
-        remainingPercentage: 100,
-        purchaseDate: undefined,
-        purchasePrice: undefined,
-        status: undefined,
-        spoolType: undefined,
-        dryerCount: 0,
-        lastDryingDate: undefined,
-        storageLocation: "",
-        barcode: "",
-        density: undefined,
-      });
-      setRemainingPercentage(100);
-      setTotalWeight(1);
-      setCustomWeightVisible(false);
+      resetToDefaults();
     }
-    setUsageNote("");
-    setShowHistory(false);
-    setCustomFieldValues((filament?.customFieldValues as Record<string, any>) || {});
-    // Only synchronize form state when the active filament changes to avoid overwriting user edits on query refetches
+    // Only synchronize form state when the active filament or open state changes to avoid overwriting user edits on query refetches
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filament, form]);
+  }, [isOpen, filament, form]);
 
   // If modal was opened with a filament whose color is in the database,
   // re-evaluate when colors query finishes loading so it doesn't stay stuck as "Custom"
@@ -1193,7 +1217,7 @@ export function FilamentModal({
         </Dialog>
       )}
 
-      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
         <DialogContent
           className="max-w-[95vw] sm:max-w-[90vw] md:max-w-4xl lg:max-w-5xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0 dark:bg-neutral-900 bg-white"
           aria-describedby="filament-form-description"
@@ -2167,7 +2191,7 @@ export function FilamentModal({
               <Button
                 type="button"
                 variant="outline"
-                onClick={onClose}
+                onClick={handleClose}
               >
                 {t('common.cancel')}
               </Button>
