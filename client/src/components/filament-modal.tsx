@@ -495,8 +495,9 @@ export function FilamentModal({
     for (const mat of sortedMaterials) {
       const key = normalize(mat.name);
       const parenKey = normalize(stripParentheticalAnnotations(mat.name));
-      if (key !== "custom" && !seen.has(parenKey) && !seen.has(key)) {
-        seen.add(parenKey);
+      const isParenDupe = parenKey ? seen.has(parenKey) : false;
+      if (key !== "custom" && !isParenDupe && !seen.has(key)) {
+        if (parenKey) seen.add(parenKey);
         seen.add(key);
         options.push({ value: mat.name, label: mat.name, id: mat.id });
       }
@@ -512,8 +513,8 @@ export function FilamentModal({
         valKey !== "custom" &&
         !seen.has(valKey) &&
         !seen.has(labelKey) &&
-        !seen.has(valParen) &&
-        !seen.has(labelParen)
+        !(valParen && seen.has(valParen)) &&
+        !(labelParen && seen.has(labelParen))
       ) {
         seen.add(valKey);
         seen.add(labelKey);
@@ -590,7 +591,7 @@ export function FilamentModal({
     const result: Color[] = [];
     for (const c of colors) {
       const key = c.name.trim().toLowerCase();
-      if (!seen.has(key)) {
+      if (key !== "custom" && !seen.has(key)) {
         seen.add(key);
         result.push(c);
       }
@@ -1579,9 +1580,16 @@ export function FilamentModal({
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                   e.preventDefault();
-                                  const value = (e.target as HTMLInputElement).value;
+                                  const value = (e.target as HTMLInputElement).value?.trim();
                                   if (value) {
-                                    field.onChange(value);
+                                    applyColorData(value);
+                                    const match = findMatchingColor(value, colors, colorsList);
+                                    const resolvedName = match ? match.name : value;
+                                    field.onChange(resolvedName);
+                                    const material = form.getValues('material');
+                                    if (material && resolvedName) {
+                                      form.setValue('name', `${material} ${resolvedName}`);
+                                    }
                                   }
                                 }
                               }}
@@ -1637,6 +1645,7 @@ export function FilamentModal({
                             onChange={(e) => {
                               setCustomColorName(e.target.value);
                               field.onChange(e.target.value);
+                              form.setValue('colorName', e.target.value, { shouldValidate: true, shouldDirty: true });
                             }}
                           />
                         </div>

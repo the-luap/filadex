@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageContext } from "../../client/src/i18n";
-import { FilamentModal, escapeRegex, findMatchingManufacturer, findMatchingMaterial, normalizeHexColor, stripParentheticalAnnotations } from "../../client/src/components/filament-modal";
+import { FilamentModal, escapeRegex, findMatchingColor, findMatchingManufacturer, findMatchingMaterial, normalizeHexColor, stripParentheticalAnnotations } from "../../client/src/components/filament-modal";
 
 // Mock Dialog so children are rendered in SSR / renderToString
 vi.mock("@/components/ui/dialog", () => ({
@@ -422,6 +422,16 @@ describe("findMatchingMaterial", () => {
     expect(findMatchingMaterial("pa", materials)?.value).toBe("PA");
   });
 
+  it("matches parenthesized material names properly", () => {
+    const parenthesizedMaterials = [
+      ...materials,
+      { id: 4, value: "(Generic)", label: "(Generic)" },
+      { id: 5, value: "(Custom Grade)", label: "(Custom Grade)" },
+    ];
+    expect(findMatchingMaterial("(Generic)", parenthesizedMaterials)?.value).toBe("(Generic)");
+    expect(findMatchingMaterial("(Custom Grade)", parenthesizedMaterials)?.value).toBe("(Custom Grade)");
+  });
+
   it("returns undefined for unknown material", () => {
     expect(findMatchingMaterial("WoodPLA", materials)).toBeUndefined();
     expect(findMatchingMaterial(null, materials)).toBeUndefined();
@@ -549,6 +559,39 @@ describe("normalizeHexColor and colorCode handling", () => {
       expect(stripParentheticalAnnotations("PLA (Polylactic Acid)")).toBe("PLA");
       expect(stripParentheticalAnnotations("PETG")).toBe("PETG");
       expect(stripParentheticalAnnotations("PLA Silk")).toBe("PLA Silk");
+      expect(stripParentheticalAnnotations("(Custom Grade)")).toBe("");
+      expect(stripParentheticalAnnotations("(Generic)")).toBe("");
+    });
+  });
+
+  describe("findMatchingColor", () => {
+    const dbColors = [
+      { id: 1, name: "Jet Black", code: "#000000" },
+      { id: 2, name: "Signal White", code: "#FFFFFF" },
+    ];
+    const preColors = [
+      { name: "Traffic Red", code: "#FF0000" },
+      { name: "Black (Bambu Lab)", code: "#111111" },
+    ];
+
+    it("matches exact name case-insensitively in DB colors", () => {
+      expect(findMatchingColor("jet black", dbColors, preColors)?.name).toBe("Jet Black");
+      expect(findMatchingColor("SIGNAL WHITE", dbColors, preColors)?.code).toBe("#FFFFFF");
+    });
+
+    it("matches exact name case-insensitively in predefined colors", () => {
+      expect(findMatchingColor("traffic red", dbColors, preColors)?.name).toBe("Traffic Red");
+    });
+
+    it("matches stripping parenthetical annotations", () => {
+      expect(findMatchingColor("Black", dbColors, preColors)?.name).toBe("Black (Bambu Lab)");
+    });
+
+    it("returns undefined for unrecognized color or empty/null input", () => {
+      expect(findMatchingColor("Electric Lime", dbColors, preColors)).toBeUndefined();
+      expect(findMatchingColor("", dbColors, preColors)).toBeUndefined();
+      expect(findMatchingColor(null, dbColors, preColors)).toBeUndefined();
+      expect(findMatchingColor(undefined, dbColors, preColors)).toBeUndefined();
     });
   });
 
