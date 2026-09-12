@@ -365,5 +365,137 @@ describe("auto-registration of a declared manufacturer", () => {
     expect(matches).toHaveLength(1);
     expect(matches[0].name).toBe(spool1.manufacturer);
   });
+
+  it("does not insert manufacturer into personal catalog when saveManufacturer is false", async () => {
+    const alice = await newUser("alice_mfg_nopersist");
+    const res = await request(app)
+      .post("/api/filaments")
+      .set("Cookie", alice.cookie)
+      .send({
+        name: "Temporary Spool",
+        manufacturer: "TempBrandNoSave",
+        material: "PLA",
+        colorName: "Black",
+        colorCode: "#000000",
+        totalWeight: 1000,
+        remainingPercentage: 100,
+        saveManufacturer: false,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.manufacturer).toBe("TempBrandNoSave");
+
+    const mfgRows = await db.select().from(manufacturers).where(eq(manufacturers.userId, alice.id));
+    const match = mfgRows.find((m) => m.name.toLowerCase() === "tempbrandnosave");
+    expect(match).toBeUndefined();
+  });
+
+  it("does not insert material into personal catalog when saveMaterial is false", async () => {
+    const alice = await newUser("alice_mat_nopersist");
+    const res = await request(app)
+      .post("/api/filaments")
+      .set("Cookie", alice.cookie)
+      .send({
+        name: "Temporary Material Spool",
+        material: "TempMatNoSave",
+        colorName: "Black",
+        colorCode: "#000000",
+        totalWeight: 1000,
+        remainingPercentage: 100,
+        saveMaterial: false,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.material).toBe("TempMatNoSave");
+
+    const matRows = await ownRows(alice.id);
+    const match = matRows.find((m) => m.name.toLowerCase() === "tempmatnosave");
+    expect(match).toBeUndefined();
+  });
+
+  it("persists manufacturer and material to personal catalog by default when save flags are omitted", async () => {
+    const alice = await newUser("alice_persist_default");
+    const res = await request(app)
+      .post("/api/filaments")
+      .set("Cookie", alice.cookie)
+      .send({
+        name: "Persist Spool",
+        manufacturer: "DefaultSavedBrand",
+        material: "DefaultSavedMat",
+        colorName: "Black",
+        colorCode: "#000000",
+        totalWeight: 1000,
+        remainingPercentage: 100,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.manufacturer).toBe("DefaultSavedBrand");
+    expect(res.body.material).toBe("DefaultSavedMat");
+
+    const mfgRows = await db.select().from(manufacturers).where(eq(manufacturers.userId, alice.id));
+    const mfgMatch = mfgRows.find((m) => m.name.toLowerCase() === "defaultsavedbrand");
+    expect(mfgMatch).toBeDefined();
+
+    const matRows = await ownRows(alice.id);
+    const matMatch = matRows.find((m) => m.name.toLowerCase() === "defaultsavedmat");
+    expect(matMatch).toBeDefined();
+  });
+
+  it("resolves to canonical catalog name even when saveManufacturer or saveMaterial is false", async () => {
+    const alice = await newUser("alice_canonical_nosave");
+    await storage.createManufacturer({ name: "CanonicalMfg" });
+    await storage.createMaterial({ name: "CanonicalMat" });
+
+    const res = await request(app)
+      .post("/api/filaments")
+      .set("Cookie", alice.cookie)
+      .send({
+        name: "Spool",
+        manufacturer: "canonicalmfg",
+        material: "canonicalmat",
+        colorName: "Black",
+        colorCode: "#000000",
+        totalWeight: 1000,
+        remainingPercentage: 100,
+        saveManufacturer: false,
+        saveMaterial: false,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.manufacturer).toBe("CanonicalMfg");
+    expect(res.body.material).toBe("CanonicalMat");
+  });
+
+  it("handles saveManufacturer: false and saveMaterial: false on PATCH", async () => {
+    const alice = await newUser("alice_patch_nosave");
+    const spool = await storage.createFilament({
+      userId: alice.id,
+      name: "Original Spool",
+      material: "PLA",
+      colorName: "Black",
+      totalWeight: "1000",
+      remainingPercentage: "100",
+    });
+
+    const res = await request(app)
+      .patch(`/api/filaments/${spool.id}`)
+      .set("Cookie", alice.cookie)
+      .send({
+        manufacturer: "PatchBrandNoSave",
+        material: "PatchMatNoSave",
+        saveManufacturer: false,
+        saveMaterial: false,
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.manufacturer).toBe("PatchBrandNoSave");
+    expect(res.body.material).toBe("PatchMatNoSave");
+
+    const mfgRows = await db.select().from(manufacturers).where(eq(manufacturers.userId, alice.id));
+    expect(mfgRows.find((m) => m.name.toLowerCase() === "patchbrandnosave")).toBeUndefined();
+
+    const matRows = await ownRows(alice.id);
+    expect(matRows.find((m) => m.name.toLowerCase() === "patchmatnosave")).toBeUndefined();
+  });
 });
 

@@ -306,7 +306,9 @@ export function registerFilamentRoutes(app: Express): void {
         lastDryingDate: data.lastDryingDate,
         storageLocation: data.storageLocation,
         barcode: data.barcode,
-        customFieldValues: data.customFieldValues
+        customFieldValues: data.customFieldValues,
+        saveManufacturer: data.saveManufacturer,
+        saveMaterial: data.saveMaterial,
       };
 
       const newFilament = await storage.createFilament(insertData);
@@ -388,6 +390,8 @@ export function registerFilamentRoutes(app: Express): void {
       if (data.storageLocation !== undefined) updateData.storageLocation = data.storageLocation;
       if (data.barcode !== undefined) updateData.barcode = data.barcode;
       if (data.customFieldValues !== undefined) updateData.customFieldValues = data.customFieldValues;
+      if (data.saveManufacturer !== undefined) updateData.saveManufacturer = data.saveManufacturer;
+      if (data.saveMaterial !== undefined) updateData.saveMaterial = data.saveMaterial;
 
       // A top-up clears the low-stock notification latch, so a future drop
       // back below the threshold triggers a fresh email instead of staying silent.
