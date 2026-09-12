@@ -440,5 +440,62 @@ describe("auto-registration of a declared manufacturer", () => {
     const matMatch = matRows.find((m) => m.name.toLowerCase() === "defaultsavedmat");
     expect(matMatch).toBeDefined();
   });
+
+  it("resolves to canonical catalog name even when saveManufacturer or saveMaterial is false", async () => {
+    const alice = await newUser("alice_canonical_nosave");
+    await storage.createManufacturer({ name: "CanonicalMfg" });
+    await storage.createMaterial({ name: "CanonicalMat" });
+
+    const res = await request(app)
+      .post("/api/filaments")
+      .set("Cookie", alice.cookie)
+      .send({
+        name: "Spool",
+        manufacturer: "canonicalmfg",
+        material: "canonicalmat",
+        colorName: "Black",
+        colorCode: "#000000",
+        totalWeight: 1000,
+        remainingPercentage: 100,
+        saveManufacturer: false,
+        saveMaterial: false,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.manufacturer).toBe("CanonicalMfg");
+    expect(res.body.material).toBe("CanonicalMat");
+  });
+
+  it("handles saveManufacturer: false and saveMaterial: false on PATCH", async () => {
+    const alice = await newUser("alice_patch_nosave");
+    const spool = await storage.createFilament({
+      userId: alice.id,
+      name: "Original Spool",
+      material: "PLA",
+      colorName: "Black",
+      totalWeight: "1000",
+      remainingPercentage: "100",
+    });
+
+    const res = await request(app)
+      .patch(`/api/filaments/${spool.id}`)
+      .set("Cookie", alice.cookie)
+      .send({
+        manufacturer: "PatchBrandNoSave",
+        material: "PatchMatNoSave",
+        saveManufacturer: false,
+        saveMaterial: false,
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.manufacturer).toBe("PatchBrandNoSave");
+    expect(res.body.material).toBe("PatchMatNoSave");
+
+    const mfgRows = await db.select().from(manufacturers).where(eq(manufacturers.userId, alice.id));
+    expect(mfgRows.find((m) => m.name.toLowerCase() === "patchbrandnosave")).toBeUndefined();
+
+    const matRows = await ownRows(alice.id);
+    expect(matRows.find((m) => m.name.toLowerCase() === "patchmatnosave")).toBeUndefined();
+  });
 });
 

@@ -294,7 +294,7 @@ export function findMatchingManufacturer(
 ): { id?: number; name: string } | undefined {
   if (!scannedManufacturer) return undefined;
   const lower = scannedManufacturer.trim().toLowerCase();
-  if (!lower) return undefined;
+  if (!lower || lower === "other") return undefined;
 
   // 1. Exact case-insensitive match on DB manufacturers
   const exact = dbManufacturers.find(m => m.name.trim().toLowerCase() === lower);
@@ -474,7 +474,7 @@ export function FilamentModal({
     for (const mat of sortedMaterials) {
       const key = normalize(mat.name);
       const parenKey = normalize(stripParentheticalAnnotations(mat.name));
-      if (!seen.has(parenKey) && !seen.has(key)) {
+      if (key !== "custom" && !seen.has(parenKey) && !seen.has(key)) {
         seen.add(parenKey);
         seen.add(key);
         options.push({ value: mat.name, label: mat.name, id: mat.id });
@@ -488,6 +488,7 @@ export function FilamentModal({
       const valParen = normalize(stripParentheticalAnnotations(predefined.value));
       const labelParen = normalize(stripParentheticalAnnotations(predefined.label));
       if (
+        valKey !== "custom" &&
         !seen.has(valKey) &&
         !seen.has(labelKey) &&
         !seen.has(valParen) &&
@@ -581,7 +582,7 @@ export function FilamentModal({
     const result: Manufacturer[] = [];
     for (const m of manufacturers) {
       const key = m.name.trim().toLowerCase();
-      if (!seen.has(key)) {
+      if (key !== "other" && !seen.has(key)) {
         seen.add(key);
         result.push(m);
       }
@@ -1307,7 +1308,6 @@ export function FilamentModal({
                             form.setValue('manufacturer', value, { shouldValidate: true, shouldDirty: true });
                           }
                         }}
-                        defaultValue={isOther ? "Other" : selectValue}
                         value={isOther ? "Other" : selectValue}
                       >
                         <FormControl>
@@ -1361,7 +1361,7 @@ export function FilamentModal({
                       {isOther && (
                         <div className="mt-2 space-y-2">
                           <Input
-                            placeholder={t('filaments.customManufacturerName') || t('filaments.otherManufacturer') || 'Other'}
+                            placeholder={t('filaments.customManufacturerName')}
                             value={customManufacturerName}
                             onChange={(e) => {
                               setCustomManufacturerName(e.target.value);
@@ -1426,7 +1426,6 @@ export function FilamentModal({
                             }
                           }
                         }}
-                        defaultValue={isCustom ? "Custom" : selectValue}
                         value={isCustom ? "Custom" : selectValue}
                       >
                         <FormControl>
