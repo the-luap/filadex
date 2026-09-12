@@ -255,6 +255,10 @@ export function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+export function stripParentheticalAnnotations(s: string): string {
+  return s.replace(/\s*\([^)]*\)/g, "").trim();
+}
+
 export function findMatchingColor(
   scannedColorName: string | null | undefined,
   dbColors: { id?: number; name: string; code?: string }[],
@@ -273,13 +277,12 @@ export function findMatchingColor(
   if (preMatch) return { name: preMatch.name, code: preMatch.code || "#000000" };
 
   // 3. Match stripping parenthetical comments, e.g. "Black" vs "Black (Bambu Lab)"
-  const stripParen = (s: string) => s.replace(/\s*\([^)]*\)/g, "").trim().toLowerCase();
-  const strippedLower = stripParen(lower);
+  const strippedLower = stripParentheticalAnnotations(lower).toLowerCase();
   if (strippedLower) {
-    const dbParenMatch = dbColors.find(c => stripParen(c.name) === strippedLower);
+    const dbParenMatch = dbColors.find(c => stripParentheticalAnnotations(c.name).toLowerCase() === strippedLower);
     if (dbParenMatch) return { name: dbParenMatch.name, code: dbParenMatch.code || "#000000" };
 
-    const preParenMatch = predefinedColors.find(c => stripParen(c.name) === strippedLower);
+    const preParenMatch = predefinedColors.find(c => stripParentheticalAnnotations(c.name).toLowerCase() === strippedLower);
     if (preParenMatch) return { name: preParenMatch.name, code: preParenMatch.code || "#000000" };
   }
 
@@ -443,17 +446,14 @@ export function FilamentModal({
     const options: { value: string; label: string; id?: number }[] = [];
 
     const normalize = (s: string) => s.trim().toLowerCase();
-    const getBaseCode = (s: string) => {
-      const m = s.match(/^([A-Za-z0-9+-]+)/);
-      return m ? m[1].toLowerCase() : s.toLowerCase();
-    };
 
-    // 1. Add database materials (deduplicated by normalized name)
+    // 1. Add database materials (deduplicated by normalized name and stripped paren)
     for (const mat of materials) {
       const key = normalize(mat.name);
+      const parenKey = normalize(stripParentheticalAnnotations(mat.name));
       if (!seen.has(key)) {
         seen.add(key);
-        seen.add(getBaseCode(mat.name));
+        if (parenKey) seen.add(parenKey);
         options.push({ value: mat.name, label: mat.name, id: mat.id });
       }
     }
@@ -462,11 +462,18 @@ export function FilamentModal({
     for (const predefined of materialTypes) {
       const valKey = normalize(predefined.value);
       const labelKey = normalize(predefined.label);
-      const baseKey = getBaseCode(predefined.value);
-      if (!seen.has(valKey) && !seen.has(labelKey) && !seen.has(baseKey)) {
+      const valParen = normalize(stripParentheticalAnnotations(predefined.value));
+      const labelParen = normalize(stripParentheticalAnnotations(predefined.label));
+      if (
+        !seen.has(valKey) &&
+        !seen.has(labelKey) &&
+        !seen.has(valParen) &&
+        !seen.has(labelParen)
+      ) {
         seen.add(valKey);
         seen.add(labelKey);
-        seen.add(baseKey);
+        if (valParen) seen.add(valParen);
+        if (labelParen) seen.add(labelParen);
         options.push({ value: predefined.value, label: predefined.label });
       }
     }
@@ -630,6 +637,18 @@ export function FilamentModal({
     // Only synchronize form state when the active filament changes to avoid overwriting user edits on query refetches
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filament, form]);
+
+  // If modal was opened with a filament whose color is in the database,
+  // re-evaluate when colors query finishes loading so it doesn't stay stuck as "Custom"
+  useEffect(() => {
+    if (filament && filament.colorName && isCustomColor && !form.formState.dirtyFields.colorName) {
+      const match = findMatchingColor(filament.colorName, colors, colorsList);
+      if (match) {
+        setIsCustomColor(false);
+        setCustomColorName("");
+      }
+    }
+  }, [colors, filament, isCustomColor, colorsList, form.formState.dirtyFields.colorName]);
 
   // Handle form submission
   const onSubmit = (data: FormValues) => {
@@ -1213,6 +1232,7 @@ export function FilamentModal({
                         onValueChange={(value) => {
                           if (value === "Custom") {
                             setIsCustomColor(true);
+                            field.onChange(customColorName);
                             form.setValue('colorName', customColorName, { shouldValidate: true, shouldDirty: true });
                           } else {
                             setIsCustomColor(false);

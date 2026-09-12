@@ -39,22 +39,24 @@ describe("SQLite starter data re-seed prevention on reboot", () => {
       const colorsAfterSecondBoot = await client.execute("SELECT count(*) as count FROM colors;");
       expect(Number(colorsAfterSecondBoot.rows[0].count)).toBe(8);
 
-      // 4. Admin deletes all manufacturers, materials, colors, and storage locations
+      // 4. Admin deletes all manufacturers, materials, colors, storage locations, and system_settings
       await client.execute("DELETE FROM manufacturers;");
       await client.execute("DELETE FROM materials;");
       await client.execute("DELETE FROM colors;");
       await client.execute("DELETE FROM storage_locations;");
+      await client.execute("DELETE FROM system_settings;");
 
       const mfgCount = await client.execute("SELECT count(*) as count FROM manufacturers;");
       expect(Number(mfgCount.rows[0].count)).toBe(0);
 
-      // 5. Third boot after admin deleted data: MUST NOT reseed!
+      // 5. Third boot after admin deleted all data: MUST NOT reseed due to sequence generator check (Check 3)!
       const seed3Output = execSync(`DATABASE_URL="file:${tmpDbPath}" npm run db:init:sqlite`, {
         cwd: process.cwd(),
         stdio: "pipe",
         encoding: "utf8",
       });
-      expect(seed3Output).not.toContain("Basic starter selection options inserted");
+      expect(seed3Output).toContain("Sequence generator indicates starter data was previously seeded");
+      expect(seed3Output).not.toContain("Adding starter selection options");
 
       // Counts must remain 0
       const mfgCountAfterReboot = await client.execute("SELECT count(*) as count FROM manufacturers;");

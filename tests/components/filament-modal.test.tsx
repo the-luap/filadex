@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageContext } from "../../client/src/i18n";
-import { FilamentModal, escapeRegex, normalizeHexColor } from "../../client/src/components/filament-modal";
+import { FilamentModal, escapeRegex, normalizeHexColor, stripParentheticalAnnotations } from "../../client/src/components/filament-modal";
 
 // Mock Dialog so children are rendered in SSR / renderToString
 vi.mock("@/components/ui/dialog", () => ({
@@ -136,6 +136,29 @@ describe("FilamentModal", () => {
     expect(paMatches).toHaveLength(1);
     const plaCfMatches = html.match(/data-select-item="PLA-CF"/g);
     expect(plaCfMatches).toHaveLength(1);
+  });
+
+  it("preserves both custom multi-word materials like 'PLA Silk' and standard 'PLA' without dropping either", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["/api/materials"], [
+      { id: 1, name: "PLA Silk" },
+      { id: 2, name: "PLA" },
+    ]);
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} />,
+      queryClient
+    );
+
+    const plaSilkMatches = html.match(/data-select-item="PLA Silk"/g);
+    expect(plaSilkMatches).toHaveLength(1);
+    const plaMatches = html.match(/data-select-item="PLA"/g);
+    expect(plaMatches).toHaveLength(1);
+    // Predefined PETG should also still be present (not suppressed)
+    const petgMatches = html.match(/data-select-item="PETG"/g);
+    expect(petgMatches).toHaveLength(1);
   });
 
   it("auto-matches recognized color on scanned or templated filament", () => {
@@ -371,6 +394,16 @@ describe("normalizeHexColor and colorCode handling", () => {
     );
 
     expect(html).toContain("Short Hex Spool");
+  });
+
+  describe("stripParentheticalAnnotations", () => {
+    it("strips parenthetical content from material and color names", () => {
+      expect(stripParentheticalAnnotations("PA (Nylon)")).toBe("PA");
+      expect(stripParentheticalAnnotations("Black (Bambu Lab)")).toBe("Black");
+      expect(stripParentheticalAnnotations("PLA (Polylactic Acid)")).toBe("PLA");
+      expect(stripParentheticalAnnotations("PETG")).toBe("PETG");
+      expect(stripParentheticalAnnotations("PLA Silk")).toBe("PLA Silk");
+    });
   });
 });
 

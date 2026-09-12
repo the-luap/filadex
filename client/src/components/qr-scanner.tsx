@@ -53,7 +53,7 @@ export const processScanResult = (code: string): BambuFilamentData | null => {
 
 // Processes a Bambulab barcode
 export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
-  // Format: BBL-XYZ-123456
+  // Format: BBL-XYZ-123456 or BBL-PLA-BK-123456
   const parts = barcode.split('-');
 
   if (parts.length < 2) {
@@ -63,9 +63,8 @@ export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
     };
   }
 
-  const materialCode = parts[1];
+  const materialCode = parts[1].toUpperCase();
   let material = '';
-  let colorName = '';
 
   // Material-Codes erkennen
   if (materialCode.startsWith('PLA')) {
@@ -88,59 +87,72 @@ export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
     material = 'pc';
   } else if (materialCode.startsWith('HIPS')) {
     material = 'hips';
+  } else {
+    material = materialCode.toLowerCase();
+  }
+
+  // CF oder HF Varianten erkennen
+  if (materialCode.includes('CF')) {
+    material += '-cf';
+  } else if (materialCode.includes('HF')) {
+    material += '-hf';
   }
 
   // Farb-Codes erkennen
-  let colorCode = '#FFFFFF'; // Standard-Farbe Weiß
+  let colorName = '';
+  let colorCode = '#000000'; // Standard Schwarz
 
-  if (barcode.includes('BLK') || barcode.includes('01')) {
-    colorName = 'Black';
-    colorCode = '#000000';
-  } else if (barcode.includes('WHT') || barcode.includes('02')) {
-    colorName = 'White';
-    colorCode = '#FFFFFF';
-  } else if (barcode.includes('RED') || barcode.includes('03')) {
-    colorName = 'Red';
-    colorCode = '#C12E1F';
-  } else if (barcode.includes('BLU') || barcode.includes('04')) {
-    colorName = 'Blue';
-    colorCode = '#0A2989';
-  } else if (barcode.includes('GRN') || barcode.includes('05')) {
-    colorName = 'Green';
-    colorCode = '#00AE42';
-  } else if (barcode.includes('YEL') || barcode.includes('06')) {
-    colorName = 'Yellow';
-    colorCode = '#FCE300';
-  } else if (barcode.includes('GRY') || barcode.includes('07')) {
-    colorName = 'Gray';
-    colorCode = '#545454';
-  } else if (barcode.includes('ORG') || barcode.includes('08')) {
-    colorName = 'Orange';
-    colorCode = '#FA6607';
+  const colorToken = parts.length > 2 ? parts.slice(2).join('-').toUpperCase() : '';
+  const matSuffix = materialCode.replace(/^(PLA|ABS|PETG?|TPU|PA|ASA|PCTG|PVA|PC|HIPS)(-CF|-HF)?/i, '');
+
+  const matchColorCode = (token: string) => {
+    if (token.includes('BK') || token.startsWith('01')) return { name: 'Black', code: '#000000' };
+    if (token.includes('WH') || token.startsWith('02')) return { name: 'White', code: '#FFFFFF' };
+    if (token.includes('RD') || token.startsWith('03')) return { name: 'Red', code: '#C12E1F' };
+    if (token.includes('BL') || token.startsWith('04')) return { name: 'Blue', code: '#0A2989' };
+    if (token.includes('GN') || token.startsWith('05')) return { name: 'Green', code: '#00AE42' };
+    if (token.includes('YL') || token.startsWith('06')) return { name: 'Yellow', code: '#FCE300' };
+    if (token.includes('GY') || token.startsWith('07')) return { name: 'Gray', code: '#545454' };
+    if (token.includes('OR') || token.startsWith('08')) return { name: 'Orange', code: '#FA6607' };
+    return null;
+  };
+
+  const match = (colorToken && matchColorCode(colorToken)) || (matSuffix && matchColorCode(matSuffix));
+  if (match) {
+    colorName = match.name;
+    colorCode = match.code;
+  } else if (colorToken && !/^\d{5,}$/.test(colorToken)) {
+    colorName = parts[2];
   }
 
   // Standard-Drucktemperaturen für Bambu Lab Materialien
   let printTemp = '';
   switch (material) {
     case 'pla':
+    case 'pla-cf':
+    case 'pla-hf':
       printTemp = '210-230';
       break;
     case 'abs':
+    case 'abs-cf':
       printTemp = '240-270';
       break;
     case 'petg':
+    case 'petg-cf':
       printTemp = '230-260';
       break;
     case 'tpu':
       printTemp = '220-240';
       break;
     case 'pa':
+    case 'pa-cf':
       printTemp = '260-290';
       break;
     case 'asa':
       printTemp = '240-270';
       break;
     case 'pc':
+    case 'pc-cf':
       printTemp = '260-290';
       break;
     case 'pctg':
@@ -156,6 +168,7 @@ export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
   const materialMap: Record<string, string> = {
     'pla': 'PLA',
     'pla-cf': 'PLA-CF',
+    'pla-hf': 'PLA-HF',
     'abs': 'ABS',
     'abs-cf': 'ABS-CF',
     'petg': 'PETG',
@@ -171,7 +184,7 @@ export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
   };
 
   const materialLabel = materialMap[material] || material.toUpperCase();
-  const nameWithColor = colorName ? `${materialLabel} ${colorName}` : materialLabel;
+  const nameWithColor = colorName ? `${materialLabel} ${colorName}`.trim() : materialLabel;
 
   return {
     name: nameWithColor,
@@ -188,91 +201,130 @@ export const processBambuLabBarcode = (barcode: string): BambuFilamentData => {
 
 // Verarbeitet einen Bambulab QR-Code
 export const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
-  // Format: [BBL]PLA Matte Black 1KG
+  // Format: [BBL]PLA Matte Black 1KG or [BBL]PLA-CF Lava Orange 1KG
   const text = qrCode.replace('[BBL]', '').trim();
 
-  // Materialtyp extrahieren (z.B. PLA, PETG, etc.)
   let material = '';
   let colorName = '';
   let weight: number | undefined;
 
   // Versuche, das Material zu erkennen
-  if (text.startsWith('PLA')) {
+  const upper = text.toUpperCase();
+  if (upper.startsWith('PLA')) {
     material = 'pla';
-  } else if (text.startsWith('ABS')) {
+  } else if (upper.startsWith('ABS')) {
     material = 'abs';
-  } else if (text.startsWith('PETG')) {
+  } else if (upper.startsWith('PETG')) {
     material = 'petg';
-  } else if (text.startsWith('TPU')) {
+  } else if (upper.startsWith('TPU')) {
     material = 'tpu';
-  } else if (text.startsWith('ASA')) {
+  } else if (upper.startsWith('ASA')) {
     material = 'asa';
-  } else if (text.startsWith('PA')) {
+  } else if (upper.startsWith('PA')) {
     material = 'pa';
-  } else if (text.startsWith('PC')) {
+  } else if (upper.startsWith('PC')) {
     material = 'pc';
-  } else if (text.startsWith('PCTG')) {
+  } else if (upper.startsWith('PCTG')) {
     material = 'pctg';
-  } else if (text.startsWith('PVA')) {
+  } else if (upper.startsWith('PVA')) {
     material = 'pva';
-  } else if (text.startsWith('HIPS')) {
+  } else if (upper.startsWith('HIPS')) {
     material = 'hips';
   }
 
-  // Versuche, die Farbe zu erkennen
-  if (text.includes('Black') || text.includes('Schwarz')) {
-    colorName = 'Black';
-  } else if (text.includes('White') || text.includes('Weiß')) {
-    colorName = 'White';
-  } else if (text.includes('Red') || text.includes('Rot')) {
-    colorName = 'Red';
-  } else if (text.includes('Blue') || text.includes('Blau')) {
-    colorName = 'Blue';
-  } else if (text.includes('Green') || text.includes('Grün')) {
-    colorName = 'Green';
-  } else if (text.includes('Yellow') || text.includes('Gelb')) {
-    colorName = 'Yellow';
-  } else if (text.includes('Orange')) {
-    colorName = 'Orange';
-  } else if (text.includes('Gray') || text.includes('Grau') || text.includes('Grey')) {
-    colorName = 'Gray';
+  // CF oder HF Varianten erkennen
+  const firstWord = text.split(/\s+/)[0] || '';
+  if (firstWord.toUpperCase().includes('CF')) {
+    material += '-cf';
+  } else if (firstWord.toUpperCase().includes('HF')) {
+    material += '-hf';
   }
 
-  // Versuche, das Gewicht zu extrahieren
-  const weightMatch = text.match(/(\d+)\s*(kg|g)/i);
+  // Gewicht extrahieren
+  const weightRegex = /\s+(\d+(?:\.\d+)?)\s*(kg|g)$/i;
+  const weightMatch = text.match(weightRegex);
   if (weightMatch) {
     const value = parseFloat(weightMatch[1]);
     const unit = weightMatch[2].toLowerCase();
+    weight = unit === 'g' ? value / 1000 : value;
+  } else if (text.includes('1KG')) {
+    weight = 1;
+  } else if (text.includes('500G')) {
+    weight = 0.5;
+  } else if (text.includes('250G')) {
+    weight = 0.25;
+  }
 
-    if (unit === 'kg') {
-      weight = value;
-    } else if (unit === 'g') {
-      weight = value / 1000;
-    }
+  // Versuche, die Farbe zu extrahieren - extrahiere alles zwischen Material und Gewicht
+  const materialRegex = /^(PLA|ABS|PETG|TPU|PA|ASA|PC|PCTG|PVA|HIPS)(-CF|-HF)?\s+/i;
+  const materialMatch = text.match(materialRegex);
+
+  if (materialMatch && weightMatch) {
+    colorName = text.substring(
+      materialMatch[0].length,
+      text.length - weightMatch[0].length
+    ).trim();
+  } else if (materialMatch) {
+    colorName = text.substring(materialMatch[0].length).trim();
+  }
+
+  // Bestimme einen passenden HEX-Farbcode basierend auf der Farbbeschreibung
+  let colorCode = '#FFFFFF';
+
+  if (colorName) {
+    const lowerColorName = colorName.toLowerCase();
+    if (lowerColorName.includes('black') || lowerColorName.includes('schwarz') || lowerColorName.includes('charcoal'))
+      colorCode = '#000000';
+    else if (lowerColorName.includes('white') || lowerColorName.includes('weiß'))
+      colorCode = '#FFFFFF';
+    else if (lowerColorName.includes('red') || lowerColorName.includes('rot'))
+      colorCode = '#C12E1F';
+    else if (lowerColorName.includes('blue') || lowerColorName.includes('blau') || lowerColorName.includes('cyan') || lowerColorName.includes('teal'))
+      colorCode = '#0A2989';
+    else if (lowerColorName.includes('green') || lowerColorName.includes('grün'))
+      colorCode = '#00AE42';
+    else if (lowerColorName.includes('yellow') || lowerColorName.includes('gelb'))
+      colorCode = '#FCE300';
+    else if (lowerColorName.includes('gray') || lowerColorName.includes('grey') || lowerColorName.includes('grau'))
+      colorCode = '#545454';
+    else if (lowerColorName.includes('orange'))
+      colorCode = '#FA6607';
+    else if (lowerColorName.includes('purple') || lowerColorName.includes('violet') || lowerColorName.includes('lila'))
+      colorCode = '#800080';
+    else if (lowerColorName.includes('pink'))
+      colorCode = '#FFC0CB';
+    else if (lowerColorName.includes('brown') || lowerColorName.includes('braun'))
+      colorCode = '#A52A2A';
   }
 
   // Standard-Drucktemperaturen für Bambu Lab Materialien
   let printTemp = '';
   switch (material) {
     case 'pla':
+    case 'pla-cf':
+    case 'pla-hf':
       printTemp = '210-230';
       break;
     case 'abs':
+    case 'abs-cf':
       printTemp = '240-270';
       break;
     case 'petg':
+    case 'petg-cf':
       printTemp = '230-260';
       break;
     case 'tpu':
       printTemp = '220-240';
       break;
     case 'pa':
+    case 'pa-cf':
       printTemp = '260-290';
       break;
     case 'asa':
       printTemp = '240-270';
       break;
     case 'pc':
+    case 'pc-cf':
       printTemp = '260-290';
       break;
     case 'pctg':
@@ -285,38 +337,10 @@ export const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
       printTemp = '200-230';
   }
 
-  // Farbcode anhand des Farbnamens bestimmen
-  let colorCode = '#FFFFFF';
-  switch (colorName.toLowerCase()) {
-    case 'black':
-      colorCode = '#000000';
-      break;
-    case 'white':
-      colorCode = '#FFFFFF';
-      break;
-    case 'red':
-      colorCode = '#C12E1F';
-      break;
-    case 'blue':
-      colorCode = '#0A2989';
-      break;
-    case 'green':
-      colorCode = '#00AE42';
-      break;
-    case 'yellow':
-      colorCode = '#FCE300';
-      break;
-    case 'orange':
-      colorCode = '#FA6607';
-      break;
-    case 'gray':
-      colorCode = '#545454';
-      break;
-  }
-
   const materialMap: Record<string, string> = {
     'pla': 'PLA',
     'pla-cf': 'PLA-CF',
+    'pla-hf': 'PLA-HF',
     'abs': 'ABS',
     'abs-cf': 'ABS-CF',
     'petg': 'PETG',
@@ -335,7 +359,7 @@ export const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
   return {
     name: cleanName,
     material: material,
-    colorName: colorName,
+    colorName: colorName || undefined,
     colorCode: colorCode,
     manufacturer: "Bambu Lab",
     diameter: 1.75, // Standard für Bambu Lab
