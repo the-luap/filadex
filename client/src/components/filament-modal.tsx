@@ -13,6 +13,7 @@ import { useTranslation } from "@/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Language } from "@shared/languages";
+import { formatCommunityCatalogFilamentName } from "@/lib/community-catalog";
 
 const DATE_LOCALES: Record<Language, Locale> = {
   en: enUS,
@@ -470,8 +471,6 @@ export function FilamentModal({
       const key = normalize(mat.name);
       if (key !== "custom" && !seen.has(key)) {
         seen.add(key);
-        const parenKey = normalize(stripParentheticalAnnotations(mat.name));
-        if (parenKey) seenParenKeys.add(parenKey);
         options.push({ value: mat.name, label: mat.name, id: mat.id });
       }
     }
@@ -896,18 +895,7 @@ export function FilamentModal({
         ? `${result.extruderTemp}°C / Bed ${result.bedTemp}°C`
         : `${result.extruderTemp}°C`);
     }
-    let baseName = result.name || '';
-    if (result.manufacturer && baseName.toLowerCase().startsWith(result.manufacturer.toLowerCase())) {
-      baseName = baseName.slice(result.manufacturer.length).trim();
-    }
-    const hasMaterial = result.material && baseName.toLowerCase().includes(result.material.toLowerCase());
-    const nameWithMaterial = (!hasMaterial && result.material)
-      ? `${result.material} ${baseName}`.trim()
-      : baseName;
-    const hasColor = result.colorName && nameWithMaterial.toLowerCase().includes(result.colorName.toLowerCase());
-    const cleanName = (!hasColor && result.colorName)
-      ? `${nameWithMaterial} ${result.colorName}`.trim()
-      : nameWithMaterial;
+    const cleanName = formatCommunityCatalogFilamentName(result);
     form.setValue('name', cleanName);
     if (result.gtin) {
       form.setValue('barcode', result.gtin);

@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { Filament, InsertFilament, CommunityCatalogItem } from "@shared/schema";
+import { formatCommunityCatalogFilamentName } from "@/lib/community-catalog";
 import { getFilamentSearchMatchIds } from "@/lib/filament-search";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -291,18 +292,7 @@ export default function Home() {
   }, [filaments]);
 
   const applyCommunityItem = (result: CommunityCatalogItem, code: string) => {
-    let baseName = result.name || '';
-    if (result.manufacturer && baseName.toLowerCase().startsWith(result.manufacturer.toLowerCase())) {
-      baseName = baseName.slice(result.manufacturer.length).trim();
-    }
-    const hasMaterial = result.material && baseName.toLowerCase().includes(result.material.toLowerCase());
-    const nameWithMaterial = (!hasMaterial && result.material)
-      ? `${result.material} ${baseName}`.trim()
-      : baseName;
-    const hasColor = result.colorName && nameWithMaterial.toLowerCase().includes(result.colorName.toLowerCase());
-    const cleanName = (!hasColor && result.colorName)
-      ? `${nameWithMaterial} ${result.colorName}`.trim()
-      : nameWithMaterial;
+    const cleanName = formatCommunityCatalogFilamentName(result);
     const kg = result.weightGrams ? Number((result.weightGrams / 1000).toFixed(2)) : 1;
     setSelectedFilament(undefined);
     setCopyFromFilament({
@@ -445,6 +435,7 @@ export default function Home() {
     }
 
     // Query OFD GTIN lookup
+    let lookupFailed = false;
     try {
       const result = await apiRequest<CommunityCatalogItem | null>(
         `/api/community-filaments/gtin/${encodeURIComponent(code)}`
@@ -460,13 +451,13 @@ export default function Home() {
       }
     } catch (err: any) {
       if (err?.status !== 404) {
+        lookupFailed = true;
         toast({
           variant: "destructive",
           title: t('common.error') || 'Error',
           description: t('scanner.lookupError', { code }) || err?.message || 'Failed to search community catalog',
         });
       }
-      // Not found in OFD or error -> open add modal prefilled with barcode
     }
 
     // Not found anywhere -> open add modal prefilled with barcode
@@ -495,10 +486,12 @@ export default function Home() {
       updatedAt: new Date() as any,
     } as unknown as Filament);
     setShowAddModal(true);
-    toast({
-      variant: "destructive",
-      title: t('scanner.notFoundAllSources', { code }),
-    });
+    if (!lookupFailed) {
+      toast({
+        variant: "destructive",
+        title: t('scanner.notFoundAllSources', { code }),
+      });
+    }
   };
 
 

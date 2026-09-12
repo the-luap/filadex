@@ -198,6 +198,23 @@ describe("FilamentModal", () => {
     expect(html).toContain('data-select-item="PLA"');
   });
 
+  it("retains predefined standard PLA in material options when database only contains PLA (Silk)", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["/api/materials"], [
+      { id: 1, name: "PLA (Silk)" },
+    ]);
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} />,
+      queryClient
+    );
+
+    expect(html).toContain('data-select-item="PLA (Silk)"');
+    expect(html).toContain('data-select-item="PLA"');
+  });
+
   it("canonicalizes colorName to matched catalog name (e.g. 'Black' for 'black' or 'Black (Bambu Lab)')", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
