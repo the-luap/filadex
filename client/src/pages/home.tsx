@@ -288,7 +288,6 @@ export default function Home() {
   }, [filaments]);
 
   const applyCommunityItem = (result: CommunityCatalogItem, code: string) => {
-    const mfgText = result.manufacturer ? ` (${result.manufacturer})` : '';
     const cleanName = result.colorName && result.name.toLowerCase().includes(result.colorName.toLowerCase())
       ? result.name
       : `${result.name} ${result.colorName || ''}`.trim();
@@ -296,7 +295,7 @@ export default function Home() {
     setSelectedFilament(undefined);
     setCopyFromFilament({
       id: 0,
-      name: `${cleanName}${mfgText}`.trim(),
+      name: cleanName,
       manufacturer: result.manufacturer || "",
       material: result.material || "",
       colorName: result.colorName || "",

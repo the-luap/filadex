@@ -100,6 +100,120 @@ describe("FilamentModal", () => {
     expect(plaMatches).toHaveLength(1);
   });
 
+  it("does not duplicate materials when database contains multiple materials with the same name (global and personal)", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["/api/materials"], [
+      { id: 1, name: "PLA" },
+      { id: 10, name: "PLA" },
+    ]);
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} />,
+      queryClient
+    );
+
+    const plaMatches = html.match(/data-select-item="PLA"/g);
+    expect(plaMatches).toHaveLength(1);
+  });
+
+  it("does not duplicate materials when database material matches a predefined compound label like PA or PLA-CF", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["/api/materials"], [
+      { id: 1, name: "PA" },
+      { id: 2, name: "PLA-CF" },
+    ]);
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} />,
+      queryClient
+    );
+
+    const paMatches = html.match(/data-select-item="PA"/g);
+    expect(paMatches).toHaveLength(1);
+    const plaCfMatches = html.match(/data-select-item="PLA-CF"/g);
+    expect(plaCfMatches).toHaveLength(1);
+  });
+
+  it("auto-matches recognized color on scanned or templated filament", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["/api/colors"], [
+      { id: 1, name: "Red", code: "#FF0000" },
+    ]);
+
+    const template: any = {
+      id: 0,
+      name: "PLA Basic Red",
+      manufacturer: "Bambu Lab",
+      material: "PLA",
+      colorName: "Red",
+      colorCode: "#FF0000",
+      totalWeight: 1,
+      remainingPercentage: 100,
+    };
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={template} />,
+      queryClient
+    );
+
+    expect(html).toContain('data-select-value="Red"');
+    expect(html).not.toContain('filaments.customColorName');
+  });
+
+  it("selects Custom color and populates custom color name input when scanned color is unrecognized", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const template: any = {
+      id: 0,
+      name: "PLA Silk Sapphire",
+      manufacturer: "Bambu Lab",
+      material: "PLA",
+      colorName: "Sapphire Blue",
+      colorCode: "#0F52BA",
+      totalWeight: 1,
+      remainingPercentage: 100,
+    };
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={template} />,
+      queryClient
+    );
+
+    expect(html).toContain('data-select-value="Custom"');
+    expect(html).toContain('filaments.customColorName');
+    expect(html).toContain('value="Sapphire Blue"');
+  });
+
+  it("does not append manufacturer to name when pre-filled with manufacturer", () => {
+    const template: any = {
+      id: 0,
+      name: "PLA Basic Black",
+      manufacturer: "Bambu Lab",
+      material: "PLA",
+      colorName: "Black",
+      colorCode: "#000000",
+      totalWeight: 1,
+      remainingPercentage: 100,
+    };
+
+    const html = renderWithProviders(
+      <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} filament={template} />
+    );
+
+    expect(html).toContain('value="PLA Basic Black"');
+    expect(html).not.toContain('value="PLA Basic Black (Bambu Lab)"');
+    expect(html).not.toContain('value="PLA Basic Black Bambu Lab"');
+    expect(html).toContain('data-select-value="Bambu Lab"');
+  });
+
   it("renders color field and color code field", () => {
     const html = renderWithProviders(
       <FilamentModal isOpen={true} onClose={vi.fn()} onSave={vi.fn()} />

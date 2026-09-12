@@ -255,6 +255,37 @@ export function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+export function findMatchingColor(
+  scannedColorName: string | null | undefined,
+  dbColors: { id?: number; name: string; code?: string }[],
+  predefinedColors: { name: string; code?: string }[]
+): { name: string; code: string } | undefined {
+  if (!scannedColorName) return undefined;
+  const lower = scannedColorName.trim().toLowerCase();
+  if (!lower) return undefined;
+
+  // 1. Exact case-insensitive match on DB colors
+  const dbMatch = dbColors.find(c => c.name.trim().toLowerCase() === lower);
+  if (dbMatch) return { name: dbMatch.name, code: dbMatch.code || "#000000" };
+
+  // 2. Exact case-insensitive match on predefined colors
+  const preMatch = predefinedColors.find(c => c.name.trim().toLowerCase() === lower);
+  if (preMatch) return { name: preMatch.name, code: preMatch.code || "#000000" };
+
+  // 3. Match stripping parenthetical comments, e.g. "Black" vs "Black (Bambu Lab)"
+  const stripParen = (s: string) => s.replace(/\s*\([^)]*\)/g, "").trim().toLowerCase();
+  const strippedLower = stripParen(lower);
+  if (strippedLower) {
+    const dbParenMatch = dbColors.find(c => stripParen(c.name) === strippedLower);
+    if (dbParenMatch) return { name: dbParenMatch.name, code: dbParenMatch.code || "#000000" };
+
+    const preParenMatch = predefinedColors.find(c => stripParen(c.name) === strippedLower);
+    if (preParenMatch) return { name: preParenMatch.name, code: preParenMatch.code || "#000000" };
+  }
+
+  return undefined;
+}
+
 interface CustomFieldDefinition {
   id: number;
   name: string;
@@ -360,6 +391,16 @@ export function FilamentModal({
     enabled: isOpen
   });
 
+  const [isCustomColor, setIsCustomColor] = useState(() => {
+    if (!filament?.colorName) return false;
+    return !findMatchingColor(filament.colorName, colors, colorsList);
+  });
+  const [customColorName, setCustomColorName] = useState(() => {
+    if (!filament?.colorName) return "";
+    const match = findMatchingColor(filament.colorName, colors, colorsList);
+    return match ? "" : filament.colorName;
+  });
+
   const allAvailableMaterials = useMemo(() => {
     const list: { id?: number; name: string }[] = materials.map((m) => ({ id: m.id, name: m.name }));
     for (const mt of materialTypes) {
@@ -396,6 +437,88 @@ export function FilamentModal({
     () => new Set(genericTermsData.map((t) => t.word)),
     [genericTermsData]
   );
+
+  const uniqueMaterialOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const options: { value: string; label: string; id?: number }[] = [];
+
+    const normalize = (s: string) => s.trim().toLowerCase();
+    const getBaseCode = (s: string) => {
+      const m = s.match(/^([A-Za-z0-9+-]+)/);
+      return m ? m[1].toLowerCase() : s.toLowerCase();
+    };
+
+    // 1. Add database materials (deduplicated by normalized name)
+    for (const mat of materials) {
+      const key = normalize(mat.name);
+      if (!seen.has(key)) {
+        seen.add(key);
+        seen.add(getBaseCode(mat.name));
+        options.push({ value: mat.name, label: mat.name, id: mat.id });
+      }
+    }
+
+    // 2. Add predefined material types not yet in database
+    for (const predefined of materialTypes) {
+      const valKey = normalize(predefined.value);
+      const labelKey = normalize(predefined.label);
+      const baseKey = getBaseCode(predefined.value);
+      if (!seen.has(valKey) && !seen.has(labelKey) && !seen.has(baseKey)) {
+        seen.add(valKey);
+        seen.add(labelKey);
+        seen.add(baseKey);
+        options.push({ value: predefined.value, label: predefined.label });
+      }
+    }
+
+    return options;
+  }, [materials, materialTypes]);
+
+  const uniqueColors = useMemo(() => {
+    const seen = new Set<string>();
+    const result: Color[] = [];
+    for (const c of colors) {
+      const key = c.name.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(c);
+      }
+    }
+    return result;
+  }, [colors]);
+
+  const uniqueManufacturers = useMemo(() => {
+    const seen = new Set<string>();
+    const result: Manufacturer[] = [];
+    for (const m of manufacturers) {
+      const key = m.name.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(m);
+      }
+    }
+    return result;
+  }, [manufacturers]);
+
+  const applyColorData = (name: string | null | undefined, hexCode?: string | null) => {
+    const normalizedHex = hexCode ? normalizeHexColor(hexCode) : undefined;
+    const match = findMatchingColor(name, colors, colorsList);
+    if (match) {
+      setIsCustomColor(false);
+      setCustomColorName("");
+      form.setValue('colorName', match.name, { shouldValidate: true, shouldDirty: true });
+      form.setValue('colorCode', normalizedHex || match.code, { shouldValidate: true, shouldDirty: true });
+    } else {
+      // Unrecognized color -> select Custom, pre-fill custom color name with scanned name
+      setIsCustomColor(true);
+      const customName = name ? name.trim() : "";
+      setCustomColorName(customName);
+      form.setValue('colorName', customName, { shouldValidate: true, shouldDirty: true });
+      if (normalizedHex) {
+        form.setValue('colorCode', normalizedHex, { shouldValidate: true, shouldDirty: true });
+      }
+    }
+  };
 
   // Setup form with default values or editing values
   const form = useForm<FormValues>({
@@ -434,6 +557,18 @@ export function FilamentModal({
         : undefined;
       const canonicalMfg = matchingMfg ? matchingMfg.name : (filament.manufacturer || "");
 
+      const colorMatch = findMatchingColor(filament.colorName, colors, colorsList);
+      if (colorMatch) {
+        setIsCustomColor(false);
+        setCustomColorName("");
+      } else if (filament.colorName) {
+        setIsCustomColor(true);
+        setCustomColorName(filament.colorName);
+      } else {
+        setIsCustomColor(false);
+        setCustomColorName("");
+      }
+
       form.reset({
         name: filament.name,
         manufacturer: canonicalMfg,
@@ -463,6 +598,8 @@ export function FilamentModal({
         setCustomWeightVisible(true);
       }
     } else {
+      setIsCustomColor(false);
+      setCustomColorName("");
       form.reset({
         name: "",
         manufacturer: "",
@@ -543,8 +680,7 @@ export function FilamentModal({
     } else {
       form.setValue('material', '');
     }
-    form.setValue('colorName', result.colorName);
-    if (result.colorCode) form.setValue('colorCode', normalizeHexColor(result.colorCode));
+    applyColorData(result.colorName, result.colorCode);
     if (result.density) form.setValue('density', result.density);
     if (result.diameter) form.setValue('diameter', Number(result.diameter));
     if (result.extruderTemp) {
@@ -552,11 +688,10 @@ export function FilamentModal({
         ? `${result.extruderTemp}°C / Bed ${result.bedTemp}°C`
         : `${result.extruderTemp}°C`);
     }
-    const mfgText = resolvedManufacturer ? ` (${resolvedManufacturer})` : '';
     const cleanName = result.colorName && result.name.toLowerCase().includes(result.colorName.toLowerCase())
       ? result.name
       : `${result.name} ${result.colorName || ''}`.trim();
-    form.setValue('name', `${cleanName}${mfgText}`.trim());
+    form.setValue('name', cleanName);
     if (result.gtin) {
       form.setValue('barcode', result.gtin);
     }
@@ -650,8 +785,9 @@ export function FilamentModal({
         form.setValue('material', data.material);
       }
     }
-    if (data.colorName) form.setValue('colorName', data.colorName);
-    if (data.colorCode) form.setValue('colorCode', normalizeHexColor(data.colorCode));
+    if (data.colorName || data.colorCode) {
+      applyColorData(data.colorName, data.colorCode);
+    }
     if (data.density) form.setValue('density', data.density);
     if (data.diameter) form.setValue('diameter', Number(data.diameter));
     if (data.printTemp) form.setValue('printTemp', data.printTemp);
@@ -944,12 +1080,18 @@ export function FilamentModal({
                 <FormField
                   control={form.control}
                   name="manufacturer"
-                  render={({ field }) => (
+                  render={({ field }) => {
+                    const canonicalMfg = field.value
+                      ? (uniqueManufacturers.find(m => m.name.toLowerCase() === field.value!.toLowerCase())?.name || field.value)
+                      : "";
+                    return (
                     <FormItem>
                       <FormLabel>{t('filaments.manufacturer')}</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
-                        value={typeof field.value === 'string' ? field.value : ''}
+                        onValueChange={(val) => {
+                          field.onChange(val);
+                        }}
+                        value={canonicalMfg}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -975,7 +1117,7 @@ export function FilamentModal({
                               }}
                             />
                           </div>
-                          {manufacturers.map((manufacturer) => (
+                          {uniqueManufacturers.map((manufacturer) => (
                             <SelectItem
                               key={manufacturer.id}
                               value={manufacturer.name}
@@ -983,17 +1125,18 @@ export function FilamentModal({
                               {manufacturer.name}
                             </SelectItem>
                           ))}
-                          {Boolean(field.value) &&
-                            !manufacturers.some(m => m.name === field.value) && (
-                              <SelectItem key={field.value} value={field.value!}>
-                                {field.value}
+                          {Boolean(canonicalMfg) &&
+                            !uniqueManufacturers.some(m => m.name.toLowerCase() === canonicalMfg.toLowerCase()) && (
+                              <SelectItem key={canonicalMfg} value={canonicalMfg}>
+                                {canonicalMfg}
                               </SelectItem>
                           )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
-                  )}
+                  );
+                }}
                 />
 
                 <FormField
@@ -1011,10 +1154,8 @@ export function FilamentModal({
                           }
                           // Automatically update name if material and color are present
                           const colorName = form.getValues('colorName');
-                          const manufacturer = form.getValues('manufacturer');
-                          if (colorName && value) {
-                            const mfgText = manufacturer ? ` ${manufacturer}` : '';
-                            form.setValue('name', `${value} ${colorName}${mfgText}`);
+                          if (colorName && value && colorName !== "Custom") {
+                            form.setValue('name', `${value} ${colorName}`);
                           }
                         }}
                         defaultValue={field.value}
@@ -1044,27 +1185,13 @@ export function FilamentModal({
                               }}
                             />
                           </div>
-                          {materials.map((material) => (
-                            <SelectItem key={material.id} value={material.name}>
-                              {material.name}
+                          {uniqueMaterialOptions.map((material) => (
+                            <SelectItem key={material.id ?? material.value} value={material.value}>
+                              {material.label}
                             </SelectItem>
                           ))}
-                          {/* Add predefined material types that don't already exist in database */}
-                          {materialTypes
-                            .filter(predefined =>
-                              !materials.some(dbMat =>
-                                dbMat.name.toLowerCase() === predefined.value.toLowerCase() ||
-                                dbMat.name.toLowerCase() === predefined.label.toLowerCase()
-                              )
-                            )
-                            .map((material) => (
-                              <SelectItem key={material.value} value={material.value}>
-                                {material.label}
-                              </SelectItem>
-                            ))}
                           {Boolean(field.value) &&
-                            !materials.some(m => m.name === field.value) &&
-                            !materialTypes.some(m => m.value === field.value) && (
+                            !uniqueMaterialOptions.some(m => m.value.toLowerCase() === field.value.toLowerCase()) && (
                               <SelectItem key={field.value} value={field.value!}>
                                 {field.value}
                               </SelectItem>
@@ -1084,22 +1211,27 @@ export function FilamentModal({
                       <FormLabel>{t('filaments.color')}*</FormLabel>
                       <Select
                         onValueChange={(value) => {
-                          field.onChange(value);
-                          // Automatically set color code from database or predefined colors
-                          const colorObj = colors.find(c => c.name === value) || colorsList.find(c => c.name === value);
-                          if (colorObj) {
-                            form.setValue('colorCode', colorObj.code, { shouldValidate: true, shouldDirty: true });
-                          }
-                          // Automatically update name if material and color are present
-                          const material = form.getValues('material');
-                          const manufacturer = form.getValues('manufacturer');
-                          if (material && value && value !== "Custom") {
-                            const mfgText = manufacturer ? ` ${manufacturer}` : '';
-                            form.setValue('name', `${material} ${value}${mfgText}`);
+                          if (value === "Custom") {
+                            setIsCustomColor(true);
+                            form.setValue('colorName', customColorName, { shouldValidate: true, shouldDirty: true });
+                          } else {
+                            setIsCustomColor(false);
+                            setCustomColorName("");
+                            field.onChange(value);
+                            // Automatically set color code from database or predefined colors
+                            const colorObj = uniqueColors.find(c => c.name === value) || colorsList.find(c => c.name === value);
+                            if (colorObj) {
+                              form.setValue('colorCode', colorObj.code, { shouldValidate: true, shouldDirty: true });
+                            }
+                            // Automatically update name if material and color are present
+                            const material = form.getValues('material');
+                            if (material && value) {
+                              form.setValue('name', `${material} ${value}`);
+                            }
                           }
                         }}
-                        defaultValue={field.value}
-                        value={field.value}
+                        defaultValue={isCustomColor ? "Custom" : field.value}
+                        value={isCustomColor ? "Custom" : (field.value || "")}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -1126,7 +1258,7 @@ export function FilamentModal({
                             />
                           </div>
                           {/* Database colors */}
-                          {colors.map((color) => (
+                          {uniqueColors.map((color) => (
                             <SelectItem key={color.id} value={color.name}>
                               <div className="flex items-center">
                                 <div
@@ -1141,7 +1273,7 @@ export function FilamentModal({
                           {/* Add predefined colors that don't exist in the database */}
                           {colorsList
                             .filter(predefinedColor =>
-                              !colors.some(dbColor =>
+                              !uniqueColors.some(dbColor =>
                                 dbColor.name.toLowerCase() === predefinedColor.name.toLowerCase()
                               )
                             )
@@ -1167,11 +1299,15 @@ export function FilamentModal({
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      {field.value === "Custom" && (
+                      {isCustomColor && (
                         <div className="mt-2">
                           <Input
                             placeholder={t('filaments.customColorName')}
-                            onChange={(e) => field.onChange(e.target.value)}
+                            value={customColorName}
+                            onChange={(e) => {
+                              setCustomColorName(e.target.value);
+                              field.onChange(e.target.value);
+                            }}
                           />
                         </div>
                       )}
