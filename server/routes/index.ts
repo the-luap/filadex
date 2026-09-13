@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { initializeAdminUser } from "../auth";
+import { ensureDefaultGenericTerms } from "../utils/generic-terms";
 import { registerAuthRoutes } from "./auth";
 import { registerUserRoutes } from "./users";
 import { registerFilamentRoutes } from "./filaments";
@@ -30,6 +31,10 @@ import { registerRemainingRoutes } from "../routes";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize admin user
   await initializeAdminUser();
+
+  // Reference data for similarity matching. Here rather than in the seeder
+  // because the seeder does not run on an upgrade - see issue #37.
+  await ensureDefaultGenericTerms();
 
   // Register routes from separate files (all routes extracted).
   // registerBatchRoutes must come before registerFilamentRoutes: otherwise
