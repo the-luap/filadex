@@ -84,7 +84,7 @@ test.describe("Community Catalog on Add Filament Modal", () => {
     await resultButton.click();
 
     // Verify fields are pre-filled
-    await expect(dialog.getByLabel(/name\*/i)).toHaveValue("PolyTerra PLA Sapphire Blue (Polymaker)");
+    await expect(dialog.getByLabel(/name\*/i)).toHaveValue("PolyTerra PLA Sapphire Blue");
     await expect(dialog.getByLabel(/barcode/i)).toHaveValue("6975337039999");
     await expect(dialog.getByLabel(/print temp/i)).toHaveValue("210°C / Bed 50°C");
   });
@@ -234,8 +234,8 @@ test.describe("Community Catalog on Add Filament Modal", () => {
 
     // Verify manufacturer in dialog is now Prusament
     await expect(dialog.getByRole("combobox", { name: /manufacturer/i })).toHaveText(/prusament/i);
-    // Verify filament name was updated with the selected manufacturer
-    await expect(dialog.getByLabel(/name\*/i)).toHaveValue("Galaxy Black (Prusament)");
+    // Verify filament name is PLA Galaxy Black (material + name, no manufacturer)
+    await expect(dialog.getByLabel(/name\*/i)).toHaveValue("PLA Galaxy Black");
   });
 });
 

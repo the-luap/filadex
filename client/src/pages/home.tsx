@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { Filament, InsertFilament, CommunityCatalogItem } from "@shared/schema";
+import { formatCommunityCatalogFilamentName } from "@/lib/community-catalog";
 import { getFilamentSearchMatchIds } from "@/lib/filament-search";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -101,6 +102,8 @@ export default function Home() {
       queryClient.invalidateQueries({ queryKey: ['/api/materials'] });
 
       setShowAddModal(false);
+      setSelectedFilament(undefined);
+      setCopyFromFilament(undefined);
       toast({
         title: t('common.success'),
         description: t('filaments.addSuccess'),
@@ -131,6 +134,7 @@ export default function Home() {
 
       setShowAddModal(false);
       setSelectedFilament(undefined);
+      setCopyFromFilament(undefined);
       toast({
         title: t('common.success'),
         description: t('filaments.updateSuccess'),
@@ -288,15 +292,12 @@ export default function Home() {
   }, [filaments]);
 
   const applyCommunityItem = (result: CommunityCatalogItem, code: string) => {
-    const mfgText = result.manufacturer ? ` (${result.manufacturer})` : '';
-    const cleanName = result.colorName && result.name.toLowerCase().includes(result.colorName.toLowerCase())
-      ? result.name
-      : `${result.name} ${result.colorName || ''}`.trim();
+    const cleanName = formatCommunityCatalogFilamentName(result);
     const kg = result.weightGrams ? Number((result.weightGrams / 1000).toFixed(2)) : 1;
     setSelectedFilament(undefined);
     setCopyFromFilament({
       id: 0,
-      name: `${cleanName}${mfgText}`.trim(),
+      name: cleanName,
       manufacturer: result.manufacturer || "",
       material: result.material || "",
       colorName: result.colorName || "",
@@ -434,6 +435,7 @@ export default function Home() {
     }
 
     // Query OFD GTIN lookup
+    let lookupFailed = false;
     try {
       const result = await apiRequest<CommunityCatalogItem | null>(
         `/api/community-filaments/gtin/${encodeURIComponent(code)}`
@@ -449,14 +451,13 @@ export default function Home() {
       }
     } catch (err: any) {
       if (err?.status !== 404) {
+        lookupFailed = true;
         toast({
           variant: "destructive",
           title: t('common.error') || 'Error',
           description: t('scanner.lookupError', { code }) || err?.message || 'Failed to search community catalog',
         });
-        return;
       }
-      // Not found in OFD
     }
 
     // Not found anywhere -> open add modal prefilled with barcode
@@ -485,10 +486,12 @@ export default function Home() {
       updatedAt: new Date() as any,
     } as unknown as Filament);
     setShowAddModal(true);
-    toast({
-      variant: "destructive",
-      title: t('scanner.notFoundAllSources', { code }),
-    });
+    if (!lookupFailed) {
+      toast({
+        variant: "destructive",
+        title: t('scanner.notFoundAllSources', { code }),
+      });
+    }
   };
 
 
@@ -589,6 +592,7 @@ export default function Home() {
       <Header
         onAddFilament={() => {
           setSelectedFilament(undefined);
+          setCopyFromFilament(undefined);
           setShowAddModal(true);
         }}
       />

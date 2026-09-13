@@ -33,10 +33,52 @@ const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 10
 const dateDaysAgo = (days: number) => daysAgo(days).toISOString().slice(0, 10);
 
 async function seedStarter(): Promise<void> {
-  const [existing] = await db.select({ count: sql<number>`count(*)` }).from(manufacturers);
-  if (Number(existing.count) > 0) {
+  // Check 1: existing rows in any of the starter tables
+  const [mfgCount] = await db.select({ count: sql<number>`count(*)` }).from(manufacturers);
+  const [matCount] = await db.select({ count: sql<number>`count(*)` }).from(materials);
+  const [colCount] = await db.select({ count: sql<number>`count(*)` }).from(colors);
+  const [locCount] = await db.select({ count: sql<number>`count(*)` }).from(storageLocations);
+  if (
+    Number(mfgCount?.count || 0) > 0 ||
+    Number(matCount?.count || 0) > 0 ||
+    Number(colCount?.count || 0) > 0 ||
+    Number(locCount?.count || 0) > 0
+  ) {
     console.log("Data already exists in the database, skipping starter initialization.");
     return;
+  }
+
+  // Check 2: If 0 rows survive, check sequence generators to detect if starter
+  // data was previously seeded and later deleted by an admin.
+  try {
+    if ((dialect as string) === "sqlite") {
+      const rows: any = await (db as any).all(
+        sql`SELECT seq FROM sqlite_sequence WHERE name IN ('manufacturers', 'materials', 'colors', 'storage_locations')`
+      );
+      if (Array.isArray(rows) && rows.length > 0) {
+        const hasSeq = rows.some((r: any) => Number(r?.seq) > 0);
+        if (hasSeq) {
+          console.log("Sequence generator indicates starter data was previously seeded, skipping starter initialization.");
+          return;
+        }
+      }
+    } else {
+      const result: any = await (db as any).execute(
+        sql`SELECT sequencename, last_value FROM pg_sequences WHERE sequencename IN ('manufacturers_id_seq', 'materials_id_seq', 'colors_id_seq', 'storage_locations_id_seq')`
+      );
+      const rows = result?.rows ?? (Array.isArray(result) ? result : []);
+      if (rows.length > 0) {
+        // Starter data inserts 10+ rows per table; last_value is NULL for uncalled sequences
+        // or > 1 once starter rows have been generated, distinguishing seeded DBs from fresh ones.
+        const hasSeq = rows.some((r: any) => r?.last_value !== null && Number(r?.last_value) > 1);
+        if (hasSeq) {
+          console.log("Sequence generator indicates starter data was previously seeded, skipping starter initialization.");
+          return;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Could not inspect sequence generator during starter seed:", err);
   }
 
   console.log("Adding starter selection options (manufacturers, materials, colors, etc.)...");
@@ -59,18 +101,26 @@ async function seedStarter(): Promise<void> {
       { value: "1.75" },
     ]).onConflictDoNothing();
 
-    await tx.insert(colors).values([
+    const starterColors = [
       { name: "Black (Bambu Lab)", code: "#000000" },
       { name: "White (Bambu Lab)", code: "#FFFFFF" },
-      // Carried over from the seed docker-entrypoint.sh ran before this script
-      // existed, so a fresh install still starts with the Bambu Lab codes.
       { name: "Dark Gray (Bambu Lab)", code: "#545454" },
       { name: "Red (Bambu Lab)", code: "#C12E1F" },
       { name: "Blue (Bambu Lab)", code: "#0A2989" },
       { name: "Transparent", code: "#FFFFFF" },
       { name: "Red", code: "#F44336" },
       { name: "Gray", code: "#9E9E9E" },
-    ]).onConflictDoNothing();
+    ];
+    for (const color of starterColors) {
+      const [existingColor] = await tx
+        .select({ id: colors.id })
+        .from(colors)
+        .where(eq(colors.name, color.name))
+        .limit(1);
+      if (!existingColor) {
+        await tx.insert(colors).values(color);
+      }
+    }
 
     await tx.insert(storageLocations).values([
       { name: "Dry box A", sortOrder: 1 },

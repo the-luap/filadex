@@ -117,6 +117,7 @@ jobs:
         run: |
           npm run db:migrate:sqlite
           npm run db:init:sqlite
+          node --input-type=module -e 'import { createClient } from "@libsql/client"; const c = createClient({ url: process.env.DATABASE_URL }); const r = await c.execute("SELECT count(*) as count FROM manufacturers"); if (Number(r.rows[0].count) < 1) throw new Error("Starter seeding did not insert manufacturers"); c.close();'
       - name: Demo fixture
         env:
           DATABASE_URL: file:${{ runner.temp }}/demo.db
@@ -158,6 +159,7 @@ jobs:
         run: |
           npm run db:migrate
           npm run db:init
+          node --input-type=module -e 'import pg from "pg"; const c = new pg.Client({ connectionString: process.env.DATABASE_URL }); await c.connect(); const r = await c.query("SELECT count(*) as count FROM manufacturers"); await c.end(); if (Number(r.rows[0].count) < 1) throw new Error("Starter seeding did not insert manufacturers");'
       # migrate.pg.ts creates the database when it does not exist, so naming a
       # second one here is all it takes.
       - name: Demo fixture

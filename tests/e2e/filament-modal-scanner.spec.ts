@@ -154,7 +154,7 @@ test.describe("Filament Modal – QR scanner GTIN lookup", () => {
     await expect(addDialog.getByLabel(/barcode/i)).toHaveValue("8594195180999");
 
     // Verify name is pre-filled
-    await expect(addDialog.getByLabel(/name\*/i)).toHaveValue(/Galaxy Silver.*Prusament/i);
+    await expect(addDialog.getByLabel(/name\*/i)).toHaveValue("PLA Galaxy Silver");
 
     // Verify print temp is pre-filled
     await expect(addDialog.getByLabel(/print temp/i)).toHaveValue(/215°C/);

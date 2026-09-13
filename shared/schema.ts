@@ -301,6 +301,8 @@ type FilamentTypeInsertFields = {
   diameter?: string | null;
   printTemp?: string | null;
   density?: string | number | null;
+  saveManufacturer?: boolean;
+  saveMaterial?: boolean;
 };
 
 export type Filament = Omit<typeof filaments.$inferSelect, "filamentTypeId"> & FilamentTypeSelectFields & {
@@ -411,6 +413,8 @@ export const filamentWriteSchema = z.object({
   storageLocation: z.string().max(200).nullable().optional(),
   barcode: z.string().trim().max(100).nullable().optional(),
   customFieldValues: customFieldValuesSchema.optional(),
+  saveManufacturer: z.boolean().optional(),
+  saveMaterial: z.boolean().optional(),
 });
 
 export const filamentPatchSchema = filamentWriteSchema.partial();
