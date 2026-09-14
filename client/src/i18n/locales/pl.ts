@@ -28,6 +28,10 @@ const scanner = {
   similarMaterialDescription: 'Zeskanowany filament ma materiał "{{scanned}}", ale masz już podobne materiały w bazie danych. Czy chcesz użyć istniejącego, czy utworzyć nowy?',
   createNewMaterial: 'Utwórz "{{name}}"',
   useExistingMaterial: 'Użyj "{{name}}"',
+  overwriteBarcodeTitle: 'Nadpisać kod kreskowy?',
+  overwriteBarcodeDescription: 'Pole kodu kreskowego zawiera już „{{current}}”. Czy chcesz zastąpić go kodem „{{incoming}}” z katalogu, czy zachować obecny kod?',
+  keepExistingBarcode: 'Zachowaj „{{code}}”',
+  overwriteWithBarcode: 'Nadpisz na „{{code}}”',
 };
 
 // Polish translations

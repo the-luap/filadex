@@ -98,6 +98,64 @@ function normalizeGtin(gtin: string): string {
   return String(gtin).trim().replace(/^0+/, "");
 }
 
+export function mergeCatalogItems(items: CommunityCatalogItem[]): CommunityCatalogItem[] {
+  const map = new Map<string, CommunityCatalogItem>();
+
+  for (const item of items) {
+    const norm = (s?: string | null) => (s ?? "").trim().toLowerCase();
+    const key = [
+      item.source,
+      norm(item.manufacturer),
+      norm(item.material),
+      norm(item.name),
+      norm(item.colorName),
+      norm(item.colorCode),
+      item.density != null ? Number(item.density).toFixed(3) : "",
+      item.diameter != null ? Number(item.diameter).toFixed(2) : "",
+      item.weightGrams != null ? String(item.weightGrams) : "",
+      item.spoolRefill != null ? String(item.spoolRefill) : "",
+      item.extruderTemp != null ? String(item.extruderTemp) : "",
+      item.bedTemp != null ? String(item.bedTemp) : "",
+    ].join("|");
+
+    const existing = map.get(key);
+    if (!existing) {
+      const gtins: string[] = [];
+      if (item.gtin && String(item.gtin).trim()) {
+        gtins.push(String(item.gtin).trim());
+      }
+      if (Array.isArray(item.gtins)) {
+        for (const g of item.gtins) {
+          const trimmed = g != null ? String(g).trim() : "";
+          if (trimmed && !gtins.includes(trimmed)) {
+            gtins.push(trimmed);
+          }
+        }
+      }
+      map.set(key, {
+        ...item,
+        gtin: gtins[0] ?? (item.gtin ? String(item.gtin).trim() : null),
+        gtins: gtins.length > 0 ? gtins : undefined,
+      });
+    } else {
+      const allGtins = existing.gtins ? [...existing.gtins] : (existing.gtin ? [existing.gtin] : []);
+      const newGtins = item.gtins && item.gtins.length > 0
+        ? item.gtins
+        : (item.gtin ? [item.gtin] : []);
+      for (const g of newGtins) {
+        const trimmed = g != null ? String(g).trim() : "";
+        if (trimmed && !allGtins.includes(trimmed)) {
+          allGtins.push(trimmed);
+        }
+      }
+      existing.gtin = allGtins[0] ?? null;
+      existing.gtins = allGtins.length > 0 ? allGtins : undefined;
+    }
+  }
+
+  return Array.from(map.values());
+}
+
 
 export class CatalogSyncConflictError extends Error {
   constructor(message = "Catalog synchronization is already in progress") {
@@ -136,15 +194,16 @@ export class CommunityCatalogService {
   }
 
   public setItems(items: CommunityCatalogItem[]): void {
-    this.items = items;
+    this.items = mergeCatalogItems(items);
     this.rebuildIndexes();
   }
 
   public setSourceItems(source: "ofd" | "spoolmandb", items: CommunityCatalogItem[], lastUpdated: string | null): void {
+    const merged = mergeCatalogItems(items);
     const remaining = this.items.filter((item) => item.source !== source);
-    this.items = [...remaining, ...items];
+    this.items = [...remaining, ...merged];
     this.status[source] = {
-      count: items.length,
+      count: merged.length,
       lastUpdated,
     };
     this.rebuildIndexes();
@@ -153,17 +212,23 @@ export class CommunityCatalogService {
   private rebuildIndexes(): void {
     const nextGtinMap = new Map<string, CommunityCatalogItem[]>();
     for (const item of this.items) {
-      if (item.gtin) {
-        const raw = typeof item.gtin === "string" ? item.gtin.trim() : String(item.gtin).trim();
+      const gtinsToIndex = item.gtins && item.gtins.length > 0
+        ? item.gtins
+        : (item.gtin ? [item.gtin] : []);
+
+      for (const candidateGtin of gtinsToIndex) {
+        if (!candidateGtin) continue;
+        const raw = typeof candidateGtin === "string" ? candidateGtin.trim() : String(candidateGtin).trim();
+        if (!raw) continue;
         const norm = normalizeGtin(raw);
         if (norm) {
           const list = nextGtinMap.get(norm) || [];
-          list.push(item);
+          if (!list.includes(item)) list.push(item);
           nextGtinMap.set(norm, list);
         }
         if (raw && raw !== norm) {
           const list = nextGtinMap.get(raw) || [];
-          list.push(item);
+          if (!list.includes(item)) list.push(item);
           nextGtinMap.set(raw, list);
         }
       }
@@ -499,6 +564,7 @@ export class CommunityCatalogService {
           extruderTemp: typeof item.extruderTemp === "number" ? item.extruderTemp : null,
           bedTemp: typeof item.bedTemp === "number" ? item.bedTemp : null,
           gtin: item.gtin ? String(item.gtin).trim() : null,
+          gtins: Array.isArray(item.gtins) ? item.gtins.map((g: any) => String(g).trim()).filter(Boolean) : undefined,
         });
       }
     }

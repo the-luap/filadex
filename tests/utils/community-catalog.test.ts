@@ -475,5 +475,105 @@ describe("CommunityCatalogService", () => {
       expect(items).toEqual([]);
     });
   });
+
+  describe("deduplication and GTIN merging", () => {
+    it("deduplicates identical items where all fields are equal", () => {
+      const item1: CommunityCatalogItem = {
+        id: "ofd-1",
+        source: "ofd",
+        manufacturer: "Nebula",
+        material: "PETG",
+        name: "PETG Premium",
+        colorName: "Military Green",
+        colorCode: "#4B5320",
+        density: 1.27,
+        diameter: 1.75,
+        weightGrams: 1000,
+        spoolRefill: false,
+        extruderTemp: 230,
+        bedTemp: 70,
+        gtin: "5901234567890",
+      };
+      const duplicateItem: CommunityCatalogItem = {
+        ...item1,
+        id: "ofd-2",
+      };
+
+      service.setItems([item1, duplicateItem]);
+      const results = service.search("Nebula Military Green");
+      expect(results.length).toBe(1);
+      expect(results[0].id).toBe("ofd-1");
+      expect(results[0].gtin).toBe("5901234567890");
+    });
+
+    it("merges items with identical properties but different GTINs into a single item with multiple gtins", () => {
+      const item1: CommunityCatalogItem = {
+        id: "ofd-1",
+        source: "ofd",
+        manufacturer: "Nebula",
+        material: "PETG",
+        name: "PETG Premium",
+        colorName: "Military Green",
+        colorCode: "#4B5320",
+        density: 1.27,
+        diameter: 1.75,
+        weightGrams: 1000,
+        spoolRefill: false,
+        extruderTemp: 230,
+        bedTemp: 70,
+        gtin: "5901234567890",
+      };
+      const itemWithDiffGtin: CommunityCatalogItem = {
+        ...item1,
+        id: "ofd-2",
+        gtin: "5909876543210",
+      };
+      const itemWithoutGtin: CommunityCatalogItem = {
+        ...item1,
+        id: "ofd-3",
+        gtin: null,
+      };
+
+      service.setItems([item1, itemWithDiffGtin, itemWithoutGtin]);
+      const results = service.search("Nebula Military Green");
+      expect(results.length).toBe(1);
+      expect(results[0].name).toBe("PETG Premium");
+      expect(results[0].gtin).toBe("5901234567890");
+      expect(results[0].gtins).toEqual(["5901234567890", "5909876543210"]);
+    });
+
+    it("allows barcode lookup for any of the merged GTINs", () => {
+      const item1: CommunityCatalogItem = {
+        id: "ofd-1",
+        source: "ofd",
+        manufacturer: "Nebula",
+        material: "PETG",
+        name: "PETG Premium",
+        colorName: "Military Green",
+        colorCode: "#4B5320",
+        density: 1.27,
+        diameter: 1.75,
+        weightGrams: 1000,
+        spoolRefill: false,
+        extruderTemp: 230,
+        bedTemp: 70,
+        gtin: "5901234567890",
+      };
+      const item2: CommunityCatalogItem = {
+        ...item1,
+        id: "ofd-2",
+        gtin: "5909876543210",
+      };
+
+      service.setItems([item1, item2]);
+      const match1 = service.lookupGtinCandidates("5901234567890");
+      expect(match1.length).toBe(1);
+      expect(match1[0].name).toBe("PETG Premium");
+
+      const match2 = service.lookupGtinCandidates("5909876543210");
+      expect(match2.length).toBe(1);
+      expect(match2[0].name).toBe("PETG Premium");
+    });
+  });
 });
 

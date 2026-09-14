@@ -237,5 +237,59 @@ test.describe("Community Catalog on Add Filament Modal", () => {
     // Verify filament name is PLA Galaxy Black (material + name, no manufacturer)
     await expect(dialog.getByLabel(/name\*/i)).toHaveValue("PLA Galaxy Black");
   });
+
+  test("prompts to overwrite barcode when barcode field is already populated", async ({ page }) => {
+    await page.route("**/api/community-filaments/search*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          {
+            id: "ofd-test-overwrite",
+            source: "ofd",
+            manufacturer: "Polymaker",
+            name: "PolyTerra PLA",
+            material: "PLA",
+            colorName: "Sapphire Blue",
+            colorCode: "#0000FF",
+            density: 1.25,
+            diameter: 1.75,
+            weightGrams: 1000,
+            spoolRefill: false,
+            extruderTemp: 210,
+            bedTemp: 50,
+            gtin: "6975337039999",
+          },
+        ]),
+      });
+    });
+
+    await page.getByRole("button", { name: /add filament/i }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+
+    // Fill an existing barcode first
+    const barcodeInput = dialog.getByLabel(/barcode/i);
+    await barcodeInput.fill("1112223334445");
+    await expect(barcodeInput).toHaveValue("1112223334445");
+
+    // Search community filaments
+    const searchInput = dialog.getByPlaceholder(/search catalog/i);
+    await searchInput.fill("PolyTerra");
+
+    // Click result
+    const resultButton = dialog.getByRole("button", { name: /polymaker.*polyterra pla.*sapphire blue/i });
+    await expect(resultButton).toBeVisible();
+    await resultButton.click();
+
+    // Overwrite prompt appears
+    await expect(page.getByRole("heading", { name: /overwrite barcode\?/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /keep "1112223334445"/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /overwrite with "6975337039999"/i })).toBeVisible();
+
+    // Click keep
+    await page.getByRole("button", { name: /keep "1112223334445"/i }).click();
+    await expect(dialog.getByLabel(/barcode/i)).toHaveValue("1112223334445");
+  });
 });
 

@@ -28,6 +28,10 @@ const scanner = {
   similarMaterialDescription: 'The scanned filament has material "{{scanned}}", but you have similar materials in your database. Would you like to use an existing one or create a new one?',
   createNewMaterial: 'Create "{{name}}"',
   useExistingMaterial: 'Use "{{name}}"',
+  overwriteBarcodeTitle: 'Overwrite Barcode?',
+  overwriteBarcodeDescription: 'The barcode field already contains "{{current}}". Would you like to overwrite it with "{{incoming}}" from the catalog or keep the existing barcode?',
+  keepExistingBarcode: 'Keep "{{code}}"',
+  overwriteWithBarcode: 'Overwrite with "{{code}}"',
 };
 
 // English translations
