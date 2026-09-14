@@ -94,12 +94,8 @@ export interface OfdDataset {
   sizes: OfdSize[];
 }
 
-function normalizeGtin(gtin: string): string {
-  return String(gtin).trim().replace(/^0+/, "");
-}
-
-import { mergeCatalogItems } from "@shared/community-catalog-dedup";
-export { mergeCatalogItems };
+import { mergeCatalogItems, normalizeGtin } from "@shared/community-catalog-dedup";
+export { mergeCatalogItems, normalizeGtin };
 
 
 export class CatalogSyncConflictError extends Error {

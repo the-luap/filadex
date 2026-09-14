@@ -66,17 +66,21 @@ export function formatDiameter(diameter: number | null | undefined): string | nu
 
 export function formatPrintTemps(
   extruderTemp: number | null | undefined,
-  bedTemp: number | null | undefined
+  bedTemp: number | null | undefined,
+  bedLabel = "Bed"
 ): string | null {
   if (extruderTemp != null && bedTemp != null) {
-    return `${extruderTemp}°C / Bed ${bedTemp}°C`;
+    return `${extruderTemp}°C / ${bedLabel} ${bedTemp}°C`;
   }
   if (extruderTemp != null) {
     return `${extruderTemp}°C`;
+  }
+  if (bedTemp != null) {
+    return `${bedLabel} ${bedTemp}°C`;
   }
   return null;
 }
 
 import { mergeCatalogItems } from "@shared/community-catalog-dedup";
 
-export { mergeCatalogItems, mergeCatalogItems as deduplicateCommunityResults };
+export { mergeCatalogItems };

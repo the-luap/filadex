@@ -11,6 +11,7 @@ describe("GTIN overwrite confirmation translations and keys", () => {
       "overwriteBarcodeDescription",
       "keepExistingBarcode",
       "overwriteWithBarcode",
+      "selectGtin",
     ];
 
     for (const key of requiredKeys) {
@@ -48,6 +49,11 @@ describe("shouldPromptBarcodeOverwrite", () => {
     expect(shouldPromptBarcodeOverwrite("  6975337039999  ", "6975337039999")).toBe(false);
   });
 
+  it("returns false when current and incoming barcodes differ only by leading zeros", () => {
+    expect(shouldPromptBarcodeOverwrite("684620401324", "0684620401324", ["0684620401324"])).toBe(false);
+    expect(shouldPromptBarcodeOverwrite("0684620401324", "684620401324", ["684620401324"])).toBe(false);
+  });
+
   it("returns true when current barcode is different and not in catalog item GTINs", () => {
     expect(shouldPromptBarcodeOverwrite("1112223334445", "6975337039999", ["6975337039999"])).toBe(true);
     expect(shouldPromptBarcodeOverwrite("1112223334445", "6975337039999", ["6975337039999", "6975337038888"])).toBe(true);
@@ -62,6 +68,11 @@ describe("shouldPromptBarcodeOverwrite", () => {
     // With whitespace
     expect(
       shouldPromptBarcodeOverwrite("  590222  ", "590111", ["590111", "590222"])
+    ).toBe(false);
+
+    // With leading zeros
+    expect(
+      shouldPromptBarcodeOverwrite("684620401324", "590111", ["0684620401324", "590111"])
     ).toBe(false);
   });
 });
@@ -80,6 +91,25 @@ describe("resolveBarcodeUpdate", () => {
     expect(resolveBarcodeUpdate("", "590222", multiGtins, true)).toEqual({
       type: "update",
       barcode: "590222",
+    });
+  });
+
+  it("does not prompt to replace a barcode with itself on explicit chip click", () => {
+    // Current is 111, chip clicked is 111
+    expect(resolveBarcodeUpdate("111", "111", ["222"], true)).toEqual({
+      type: "none",
+    });
+  });
+
+  it("does not prompt to replace a barcode with itself on leading zero differences", () => {
+    expect(resolveBarcodeUpdate("684620401324", "684620401324", ["0684620401324"], true)).toEqual({
+      type: "none",
+    });
+    expect(resolveBarcodeUpdate("684620401324", "0684620401324", ["0684620401324"], true)).toEqual({
+      type: "none",
+    });
+    expect(resolveBarcodeUpdate("684620401324", "0684620401324", ["0684620401324"], false)).toEqual({
+      type: "none",
     });
   });
 
@@ -102,6 +132,12 @@ describe("resolveBarcodeUpdate", () => {
   it("preserves existing barcode when user scanned a merged barcode and card is selected", () => {
     // Form already has 590222, default card choice is 590111 -> action is "none" (preserve 590222)
     expect(resolveBarcodeUpdate("590222", "590111", multiGtins, false)).toEqual({
+      type: "none",
+    });
+  });
+
+  it("preserves existing barcode when user scanned a merged barcode with leading zero difference", () => {
+    expect(resolveBarcodeUpdate("684620401324", "590111", ["0684620401324", "590111"], false)).toEqual({
       type: "none",
     });
   });

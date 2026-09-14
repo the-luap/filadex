@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Language } from "@shared/languages";
 import { formatCommunityCatalogFilamentName } from "@/lib/community-catalog";
+import { normalizeGtin } from "@shared/community-catalog-dedup";
 import { CommunityCatalogSearchResults } from "./community-catalog-search-results";
 
 const DATE_LOCALES: Record<Language, Locale> = {
@@ -290,11 +291,17 @@ export function shouldPromptBarcodeOverwrite(
   const incoming = (chosenGtin || "").trim();
   if (!current || !incoming) return false;
 
-  const validGtins = itemGtins
-    .map((g) => (g ? String(g).trim() : ""))
+  const normCurrent = normalizeGtin(current);
+  const normIncoming = normalizeGtin(incoming);
+  if (current === incoming || (normCurrent && normCurrent === normIncoming)) {
+    return false;
+  }
+
+  const validNormGtins = itemGtins
+    .map((g) => (g ? normalizeGtin(String(g)) : ""))
     .filter(Boolean);
 
-  if (validGtins.includes(current)) return false;
+  if (normCurrent && validNormGtins.includes(normCurrent)) return false;
 
   return current !== incoming;
 }
@@ -314,22 +321,30 @@ export function resolveBarcodeUpdate(
   const incoming = (chosenGtin || "").trim();
   if (!incoming) return { type: "none" };
 
-  const validGtins = itemGtins
-    .map((g) => (g ? String(g).trim() : ""))
+  const normCurrent = normalizeGtin(current);
+  const normIncoming = normalizeGtin(incoming);
+
+  // If already identical (including leading zero normalization), no change or prompt needed
+  if (current === incoming || (normCurrent && normCurrent === normIncoming)) {
+    return { type: "none" };
+  }
+
+  const validNormGtins = itemGtins
+    .map((g) => (g ? normalizeGtin(String(g)) : ""))
     .filter(Boolean);
 
   if (isExplicitSpecificGtin) {
-    if (current && !validGtins.includes(current)) {
+    if (current && (!normCurrent || !validNormGtins.includes(normCurrent))) {
       return { type: "prompt", currentBarcode: current, incomingBarcode: incoming };
     }
     return { type: "update", barcode: incoming };
   }
 
-  if (shouldPromptBarcodeOverwrite(current, incoming, validGtins)) {
+  if (shouldPromptBarcodeOverwrite(current, incoming, itemGtins)) {
     return { type: "prompt", currentBarcode: current, incomingBarcode: incoming };
   }
 
-  if (!current || !validGtins.includes(current)) {
+  if (!current || (!normCurrent || !validNormGtins.includes(normCurrent))) {
     return { type: "update", barcode: incoming };
   }
 
@@ -2371,7 +2386,7 @@ export function FilamentModal({
         </AlertDialog>
       )}
 
-      {!similarManufacturerPrompt && !similarMaterialPrompt && overwriteBarcodePrompt && (
+      {!variantCandidates && !similarManufacturerPrompt && !similarMaterialPrompt && overwriteBarcodePrompt && (
         <AlertDialog
           open={true}
           onOpenChange={(open) => {

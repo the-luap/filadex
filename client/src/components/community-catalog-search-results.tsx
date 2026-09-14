@@ -8,7 +8,7 @@ import {
   formatWeightGrams,
   formatDiameter,
   formatPrintTemps,
-  deduplicateCommunityResults,
+  mergeCatalogItems,
 } from "@/lib/community-catalog";
 
 export interface CommunityCatalogSearchResultsProps {
@@ -25,7 +25,7 @@ export function CommunityCatalogSearchResults({
   const { t } = useTranslation();
 
   const deduplicated = useMemo(() => {
-    return deduplicateCommunityResults(results);
+    return mergeCatalogItems(results);
   }, [results]);
 
   if (isLoading) {
@@ -49,15 +49,13 @@ export function CommunityCatalogSearchResults({
       {deduplicated.map((item, index) => {
         const weightText = formatWeightGrams(item.weightGrams);
         const diameterText = formatDiameter(item.diameter);
-        const tempText = formatPrintTemps(item.extruderTemp, item.bedTemp);
+        const tempText = formatPrintTemps(item.extruderTemp, item.bedTemp, t("filaments.bed"));
         const allGtins = item.gtins && item.gtins.length > 0
           ? item.gtins
           : (item.gtin ? [item.gtin] : []);
 
         const spoolTypeText = item.spoolRefill != null
-          ? (item.spoolRefill
-              ? (t("filamentsTable.spoolless") || t("filaments.spoolless") || "Refill")
-              : (t("filamentsTable.spooled") || t("filaments.spooled") || "Spool"))
+          ? (item.spoolRefill ? t("filaments.spoolless") : t("filaments.spooled"))
           : null;
 
         const hasMultipleGtins = allGtins.length > 1;
@@ -78,24 +76,24 @@ export function CommunityCatalogSearchResults({
               )}
             >
               {/* Top Line: Color swatch, Title, Material */}
-              <div className="flex items-start justify-between gap-2 w-full">
-                <div className="flex items-start gap-2.5 min-w-0">
+              <span className="flex items-start justify-between gap-2 w-full">
+                <span className="flex items-start gap-2.5 min-w-0">
                   <span
                     className="w-4 h-4 rounded-full border border-black/15 dark:border-white/20 shrink-0 shadow-sm mt-0.5"
                     style={{ backgroundColor: item.colorCode || "#888888" }}
                     aria-hidden="true"
                   />
-                  <div className="min-w-0">
-                    <div className="font-semibold text-sm dark:text-neutral-100 text-gray-900 leading-tight break-words">
+                  <span className="min-w-0 block">
+                    <span className="font-semibold text-sm dark:text-neutral-100 text-gray-900 leading-tight break-words block">
                       {`${item.manufacturer} — ${item.name}`}
-                    </div>
+                    </span>
                     {item.colorName && (
-                      <div className="text-xs text-muted-foreground font-medium mt-0.5">
+                      <span className="text-xs text-muted-foreground font-medium mt-0.5 block">
                         {item.colorName}
-                      </div>
+                      </span>
                     )}
-                  </div>
-                </div>
+                  </span>
+                </span>
 
                 {item.material && (
                   <span
@@ -107,10 +105,10 @@ export function CommunityCatalogSearchResults({
                     {item.material}
                   </span>
                 )}
-              </div>
+              </span>
 
               {/* Badges row: Weight, Diameter, Spool type, Temperatures */}
-              <div className="flex flex-wrap items-center gap-1.5 pl-[26px] text-xs">
+              <span className="flex flex-wrap items-center gap-1.5 pl-[26px] text-xs">
                 {weightText && (
                   <span
                     className={cn(
@@ -152,15 +150,15 @@ export function CommunityCatalogSearchResults({
                     {tempText}
                   </span>
                 )}
-              </div>
+              </span>
 
               {/* Single GTIN display */}
               {allGtins.length === 1 && (
-                <div className="pl-[26px] flex items-center gap-1.5 text-xs text-muted-foreground pt-0.5">
+                <span className="pl-[26px] flex items-center gap-1.5 text-xs text-muted-foreground pt-0.5">
                   <Barcode className="w-3.5 h-3.5 shrink-0 opacity-70" />
                   <span className="font-medium">GTIN:</span>
                   <span className="font-mono text-xs">{allGtins[0]}</span>
-                </div>
+                </span>
               )}
             </button>
 
@@ -176,7 +174,7 @@ export function CommunityCatalogSearchResults({
                     <button
                       key={gtin}
                       type="button"
-                      aria-label={`Select GTIN ${gtin}`}
+                      aria-label={t("scanner.selectGtin", { gtin })}
                       onClick={() => onSelectResult(item, gtin)}
                       className="min-h-[36px] min-w-[44px] px-3 py-1.5 rounded-md bg-muted/80 hover:bg-primary/20 active:bg-primary/30 text-xs font-mono font-medium transition-colors border border-border/60 text-foreground flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >

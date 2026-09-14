@@ -1,7 +1,8 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { LanguageContext } from "../../client/src/i18n";
+import enTranslations from "../../client/src/i18n/locales/en";
+import { getTranslation, interpolate, LanguageContext } from "../../client/src/i18n";
 import { CommunityCatalogSearchResults } from "../../client/src/components/community-catalog-search-results";
 import type { CommunityCatalogItem } from "@shared/schema";
 
@@ -11,11 +12,9 @@ function renderWithProviders(component: React.ReactElement) {
       value={{
         language: "en",
         setLanguage: vi.fn(),
-        t: (key: string) => {
-          if (key === "settings.communityFilaments.noResults") return "No community filaments found";
-          if (key === "filamentsTable.spoolless" || key === "filaments.spoolless") return "Refill";
-          if (key === "filamentsTable.spooled" || key === "filaments.spooled") return "Spool";
-          return key;
+        t: (key: string, params?: Record<string, string | number>) => {
+          const raw = getTranslation(enTranslations as any, key);
+          return params ? interpolate(raw, params) : raw;
         },
       }}
     >
@@ -46,7 +45,7 @@ describe("CommunityCatalogSearchResults", () => {
     const html = renderWithProviders(
       <CommunityCatalogSearchResults results={[]} onSelectResult={vi.fn()} />
     );
-    expect(html).toContain("No community filaments found");
+    expect(html).toContain("No matches found");
   });
 
   it("renders rich card with details, badges, and color dot", () => {
@@ -59,13 +58,13 @@ describe("CommunityCatalogSearchResults", () => {
     expect(html).toContain("PETG");
     expect(html).toContain("1 kg");
     expect(html).toContain("1.75 mm");
-    expect(html).toContain("Spool");
+    expect(html).toContain("Spooled (standard)");
     expect(html).toContain("230°C / Bed 70°C");
     expect(html).toContain("5901234567890");
     expect(html).toContain("background-color:#4B5320");
   });
 
-  it("renders multiple GTINs when filament has merged barcodes", () => {
+  it("renders multiple GTINs with translated aria-labels when filament has merged barcodes", () => {
     const multiGtinItem: CommunityCatalogItem = {
       ...sampleItem,
       gtin: "5901234567890",
@@ -78,6 +77,24 @@ describe("CommunityCatalogSearchResults", () => {
 
     expect(html).toContain("5901234567890");
     expect(html).toContain("5909876543210");
+    expect(html).toContain('aria-label="Select GTIN 5909876543210"');
+  });
+
+  it("renders spoolless badge and bed-only temperature badge", () => {
+    const spoollessItem: CommunityCatalogItem = {
+      ...sampleItem,
+      id: "spoolless-1",
+      spoolRefill: true,
+      extruderTemp: null,
+      bedTemp: 60,
+    };
+
+    const html = renderWithProviders(
+      <CommunityCatalogSearchResults results={[spoollessItem]} onSelectResult={vi.fn()} />
+    );
+
+    expect(html).toContain("Spoolless");
+    expect(html).toContain("Bed 60°C");
   });
 
   it("deduplicates identical search results before rendering cards", () => {

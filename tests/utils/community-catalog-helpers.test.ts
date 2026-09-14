@@ -3,7 +3,7 @@ import {
   formatWeightGrams,
   formatDiameter,
   formatPrintTemps,
-  deduplicateCommunityResults,
+  mergeCatalogItems,
 } from "../../client/src/lib/community-catalog";
 import type { CommunityCatalogItem } from "@shared/schema";
 
@@ -35,11 +35,14 @@ describe("community-catalog helpers", () => {
     it("formats temperatures concisely", () => {
       expect(formatPrintTemps(230, 70)).toBe("230°C / Bed 70°C");
       expect(formatPrintTemps(210, null)).toBe("210°C");
+      expect(formatPrintTemps(null, 60)).toBe("Bed 60°C");
+      expect(formatPrintTemps(230, 70, "Heizbett")).toBe("230°C / Heizbett 70°C");
+      expect(formatPrintTemps(null, 60, "Stół")).toBe("Stół 60°C");
       expect(formatPrintTemps(null, null)).toBeNull();
     });
   });
 
-  describe("deduplicateCommunityResults", () => {
+  describe("mergeCatalogItems", () => {
     it("deduplicates identical items and merges multiple GTINs", () => {
       const item1: CommunityCatalogItem = {
         id: "ofd-1",
@@ -68,7 +71,7 @@ describe("community-catalog helpers", () => {
         gtin: null,
       };
 
-      const deduplicated = deduplicateCommunityResults([item1, item2, item3]);
+      const deduplicated = mergeCatalogItems([item1, item2, item3]);
       expect(deduplicated.length).toBe(1);
       expect(deduplicated[0].gtin).toBe("5901111111111");
       expect(deduplicated[0].gtins).toEqual(["5901111111111", "5902222222222"]);
@@ -97,7 +100,7 @@ describe("community-catalog helpers", () => {
         weightGrams: 500,
       };
 
-      const deduplicated = deduplicateCommunityResults([item1kg, item500g]);
+      const deduplicated = mergeCatalogItems([item1kg, item500g]);
       expect(deduplicated.length).toBe(2);
       expect(deduplicated[0].weightGrams).toBe(1000);
       expect(deduplicated[1].weightGrams).toBe(500);

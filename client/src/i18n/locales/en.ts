@@ -32,6 +32,7 @@ const scanner = {
   overwriteBarcodeDescription: 'The barcode field already contains "{{current}}". Would you like to overwrite it with "{{incoming}}" from the catalog or keep the existing barcode?',
   keepExistingBarcode: 'Keep "{{code}}"',
   overwriteWithBarcode: 'Overwrite with "{{code}}"',
+  selectGtin: 'Select GTIN {{gtin}}',
 };
 
 // English translations
@@ -267,6 +268,7 @@ const translations = {
     opened: 'Opened (in use)',
     spooled: 'Spooled (standard)',
     spoolless: 'Spoolless',
+    bed: 'Bed',
     weightRequired: 'Total weight must be at least 0.1kg',
     materialRequired: 'Material is required',
     colorRequired: 'Color is required',

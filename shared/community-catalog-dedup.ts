@@ -1,5 +1,10 @@
 import type { CommunityCatalogItem } from "./schema";
 
+export function normalizeGtin(gtin: string | null | undefined): string {
+  if (!gtin) return "";
+  return String(gtin).trim().replace(/^0+/, "");
+}
+
 /**
  * Deduplicates community catalog items.
  *
