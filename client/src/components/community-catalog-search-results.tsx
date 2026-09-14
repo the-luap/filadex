@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import type { CommunityCatalogItem } from "@shared/schema";
-import { Badge } from "@/components/ui/badge";
+import { badgeVariants } from "@/components/ui/badge";
 import { Barcode } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -64,7 +64,7 @@ export function CommunityCatalogSearchResults({
 
         return (
           <div
-            key={`${item.id}-${index}`}
+            key={`${item.source}-${item.id || index}`}
             className="w-full rounded-lg border dark:border-neutral-700/80 border-gray-200 bg-white dark:bg-neutral-800/80 shadow-sm flex flex-col overflow-hidden transition-colors hover:border-primary/60"
           >
             {/* Main clickable card area */}
@@ -98,51 +98,59 @@ export function CommunityCatalogSearchResults({
                 </div>
 
                 {item.material && (
-                  <Badge
-                    variant="secondary"
-                    className="text-xs font-semibold uppercase px-2 py-0.5 shrink-0 ml-1 bg-neutral-100 dark:bg-neutral-700/60 text-neutral-800 dark:text-neutral-200"
+                  <span
+                    className={cn(
+                      badgeVariants({ variant: "secondary" }),
+                      "text-xs font-semibold uppercase px-2 py-0.5 shrink-0 ml-1 bg-neutral-100 dark:bg-neutral-700/60 text-neutral-800 dark:text-neutral-200"
+                    )}
                   >
                     {item.material}
-                  </Badge>
+                  </span>
                 )}
               </div>
 
               {/* Badges row: Weight, Diameter, Spool type, Temperatures */}
               <div className="flex flex-wrap items-center gap-1.5 pl-[26px] text-xs">
                 {weightText && (
-                  <Badge
-                    variant="outline"
-                    className="text-xs font-normal px-2 py-0.5 dark:border-neutral-600 dark:text-neutral-300"
+                  <span
+                    className={cn(
+                      badgeVariants({ variant: "outline" }),
+                      "text-xs font-normal px-2 py-0.5 dark:border-neutral-600 dark:text-neutral-300"
+                    )}
                   >
                     {weightText}
-                  </Badge>
+                  </span>
                 )}
                 {diameterText && (
-                  <Badge
-                    variant="outline"
-                    className="text-xs font-normal px-2 py-0.5 dark:border-neutral-600 dark:text-neutral-300"
+                  <span
+                    className={cn(
+                      badgeVariants({ variant: "outline" }),
+                      "text-xs font-normal px-2 py-0.5 dark:border-neutral-600 dark:text-neutral-300"
+                    )}
                   >
                     {diameterText}
-                  </Badge>
+                  </span>
                 )}
                 {spoolTypeText && (
-                  <Badge
-                    variant="outline"
+                  <span
                     className={cn(
+                      badgeVariants({ variant: "outline" }),
                       "text-xs font-normal px-2 py-0.5 dark:border-neutral-600 dark:text-neutral-300",
                       item.spoolRefill && "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
                     )}
                   >
                     {spoolTypeText}
-                  </Badge>
+                  </span>
                 )}
                 {tempText && (
-                  <Badge
-                    variant="outline"
-                    className="text-xs font-normal px-2 py-0.5 dark:border-neutral-600 dark:text-neutral-300"
+                  <span
+                    className={cn(
+                      badgeVariants({ variant: "outline" }),
+                      "text-xs font-normal px-2 py-0.5 dark:border-neutral-600 dark:text-neutral-300"
+                    )}
                   >
                     {tempText}
-                  </Badge>
+                  </span>
                 )}
               </div>
 

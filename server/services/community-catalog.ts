@@ -617,7 +617,7 @@ export class CommunityCatalogService {
     const lastUpdated = new Date().toISOString();
     this.setSourceItems("ofd", items, lastUpdated);
     await this.saveToDisk("ofd");
-    return items.length;
+    return this.status.ofd.count;
   }
 
   private async syncSpoolmanDbInternal(): Promise<number> {
@@ -698,7 +698,7 @@ export class CommunityCatalogService {
     const lastUpdated = new Date().toISOString();
     this.setSourceItems("spoolmandb", items, lastUpdated);
     await this.saveToDisk("spoolmandb");
-    return items.length;
+    return this.status.spoolmandb.count;
   }
 
 }

@@ -42,7 +42,7 @@ export function mergeCatalogItems<T extends CommunityCatalogItem>(items: T[]): T
       item.spoolRefill != null ? String(item.spoolRefill) : "",
       item.extruderTemp != null ? String(item.extruderTemp) : "",
       item.bedTemp != null ? String(item.bedTemp) : "",
-    ].join("|");
+    ].join("\x1f");
 
     const itemGtins = extractUniqueGtins(item);
     const existing = map.get(key);
