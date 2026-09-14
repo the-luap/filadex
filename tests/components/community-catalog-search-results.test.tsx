@@ -13,8 +13,8 @@ function renderWithProviders(component: React.ReactElement) {
         setLanguage: vi.fn(),
         t: (key: string) => {
           if (key === "settings.communityFilaments.noResults") return "No community filaments found";
-          if (key === "filaments.spoolTypes.spoolless") return "Refill";
-          if (key === "filaments.spoolTypes.spooled") return "Spool";
+          if (key === "filamentsTable.spoolless" || key === "filaments.spoolless") return "Refill";
+          if (key === "filamentsTable.spooled" || key === "filaments.spooled") return "Spool";
           return key;
         },
       }}
@@ -59,6 +59,7 @@ describe("CommunityCatalogSearchResults", () => {
     expect(html).toContain("PETG");
     expect(html).toContain("1 kg");
     expect(html).toContain("1.75 mm");
+    expect(html).toContain("Spool");
     expect(html).toContain("230°C / Bed 70°C");
     expect(html).toContain("5901234567890");
     expect(html).toContain("background-color:#4B5320");

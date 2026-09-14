@@ -281,6 +281,24 @@ export function stripParentheticalAnnotations(s: string): string {
   return s.replace(/\s*\([^)]*\)/g, "").trim();
 }
 
+export function shouldPromptBarcodeOverwrite(
+  currentBarcode: string | null | undefined,
+  chosenGtin: string | null | undefined,
+  itemGtins: (string | null | undefined)[] = []
+): boolean {
+  const current = (currentBarcode || "").trim();
+  const incoming = (chosenGtin || "").trim();
+  if (!current || !incoming) return false;
+
+  const validGtins = itemGtins
+    .map((g) => (g ? String(g).trim() : ""))
+    .filter(Boolean);
+
+  if (validGtins.includes(current)) return false;
+
+  return current !== incoming;
+}
+
 export function findMatchingColor(
   scannedColorName: string | null | undefined,
   dbColors: { id?: number; name: string; code?: string }[],
@@ -906,12 +924,16 @@ export function FilamentModal({
     const chosenGtin = (specificGtin || result.gtin || (result.gtins && result.gtins.length > 0 ? result.gtins[0] : null) || '').trim();
     if (chosenGtin) {
       const currentBarcode = (form.getValues('barcode') || '').trim();
-      if (currentBarcode && currentBarcode !== chosenGtin) {
+      const allItemGtins = (result.gtins && result.gtins.length > 0)
+        ? result.gtins
+        : (result.gtin ? [result.gtin] : []);
+
+      if (shouldPromptBarcodeOverwrite(currentBarcode, chosenGtin, allItemGtins)) {
         setOverwriteBarcodePrompt({
           currentBarcode,
           incomingBarcode: chosenGtin,
         });
-      } else {
+      } else if (!currentBarcode || !allItemGtins.map((g) => g.trim()).includes(currentBarcode)) {
         form.setValue('barcode', chosenGtin, { shouldValidate: true, shouldDirty: true });
       }
     }
@@ -1093,7 +1115,7 @@ export function FilamentModal({
         `/api/community-filaments/gtin/${encodeURIComponent(code)}${query}`
       );
       if (result) {
-        handleUseCommunityResult(result);
+        handleUseCommunityResult(result, code);
         if (result.candidates && result.candidates.length > 1) {
           setVariantCandidateBarcode(code);
           setVariantCandidates(result.candidates);
@@ -1172,7 +1194,7 @@ export function FilamentModal({
                     key={candidate.id}
                     type="button"
                     onClick={() => {
-                      handleUseCommunityResult(candidate);
+                      handleUseCommunityResult(candidate, variantCandidateBarcode);
                       setVariantCandidates(null);
                       toast({
                         title: t('scanner.foundInOfd', { name: `${candidate.manufacturer} - ${candidate.name}` }),
