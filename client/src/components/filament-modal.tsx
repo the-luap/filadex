@@ -13,7 +13,7 @@ import { useTranslation } from "@/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Language } from "@shared/languages";
-import { formatCommunityCatalogFilamentName } from "@/lib/community-catalog";
+import { formatCommunityCatalogFilamentName, formatPrintTemps } from "@/lib/community-catalog";
 import { normalizeGtin } from "@shared/community-catalog-dedup";
 import { CommunityCatalogSearchResults } from "./community-catalog-search-results";
 
@@ -966,10 +966,9 @@ export function FilamentModal({
     applyColorData(result.colorName, result.colorCode);
     if (result.density) form.setValue('density', result.density);
     if (result.diameter) form.setValue('diameter', Number(result.diameter));
-    if (result.extruderTemp) {
-      form.setValue('printTemp', result.bedTemp
-        ? `${result.extruderTemp}°C / Bed ${result.bedTemp}°C`
-        : `${result.extruderTemp}°C`);
+    const printTemp = formatPrintTemps(result.extruderTemp, result.bedTemp);
+    if (printTemp) {
+      form.setValue('printTemp', printTemp);
     }
     const cleanName = formatCommunityCatalogFilamentName(result);
     form.setValue('name', cleanName);
