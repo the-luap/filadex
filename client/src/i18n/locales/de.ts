@@ -28,6 +28,11 @@ const scanner = {
   similarMaterialDescription: 'Das gescannte Filament hat das Material "{{scanned}}", aber Sie haben bereits ähnliche Materialien in Ihrer Datenbank. Möchten Sie ein vorhandenes verwenden oder ein neues erstellen?',
   createNewMaterial: '"{{name}}" erstellen',
   useExistingMaterial: '"{{name}}" verwenden',
+  overwriteBarcodeTitle: 'Barcode überschreiben?',
+  overwriteBarcodeDescription: 'Das Barcode-Feld enthält bereits „{{current}}“. Möchten Sie es durch „{{incoming}}“ aus dem Katalog ersetzen oder den aktuellen Barcode behalten?',
+  keepExistingBarcode: '„{{code}}“ behalten',
+  overwriteWithBarcode: 'Mit „{{code}}“ überschreiben',
+  selectGtin: 'GTIN {{gtin}} auswählen',
 };
 
 // German translations
@@ -263,6 +268,7 @@ const translations = {
     opened: 'Geöffnet (in Benutzung)',
     spooled: 'Spule (Standard)',
     spoolless: 'Spulenlos',
+    bed: 'Bett',
     weightRequired: 'Gesamtgewicht muss mindestens 0,1 kg betragen',
     materialRequired: 'Material ist erforderlich',
     colorRequired: 'Farbe ist erforderlich',

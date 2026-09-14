@@ -94,9 +94,8 @@ export interface OfdDataset {
   sizes: OfdSize[];
 }
 
-function normalizeGtin(gtin: string): string {
-  return String(gtin).trim().replace(/^0+/, "");
-}
+import { mergeCatalogItems, normalizeGtin } from "@shared/community-catalog-dedup";
+export { mergeCatalogItems, normalizeGtin };
 
 
 export class CatalogSyncConflictError extends Error {
@@ -136,15 +135,16 @@ export class CommunityCatalogService {
   }
 
   public setItems(items: CommunityCatalogItem[]): void {
-    this.items = items;
+    this.items = mergeCatalogItems(items);
     this.rebuildIndexes();
   }
 
   public setSourceItems(source: "ofd" | "spoolmandb", items: CommunityCatalogItem[], lastUpdated: string | null): void {
+    const merged = mergeCatalogItems(items);
     const remaining = this.items.filter((item) => item.source !== source);
-    this.items = [...remaining, ...items];
+    this.items = [...remaining, ...merged];
     this.status[source] = {
-      count: items.length,
+      count: merged.length,
       lastUpdated,
     };
     this.rebuildIndexes();
@@ -153,17 +153,23 @@ export class CommunityCatalogService {
   private rebuildIndexes(): void {
     const nextGtinMap = new Map<string, CommunityCatalogItem[]>();
     for (const item of this.items) {
-      if (item.gtin) {
-        const raw = typeof item.gtin === "string" ? item.gtin.trim() : String(item.gtin).trim();
+      const gtinsToIndex = item.gtins && item.gtins.length > 0
+        ? item.gtins
+        : (item.gtin ? [item.gtin] : []);
+
+      for (const candidateGtin of gtinsToIndex) {
+        if (!candidateGtin) continue;
+        const raw = typeof candidateGtin === "string" ? candidateGtin.trim() : String(candidateGtin).trim();
+        if (!raw) continue;
         const norm = normalizeGtin(raw);
         if (norm) {
           const list = nextGtinMap.get(norm) || [];
-          list.push(item);
+          if (!list.includes(item)) list.push(item);
           nextGtinMap.set(norm, list);
         }
         if (raw && raw !== norm) {
           const list = nextGtinMap.get(raw) || [];
-          list.push(item);
+          if (!list.includes(item)) list.push(item);
           nextGtinMap.set(raw, list);
         }
       }
@@ -499,6 +505,7 @@ export class CommunityCatalogService {
           extruderTemp: typeof item.extruderTemp === "number" ? item.extruderTemp : null,
           bedTemp: typeof item.bedTemp === "number" ? item.bedTemp : null,
           gtin: item.gtin ? String(item.gtin).trim() : null,
+          gtins: Array.isArray(item.gtins) ? item.gtins.map((g: any) => String(g).trim()).filter(Boolean) : undefined,
         });
       }
     }
@@ -606,7 +613,7 @@ export class CommunityCatalogService {
     const lastUpdated = new Date().toISOString();
     this.setSourceItems("ofd", items, lastUpdated);
     await this.saveToDisk("ofd");
-    return items.length;
+    return this.status.ofd.count;
   }
 
   private async syncSpoolmanDbInternal(): Promise<number> {
@@ -687,7 +694,7 @@ export class CommunityCatalogService {
     const lastUpdated = new Date().toISOString();
     this.setSourceItems("spoolmandb", items, lastUpdated);
     await this.saveToDisk("spoolmandb");
-    return items.length;
+    return this.status.spoolmandb.count;
   }
 
 }

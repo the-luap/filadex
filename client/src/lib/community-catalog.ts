@@ -45,3 +45,42 @@ export function formatCommunityCatalogFilamentName(result: Partial<CommunityCata
 
   return cleanName;
 }
+
+export function formatWeightGrams(weightGrams: number | null | undefined): string | null {
+  if (weightGrams == null || isNaN(weightGrams) || weightGrams <= 0) {
+    return null;
+  }
+  if (weightGrams >= 1000) {
+    const kg = weightGrams / 1000;
+    return `${Number(kg.toFixed(2))} kg`;
+  }
+  return `${Math.round(weightGrams)} g`;
+}
+
+export function formatDiameter(diameter: number | null | undefined): string | null {
+  if (diameter == null || isNaN(diameter) || diameter <= 0) {
+    return null;
+  }
+  return `${Number(diameter.toFixed(2))} mm`;
+}
+
+export function formatPrintTemps(
+  extruderTemp: number | null | undefined,
+  bedTemp: number | null | undefined,
+  bedLabel = "Bed"
+): string | null {
+  if (extruderTemp != null && bedTemp != null) {
+    return `${extruderTemp}°C / ${bedLabel} ${bedTemp}°C`;
+  }
+  if (extruderTemp != null) {
+    return `${extruderTemp}°C`;
+  }
+  if (bedTemp != null) {
+    return `${bedLabel} ${bedTemp}°C`;
+  }
+  return null;
+}
+
+import { mergeCatalogItems } from "@shared/community-catalog-dedup";
+
+export { mergeCatalogItems };

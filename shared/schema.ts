@@ -848,6 +848,7 @@ export interface CommunityCatalogItem {
   extruderTemp: number | null;
   bedTemp: number | null;
   gtin: string | null;
+  gtins?: string[];
   candidates?: CommunityCatalogItem[];
 }
 

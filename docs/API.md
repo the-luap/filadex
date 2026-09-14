@@ -1289,27 +1289,89 @@ A locally-cached copy of vendor filament profiles from [SpoolmanDB](https://gith
 - **Authentication**: Required
 - **Query Parameters**:
   - `q`: Search term, matched against manufacturer, product name, and color name (case-insensitive substring match). Returns `[]` if omitted or empty.
+  - `source`: Optional catalog filter (`ofd` or `spoolmandb`).
+  - `limit`: Optional maximum number of results (default: `50`).
 - **Response**: `200 OK`
   ```json
   [
     {
-      "id": "number",
+      "id": "string",
+      "source": "ofd | spoolmandb",
       "manufacturer": "string",
       "material": "string",
       "name": "string",
       "colorName": "string",
-      "colorCode": "string",
-      "density": "string",
-      "diameter": "string",
-      "extruderTemp": "number",
-      "bedTemp": "number",
-      "updatedAt": "string"
+      "colorCode": "string | null",
+      "density": "number | null",
+      "diameter": "number | null",
+      "weightGrams": "number | null",
+      "spoolRefill": "boolean | null",
+      "extruderTemp": "number | null",
+      "bedTemp": "number | null",
+      "gtin": "string | null",
+      "gtins": ["string"]
     }
   ]
   ```
 - **Error Responses**:
   - `401 Unauthorized`: Not authenticated
   - `500 Internal Server Error`: Failed to search community filaments
+
+### Lookup Community Filament by GTIN / Barcode
+
+- **URL**: `/api/community-filaments/gtin/:code`
+- **Method**: `GET`
+- **Authentication**: Required
+- **URL Parameters**:
+  - `code`: GTIN or barcode (e.g. EAN-13, UPC-A). Tolerates leading zeros and padding differences.
+- **Query Parameters** (optional disambiguation hints for shared GTINs across spool sizes/types):
+  - `diameter`: Spool diameter in mm (e.g. `1.75`).
+  - `weightGrams`: Spool weight in grams (e.g. `1000`).
+  - `spoolRefill`: Boolean flag (`true` or `false`) indicating spoolless/refill.
+- **Response**: `200 OK`
+  ```json
+  {
+    "id": "string",
+    "source": "ofd | spoolmandb",
+    "manufacturer": "string",
+    "material": "string",
+    "name": "string",
+    "colorName": "string",
+    "colorCode": "string | null",
+    "density": "number | null",
+    "diameter": "number | null",
+    "weightGrams": "number | null",
+    "spoolRefill": "boolean | null",
+    "extruderTemp": "number | null",
+    "bedTemp": "number | null",
+    "gtin": "string | null",
+    "gtins": ["string"],
+    "candidates": [
+      {
+        "id": "string",
+        "source": "ofd | spoolmandb",
+        "manufacturer": "string",
+        "material": "string",
+        "name": "string",
+        "colorName": "string",
+        "colorCode": "string | null",
+        "density": "number | null",
+        "diameter": "number | null",
+        "weightGrams": "number | null",
+        "spoolRefill": "boolean | null",
+        "extruderTemp": "number | null",
+        "bedTemp": "number | null",
+        "gtin": "string | null",
+        "gtins": ["string"]
+      }
+    ]
+  }
+  ```
+- **Error Responses**:
+  - `400 Bad Request`: Invalid GTIN code
+  - `401 Unauthorized`: Not authenticated
+  - `404 Not Found`: Filament not found in community catalog
+  - `500 Internal Server Error`: Failed to look up GTIN
 
 ### Get Community Filament Cache Status
 

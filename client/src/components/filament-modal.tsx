@@ -13,7 +13,9 @@ import { useTranslation } from "@/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Language } from "@shared/languages";
-import { formatCommunityCatalogFilamentName } from "@/lib/community-catalog";
+import { formatCommunityCatalogFilamentName, formatPrintTemps } from "@/lib/community-catalog";
+import { normalizeGtin } from "@shared/community-catalog-dedup";
+import { CommunityCatalogSearchResults } from "./community-catalog-search-results";
 
 const DATE_LOCALES: Record<Language, Locale> = {
   en: enUS,
@@ -280,6 +282,75 @@ export function stripParentheticalAnnotations(s: string): string {
   return s.replace(/\s*\([^)]*\)/g, "").trim();
 }
 
+export function shouldPromptBarcodeOverwrite(
+  currentBarcode: string | null | undefined,
+  chosenGtin: string | null | undefined,
+  itemGtins: (string | null | undefined)[] = []
+): boolean {
+  const current = (currentBarcode || "").trim();
+  const incoming = (chosenGtin || "").trim();
+  if (!current || !incoming) return false;
+
+  const normCurrent = normalizeGtin(current);
+  const normIncoming = normalizeGtin(incoming);
+  if (current === incoming || (normCurrent && normCurrent === normIncoming)) {
+    return false;
+  }
+
+  const validNormGtins = itemGtins
+    .map((g) => (g ? normalizeGtin(String(g)) : ""))
+    .filter(Boolean);
+
+  if (normCurrent && validNormGtins.includes(normCurrent)) return false;
+
+  return current !== incoming;
+}
+
+export type BarcodeUpdateAction =
+  | { type: "none" }
+  | { type: "update"; barcode: string }
+  | { type: "prompt"; currentBarcode: string; incomingBarcode: string };
+
+export function resolveBarcodeUpdate(
+  currentBarcode: string | null | undefined,
+  chosenGtin: string | null | undefined,
+  itemGtins: (string | null | undefined)[] = [],
+  isExplicitSpecificGtin = false
+): BarcodeUpdateAction {
+  const current = (currentBarcode || "").trim();
+  const incoming = (chosenGtin || "").trim();
+  if (!incoming) return { type: "none" };
+
+  const normCurrent = normalizeGtin(current);
+  const normIncoming = normalizeGtin(incoming);
+
+  // If already identical (including leading zero normalization), no change or prompt needed
+  if (current === incoming || (normCurrent && normCurrent === normIncoming)) {
+    return { type: "none" };
+  }
+
+  const validNormGtins = itemGtins
+    .map((g) => (g ? normalizeGtin(String(g)) : ""))
+    .filter(Boolean);
+
+  if (isExplicitSpecificGtin) {
+    if (current && (!normCurrent || !validNormGtins.includes(normCurrent))) {
+      return { type: "prompt", currentBarcode: current, incomingBarcode: incoming };
+    }
+    return { type: "update", barcode: incoming };
+  }
+
+  if (shouldPromptBarcodeOverwrite(current, incoming, itemGtins)) {
+    return { type: "prompt", currentBarcode: current, incomingBarcode: incoming };
+  }
+
+  if (!current || (!normCurrent || !validNormGtins.includes(normCurrent))) {
+    return { type: "update", barcode: incoming };
+  }
+
+  return { type: "none" };
+}
+
 export function findMatchingColor(
   scannedColorName: string | null | undefined,
   dbColors: { id?: number; name: string; code?: string }[],
@@ -387,6 +458,10 @@ export function FilamentModal({
     scannedMaterial: string;
     similar: { id?: number; name: string }[];
   } | null>(null);
+  const [overwriteBarcodePrompt, setOverwriteBarcodePrompt] = useState<{
+    currentBarcode: string;
+    incomingBarcode: string;
+  } | null>(null);
   const [communitySearchQuery, setCommunitySearchQuery] = useState("");
   const [catalogSource, setCatalogSource] = useState<"ofd" | "spoolmandb">(() => {
     if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
@@ -403,7 +478,7 @@ export function FilamentModal({
     }
   };
 
-  const { data: communityResults = [] } = useQuery<CommunityFilamentResult[]>({
+  const { data: communityResults = [], isLoading: isCommunityLoading } = useQuery<CommunityFilamentResult[]>({
     queryKey: [`/api/community-filaments/search?q=${encodeURIComponent(communitySearchQuery)}&source=${catalogSource}`],
     queryFn: () => apiRequest<CommunityFilamentResult[]>(`/api/community-filaments/search?q=${encodeURIComponent(communitySearchQuery)}&source=${catalogSource}`),
     enabled: isOpen && !isEditing && communitySearchQuery.trim().length >= 2,
@@ -705,6 +780,7 @@ export function FilamentModal({
     setCommunitySearchQuery("");
     setSimilarManufacturerPrompt(null);
     setSimilarMaterialPrompt(null);
+    setOverwriteBarcodePrompt(null);
   };
 
   // Update form when modal opens/closes or filament changes
@@ -853,7 +929,7 @@ export function FilamentModal({
   };
 
   // Pre-fill the form from a picked community database entry
-  const handleUseCommunityResult = (result: CommunityFilamentResult) => {
+  const handleUseCommunityResult = (result: CommunityFilamentResult, specificGtin?: string) => {
     if (result.manufacturer) {
       const match = findSimilarManufacturers(result.manufacturer, manufacturers, genericStopWords);
       if (match.exactMatch) {
@@ -890,15 +966,28 @@ export function FilamentModal({
     applyColorData(result.colorName, result.colorCode);
     if (result.density) form.setValue('density', result.density);
     if (result.diameter) form.setValue('diameter', Number(result.diameter));
-    if (result.extruderTemp) {
-      form.setValue('printTemp', result.bedTemp
-        ? `${result.extruderTemp}°C / Bed ${result.bedTemp}°C`
-        : `${result.extruderTemp}°C`);
+    const printTemp = formatPrintTemps(result.extruderTemp, result.bedTemp);
+    if (printTemp) {
+      form.setValue('printTemp', printTemp);
     }
     const cleanName = formatCommunityCatalogFilamentName(result);
     form.setValue('name', cleanName);
-    if (result.gtin) {
-      form.setValue('barcode', result.gtin);
+    const chosenGtin = (specificGtin || result.gtin || (result.gtins && result.gtins.length > 0 ? result.gtins[0] : null) || '').trim();
+    if (chosenGtin) {
+      const currentBarcode = (form.getValues('barcode') || '').trim();
+      const allItemGtins = (result.gtins && result.gtins.length > 0)
+        ? result.gtins
+        : (result.gtin ? [result.gtin] : []);
+
+      const action = resolveBarcodeUpdate(currentBarcode, chosenGtin, allItemGtins, Boolean(specificGtin));
+      if (action.type === "prompt") {
+        setOverwriteBarcodePrompt({
+          currentBarcode: action.currentBarcode,
+          incomingBarcode: action.incomingBarcode,
+        });
+      } else if (action.type === "update") {
+        form.setValue('barcode', action.barcode, { shouldValidate: true, shouldDirty: true });
+      }
     }
     if (result.spoolRefill !== undefined && result.spoolRefill !== null) {
       form.setValue('spoolType', result.spoolRefill ? 'spoolless' : 'spooled');
@@ -1078,7 +1167,7 @@ export function FilamentModal({
         `/api/community-filaments/gtin/${encodeURIComponent(code)}${query}`
       );
       if (result) {
-        handleUseCommunityResult(result);
+        handleUseCommunityResult(result, code);
         if (result.candidates && result.candidates.length > 1) {
           setVariantCandidateBarcode(code);
           setVariantCandidates(result.candidates);
@@ -1157,7 +1246,7 @@ export function FilamentModal({
                     key={candidate.id}
                     type="button"
                     onClick={() => {
-                      handleUseCommunityResult(candidate);
+                      handleUseCommunityResult(candidate, variantCandidateBarcode);
                       setVariantCandidates(null);
                       toast({
                         title: t('scanner.foundInOfd', { name: `${candidate.manufacturer} - ${candidate.name}` }),
@@ -1239,32 +1328,11 @@ export function FilamentModal({
                     onChange={(e) => setCommunitySearchQuery(e.target.value)}
                   />
                   {communitySearchQuery.trim().length >= 2 && (
-                    <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
-                      {communityResults.length === 0 ? (
-                        <p className="text-sm dark:text-neutral-400 text-gray-500">
-                          {t('settings.communityFilaments.noResults')}
-                        </p>
-                      ) : (
-                        communityResults.map((result, index) => (
-                          <button
-                            type="button"
-                            key={`${result.id}-${index}`}
-                            onClick={() => handleUseCommunityResult(result)}
-                            className="w-full text-left text-sm flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-primary/10"
-                          >
-                            <span className="truncate">
-                              {result.manufacturer} — {result.name} ({result.colorName})
-                            </span>
-                            {result.colorCode && (
-                              <span
-                                className="inline-block h-3 w-3 rounded-full border flex-shrink-0"
-                                style={{ backgroundColor: result.colorCode }}
-                              />
-                            )}
-                          </button>
-                        ))
-                      )}
-                    </div>
+                    <CommunityCatalogSearchResults
+                      results={communityResults}
+                      onSelectResult={handleUseCommunityResult}
+                      isLoading={isCommunityLoading}
+                    />
                   )}
                 </div>
               )}
@@ -2311,6 +2379,44 @@ export function FilamentModal({
                 onClick={() => setSimilarMaterialPrompt(null)}
               >
                 {t('common.cancel')}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {!variantCandidates && !similarManufacturerPrompt && !similarMaterialPrompt && overwriteBarcodePrompt && (
+        <AlertDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setOverwriteBarcodePrompt(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('scanner.overwriteBarcodeTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('scanner.overwriteBarcodeDescription', {
+                  current: overwriteBarcodePrompt.currentBarcode,
+                  incoming: overwriteBarcodePrompt.incomingBarcode,
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setOverwriteBarcodePrompt(null)}
+              >
+                {t('scanner.keepExistingBarcode', { code: overwriteBarcodePrompt.currentBarcode })}
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  form.setValue('barcode', overwriteBarcodePrompt.incomingBarcode, { shouldValidate: true, shouldDirty: true });
+                  setOverwriteBarcodePrompt(null);
+                }}
+              >
+                {t('scanner.overwriteWithBarcode', { code: overwriteBarcodePrompt.incomingBarcode })}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
