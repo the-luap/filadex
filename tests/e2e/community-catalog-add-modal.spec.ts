@@ -290,6 +290,68 @@ test.describe("Community Catalog on Add Filament Modal", () => {
     // Click keep
     await page.getByRole("button", { name: /keep "1112223334445"/i }).click();
     await expect(dialog.getByLabel(/barcode/i)).toHaveValue("1112223334445");
+
+    // Search again and click result to test overwrite branch
+    await searchInput.fill("PolyTerra");
+    await resultButton.click();
+
+    await expect(page.getByRole("heading", { name: /overwrite barcode\?/i })).toBeVisible();
+    await page.getByRole("button", { name: /overwrite with "6975337039999"/i }).click();
+    await expect(dialog.getByLabel(/barcode/i)).toHaveValue("6975337039999");
+  });
+
+  test("allows selecting specific GTIN chip when community filament has multiple barcodes", async ({ page }) => {
+    await page.route("**/api/community-filaments/search*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          {
+            id: "ofd-test-multigtin",
+            source: "ofd",
+            manufacturer: "Polymaker",
+            name: "PolyTerra PLA",
+            material: "PLA",
+            colorName: "Sapphire Blue",
+            colorCode: "#0000FF",
+            density: 1.25,
+            diameter: 1.75,
+            weightGrams: 1000,
+            spoolRefill: false,
+            extruderTemp: 210,
+            bedTemp: 50,
+            gtin: "6975337031111",
+            gtins: ["6975337031111", "6975337032222"],
+          },
+        ]),
+      });
+    });
+
+    await page.getByRole("button", { name: /add filament/i }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+
+    const searchInput = dialog.getByPlaceholder(/search catalog/i);
+    await searchInput.fill("PolyTerra");
+
+    // Both GTIN chips should be visible
+    const chip1 = dialog.getByRole("button", { name: /select gtin 6975337031111/i });
+    const chip2 = dialog.getByRole("button", { name: /select gtin 6975337032222/i });
+    await expect(chip1).toBeVisible();
+    await expect(chip2).toBeVisible();
+
+    // Click second chip directly
+    await chip2.click();
+
+    // Barcode is updated to chip2's GTIN
+    const barcodeInput = dialog.getByLabel(/barcode/i);
+    await expect(barcodeInput).toHaveValue("6975337032222");
+
+    // Search again and switch to chip1 directly
+    await searchInput.fill("PolyTerra");
+    await chip1.click();
+    await expect(barcodeInput).toHaveValue("6975337031111");
   });
 });
+
 

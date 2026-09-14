@@ -168,6 +168,7 @@ export function CommunityCatalogSearchResults({
                     <button
                       key={gtin}
                       type="button"
+                      aria-label={`Select GTIN ${gtin}`}
                       onClick={() => onSelectResult(item, gtin)}
                       className="min-h-[36px] min-w-[44px] px-3 py-1.5 rounded-md bg-muted/80 hover:bg-primary/20 active:bg-primary/30 text-xs font-mono font-medium transition-colors border border-border/60 text-foreground flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >

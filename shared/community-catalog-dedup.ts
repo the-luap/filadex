@@ -8,6 +8,22 @@ import type { CommunityCatalogItem } from "./schema";
  * spoolRefill, extruderTemp, bedTemp) but differ in GTIN, their GTINs are merged
  * into a single record with an array of unique `gtins`.
  */
+function extractUniqueGtins(item: CommunityCatalogItem): string[] {
+  const gtins: string[] = [];
+  if (item.gtin && String(item.gtin).trim()) {
+    gtins.push(String(item.gtin).trim());
+  }
+  if (Array.isArray(item.gtins)) {
+    for (const g of item.gtins) {
+      const trimmed = g != null ? String(g).trim() : "";
+      if (trimmed && !gtins.includes(trimmed)) {
+        gtins.push(trimmed);
+      }
+    }
+  }
+  return gtins;
+}
+
 export function mergeCatalogItems<T extends CommunityCatalogItem>(items: T[]): T[] {
   const map = new Map<string, T>();
 
@@ -28,34 +44,19 @@ export function mergeCatalogItems<T extends CommunityCatalogItem>(items: T[]): T
       item.bedTemp != null ? String(item.bedTemp) : "",
     ].join("|");
 
+    const itemGtins = extractUniqueGtins(item);
     const existing = map.get(key);
     if (!existing) {
-      const gtins: string[] = [];
-      if (item.gtin && String(item.gtin).trim()) {
-        gtins.push(String(item.gtin).trim());
-      }
-      if (Array.isArray(item.gtins)) {
-        for (const g of item.gtins) {
-          const trimmed = g != null ? String(g).trim() : "";
-          if (trimmed && !gtins.includes(trimmed)) {
-            gtins.push(trimmed);
-          }
-        }
-      }
       map.set(key, {
         ...item,
-        gtin: gtins[0] ?? null,
-        gtins: gtins.length > 0 ? gtins : undefined,
+        gtin: itemGtins[0] ?? null,
+        gtins: itemGtins.length > 0 ? itemGtins : undefined,
       });
     } else {
       const allGtins = existing.gtins ? [...existing.gtins] : (existing.gtin ? [existing.gtin] : []);
-      const newGtins = item.gtins && item.gtins.length > 0
-        ? item.gtins
-        : (item.gtin ? [item.gtin] : []);
-      for (const g of newGtins) {
-        const trimmed = g != null ? String(g).trim() : "";
-        if (trimmed && !allGtins.includes(trimmed)) {
-          allGtins.push(trimmed);
+      for (const g of itemGtins) {
+        if (!allGtins.includes(g)) {
+          allGtins.push(g);
         }
       }
       existing.gtin = allGtins[0] ?? null;

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import en from "../../client/src/i18n/locales/en";
 import pl from "../../client/src/i18n/locales/pl";
 import de from "../../client/src/i18n/locales/de";
-import { shouldPromptBarcodeOverwrite } from "../../client/src/components/filament-modal";
+import { shouldPromptBarcodeOverwrite, resolveBarcodeUpdate } from "../../client/src/components/filament-modal";
 
 describe("GTIN overwrite confirmation translations and keys", () => {
   it("defines all required overwrite barcode keys across locales", () => {
@@ -63,6 +63,55 @@ describe("shouldPromptBarcodeOverwrite", () => {
     expect(
       shouldPromptBarcodeOverwrite("  590222  ", "590111", ["590111", "590222"])
     ).toBe(false);
+  });
+});
+
+describe("resolveBarcodeUpdate", () => {
+  const multiGtins = ["590111", "590222"];
+
+  it("updates barcode when form is empty (card selection)", () => {
+    expect(resolveBarcodeUpdate("", "590111", multiGtins, false)).toEqual({
+      type: "update",
+      barcode: "590111",
+    });
+  });
+
+  it("updates barcode when form is empty and specific chip is selected", () => {
+    expect(resolveBarcodeUpdate("", "590222", multiGtins, true)).toEqual({
+      type: "update",
+      barcode: "590222",
+    });
+  });
+
+  it("prompts overwrite when form has unrelated barcode and card is selected", () => {
+    expect(resolveBarcodeUpdate("1112223334445", "590111", multiGtins, false)).toEqual({
+      type: "prompt",
+      currentBarcode: "1112223334445",
+      incomingBarcode: "590111",
+    });
+  });
+
+  it("prompts overwrite when form has unrelated barcode and specific chip is clicked", () => {
+    expect(resolveBarcodeUpdate("1112223334445", "590222", multiGtins, true)).toEqual({
+      type: "prompt",
+      currentBarcode: "1112223334445",
+      incomingBarcode: "590222",
+    });
+  });
+
+  it("preserves existing barcode when user scanned a merged barcode and card is selected", () => {
+    // Form already has 590222, default card choice is 590111 -> action is "none" (preserve 590222)
+    expect(resolveBarcodeUpdate("590222", "590111", multiGtins, false)).toEqual({
+      type: "none",
+    });
+  });
+
+  it("explicitly switches barcode when user clicks a specific GTIN chip even if form has another merged GTIN", () => {
+    // Form has 590111, but user explicitly clicked 590222 chip -> updates to 590222 without prompt!
+    expect(resolveBarcodeUpdate("590111", "590222", multiGtins, true)).toEqual({
+      type: "update",
+      barcode: "590222",
+    });
   });
 });
 

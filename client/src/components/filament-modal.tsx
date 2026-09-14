@@ -299,6 +299,43 @@ export function shouldPromptBarcodeOverwrite(
   return current !== incoming;
 }
 
+export type BarcodeUpdateAction =
+  | { type: "none" }
+  | { type: "update"; barcode: string }
+  | { type: "prompt"; currentBarcode: string; incomingBarcode: string };
+
+export function resolveBarcodeUpdate(
+  currentBarcode: string | null | undefined,
+  chosenGtin: string | null | undefined,
+  itemGtins: (string | null | undefined)[] = [],
+  isExplicitSpecificGtin = false
+): BarcodeUpdateAction {
+  const current = (currentBarcode || "").trim();
+  const incoming = (chosenGtin || "").trim();
+  if (!incoming) return { type: "none" };
+
+  const validGtins = itemGtins
+    .map((g) => (g ? String(g).trim() : ""))
+    .filter(Boolean);
+
+  if (isExplicitSpecificGtin) {
+    if (current && !validGtins.includes(current)) {
+      return { type: "prompt", currentBarcode: current, incomingBarcode: incoming };
+    }
+    return { type: "update", barcode: incoming };
+  }
+
+  if (shouldPromptBarcodeOverwrite(current, incoming, validGtins)) {
+    return { type: "prompt", currentBarcode: current, incomingBarcode: incoming };
+  }
+
+  if (!current || !validGtins.includes(current)) {
+    return { type: "update", barcode: incoming };
+  }
+
+  return { type: "none" };
+}
+
 export function findMatchingColor(
   scannedColorName: string | null | undefined,
   dbColors: { id?: number; name: string; code?: string }[],
@@ -928,13 +965,14 @@ export function FilamentModal({
         ? result.gtins
         : (result.gtin ? [result.gtin] : []);
 
-      if (shouldPromptBarcodeOverwrite(currentBarcode, chosenGtin, allItemGtins)) {
+      const action = resolveBarcodeUpdate(currentBarcode, chosenGtin, allItemGtins, Boolean(specificGtin));
+      if (action.type === "prompt") {
         setOverwriteBarcodePrompt({
-          currentBarcode,
-          incomingBarcode: chosenGtin,
+          currentBarcode: action.currentBarcode,
+          incomingBarcode: action.incomingBarcode,
         });
-      } else if (!currentBarcode || !allItemGtins.map((g) => g.trim()).includes(currentBarcode)) {
-        form.setValue('barcode', chosenGtin, { shouldValidate: true, shouldDirty: true });
+      } else if (action.type === "update") {
+        form.setValue('barcode', action.barcode, { shouldValidate: true, shouldDirty: true });
       }
     }
     if (result.spoolRefill !== undefined && result.spoolRefill !== null) {
@@ -2333,7 +2371,7 @@ export function FilamentModal({
         </AlertDialog>
       )}
 
-      {overwriteBarcodePrompt && (
+      {!similarManufacturerPrompt && !similarMaterialPrompt && overwriteBarcodePrompt && (
         <AlertDialog
           open={true}
           onOpenChange={(open) => {
