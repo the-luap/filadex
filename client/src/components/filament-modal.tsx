@@ -535,7 +535,11 @@ export function FilamentModal({
     queryFn: () => apiRequest<Filament[]>('/api/filaments'),
     enabled: isOpen && !collectionFilaments,
   });
-  const collection = collectionFilaments ?? queriedFilaments;
+
+  const collection = useMemo(() => {
+    const raw = collectionFilaments ?? queriedFilaments;
+    return isEditing && filament?.id ? raw.filter((f) => f.id !== filament.id) : raw;
+  }, [collectionFilaments, queriedFilaments, isEditing, filament?.id]);
 
   const allAvailableMaterials = useMemo(() => {
     const list: { id?: number; name: string }[] = materials.map((m) => ({ id: m.id, name: m.name }));
@@ -1124,7 +1128,7 @@ export function FilamentModal({
       form.setValue('colorCode', normalizeHexColor(specs.colorCode)!, { shouldValidate: true, shouldDirty: true });
     }
     if (specs.diameter) form.setValue('diameter', Number(specs.diameter), { shouldValidate: true, shouldDirty: true });
-    if (specs.printTemp) form.setValue('printTemp', specs.printTemp);
+    if (specs.printTemp) form.setValue('printTemp', specs.printTemp, { shouldValidate: true, shouldDirty: true });
     const targetBarcode = scannedBarcode || specs.barcode;
     if (targetBarcode) {
       form.setValue('barcode', targetBarcode, { shouldValidate: true, shouldDirty: true });
@@ -1247,8 +1251,14 @@ export function FilamentModal({
         action: (
           <ToastAction
             altText={t('scanner.searchCommunityCatalogInstead')}
-            onClick={() => {
-              void queryCommunityCatalogGtin(code);
+            onClick={async () => {
+              const found = await queryCommunityCatalogGtin(code);
+              if (!found) {
+                toast({
+                  variant: "destructive",
+                  title: t('scanner.notFoundAllSources', { code }),
+                });
+              }
             }}
           >
             {t('scanner.searchCommunityCatalogInstead')}
@@ -1336,8 +1346,14 @@ export function FilamentModal({
                         action: (
                           <ToastAction
                             altText={t('scanner.searchCommunityCatalogInstead')}
-                            onClick={() => {
-                              void queryCommunityCatalogGtin(collectionCandidateBarcode);
+                            onClick={async () => {
+                              const found = await queryCommunityCatalogGtin(collectionCandidateBarcode);
+                              if (!found) {
+                                toast({
+                                  variant: "destructive",
+                                  title: t('scanner.notFoundAllSources', { code: collectionCandidateBarcode }),
+                                });
+                              }
                             }}
                           >
                             {t('scanner.searchCommunityCatalogInstead')}

@@ -73,7 +73,7 @@ export function resolveCollectionBarcode(
       return true;
     }
     const normSpoolBarcode = normalizeBarcode(trimmedSpoolBarcode);
-    return normCode && normSpoolBarcode === normCode;
+    return Boolean(normCode && normSpoolBarcode.toLowerCase() === normCode.toLowerCase());
   });
 
   if (matches.length === 0) {

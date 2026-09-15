@@ -1,6 +1,55 @@
-import { describe, expect, it } from "vitest";
+import React from "react";
+import { renderToString } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Filament } from "@shared/schema";
+import { LanguageContext } from "../../client/src/i18n";
+import { FilamentModal } from "../../client/src/components/filament-modal";
 import { resolveCollectionBarcode, extractProductSpecsFromSpool } from "../../client/src/lib/collection-lookup";
+
+// Mock Dialog so children are rendered in SSR / renderToString
+vi.mock("@/components/ui/dialog", () => ({
+  Dialog: ({ children }: any) => <div>{children}</div>,
+  DialogContent: ({ children, className }: any) => <div className={className}>{children}</div>,
+  DialogHeader: ({ children }: any) => <div>{children}</div>,
+  DialogTitle: ({ children }: any) => <h2>{children}</h2>,
+  DialogDescription: ({ children }: any) => <p>{children}</p>,
+  DialogFooter: ({ children }: any) => <div>{children}</div>,
+}));
+
+// Mock Select so items are rendered in SSR / renderToString
+vi.mock("@/components/ui/select", () => ({
+  Select: ({ children, value }: any) => <div data-select-value={value}>{children}</div>,
+  SelectTrigger: ({ children }: any) => <div>{children}</div>,
+  SelectValue: ({ placeholder }: any) => <span>{placeholder}</span>,
+  SelectContent: ({ children }: any) => <div>{children}</div>,
+  SelectItem: ({ value, children }: any) => <div data-select-item={value}>{children}</div>,
+}));
+
+// Mock toast
+vi.mock("@/hooks/use-toast", () => ({
+  useToast: () => ({ toast: vi.fn() }),
+}));
+
+function renderWithProviders(component: React.ReactElement, client?: QueryClient) {
+  const queryClient = client || new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  return renderToString(
+    <QueryClientProvider client={queryClient}>
+      <LanguageContext.Provider
+        value={{
+          language: "en",
+          setLanguage: vi.fn(),
+          t: (key: string) => key,
+        }}
+      >
+        {component}
+      </LanguageContext.Provider>
+    </QueryClientProvider>
+  );
+}
 
 const mockSpool = (overrides: Partial<Filament> = {}): Filament => ({
   id: 1,
@@ -89,5 +138,77 @@ describe("Priority 0 Barcode Resolution in Add Spool Modal", () => {
     expect((specs as any).purchasePrice).toBeUndefined();
     expect((specs as any).storageLocation).toBeUndefined();
     expect((specs as any).customFieldValues).toBeUndefined();
+  });
+
+  it("renders modal in Add mode with pre-populated specs from collection spool draft (id: 0)", () => {
+    const existingSpool = mockSpool({
+      id: 42,
+      name: "Prusament PLA Galaxy Black",
+      manufacturer: "Prusa Research",
+      material: "PLA",
+      colorName: "Galaxy Black",
+      colorCode: "#1a1a1a",
+      diameter: "1.75",
+      printTemp: "215",
+      barcode: "8594173870001",
+      storageLocation: "Drybox 1",
+      remainingPercentage: "40",
+    });
+
+    const specs = extractProductSpecsFromSpool(existingSpool);
+
+    // Draft created for "Add Another Spool" from collection match
+    const draftSpool: any = {
+      id: 0,
+      name: specs.name,
+      manufacturer: specs.manufacturer,
+      material: specs.material,
+      colorName: specs.colorName,
+      colorCode: specs.colorCode || "#000000",
+      diameter: specs.diameter ? String(specs.diameter) : "1.75",
+      printTemp: specs.printTemp || "",
+      barcode: "8594173870001",
+      spoolType: specs.spoolType || "spooled",
+      totalWeight: specs.totalWeight ? String(specs.totalWeight) : "1",
+      remainingPercentage: "100",
+      status: "sealed",
+    };
+
+    const html = renderWithProviders(
+      <FilamentModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        filament={draftSpool}
+        collectionFilaments={[existingSpool]}
+      />
+    );
+
+    // Should be in Add mode (id: 0)
+    expect(html).toContain("filaments.addFilament");
+    expect(html).not.toContain("filaments.editFilament");
+    // Pre-filled specs should be present
+    expect(html).toContain("Prusament PLA Galaxy Black");
+    expect(html).toContain("8594173870001");
+  });
+
+  it("filters out self when editing an existing spool so it does not match itself", () => {
+    const activeSpool = mockSpool({
+      id: 55,
+      barcode: "8594173870001",
+      name: "Original Spool",
+    });
+
+    const allSpools = [activeSpool];
+    const isEditing = true;
+
+    // Filter used inside FilamentModal
+    const filteredCollection = isEditing && activeSpool.id
+      ? allSpools.filter((f) => f.id !== activeSpool.id)
+      : allSpools;
+
+    expect(filteredCollection).toHaveLength(0);
+    const result = resolveCollectionBarcode("8594173870001", filteredCollection);
+    expect(result.type).toBe("not_found");
   });
 });

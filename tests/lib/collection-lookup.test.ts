@@ -79,6 +79,14 @@ describe("collection-lookup", () => {
       if (result2.type === "single") {
         expect(result2.spool.id).toBe(8);
       }
+
+      // Alphanumeric case-insensitive leading zero match
+      const alphaSpool = mockSpool({ id: 9, barcode: "00AB12" });
+      const result3 = resolveCollectionBarcode("ab12", [alphaSpool]);
+      expect(result3.type).toBe("single");
+      if (result3.type === "single") {
+        expect(result3.spool.id).toBe(9);
+      }
     });
 
     it("returns latest spool when multiple spools share the same filament specs", () => {

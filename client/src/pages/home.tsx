@@ -29,7 +29,34 @@ import {
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
 import { useToast } from "@/hooks/use-toast";
-import { resolveCollectionBarcode, extractProductSpecsFromSpool } from "@/lib/collection-lookup";
+import { resolveCollectionBarcode, extractProductSpecsFromSpool, type ExtractedProductSpecs } from "@/lib/collection-lookup";
+
+function createSpoolDraftFromSpecs(specs: ExtractedProductSpecs, barcode: string): Filament {
+  return {
+    id: 0,
+    name: specs.name,
+    manufacturer: specs.manufacturer,
+    material: specs.material,
+    colorName: specs.colorName,
+    colorCode: specs.colorCode || "#000000",
+    diameter: specs.diameter ? String(specs.diameter) : "1.75",
+    printTemp: specs.printTemp || "",
+    barcode: barcode || specs.barcode || "",
+    spoolType: (specs.spoolType as any) || "spooled",
+    totalWeight: specs.totalWeight ? String(specs.totalWeight) : "1",
+    remainingPercentage: "100",
+    status: "sealed",
+    dryerCount: 0,
+    userId: 0,
+    purchaseDate: null,
+    purchasePrice: null,
+    storageLocation: null,
+    lastDryingDate: null,
+    customFieldValues: null,
+    createdAt: new Date() as any,
+    updatedAt: new Date() as any,
+  } as unknown as Filament;
+}
 
 export default function Home() {
   const { toast } = useToast();
@@ -788,9 +815,15 @@ export default function Home() {
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-col sm:flex-row gap-2">
               <Button
+                variant="ghost"
+                onClick={() => setMatchedCollectionSpoolPrompt(null)}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
                 variant="outline"
                 onClick={() => {
-                  setSearchTerm(matchedCollectionSpoolPrompt.spool.barcode || matchedCollectionSpoolPrompt.spool.name);
+                  setSearchTerm(matchedCollectionSpoolPrompt.code);
                   setMatchedCollectionSpoolPrompt(null);
                 }}
               >
@@ -802,30 +835,7 @@ export default function Home() {
                   const spool = matchedCollectionSpoolPrompt.spool;
                   const specs = extractProductSpecsFromSpool(spool);
                   setSelectedFilament(undefined);
-                  setCopyFromFilament({
-                    id: 0,
-                    name: specs.name,
-                    manufacturer: specs.manufacturer,
-                    material: specs.material,
-                    colorName: specs.colorName,
-                    colorCode: specs.colorCode || "#000000",
-                    diameter: specs.diameter ? String(specs.diameter) : "1.75",
-                    printTemp: specs.printTemp || "",
-                    barcode: matchedCollectionSpoolPrompt.code || specs.barcode || "",
-                    spoolType: (specs.spoolType as any) || "spooled",
-                    totalWeight: specs.totalWeight ? String(specs.totalWeight) : "1",
-                    remainingPercentage: "100",
-                    status: "sealed",
-                    dryerCount: 0,
-                    userId: 0,
-                    purchaseDate: null,
-                    purchasePrice: null,
-                    storageLocation: null,
-                    lastDryingDate: null,
-                    customFieldValues: null,
-                    createdAt: new Date() as any,
-                    updatedAt: new Date() as any,
-                  } as unknown as Filament);
+                  setCopyFromFilament(createSpoolDraftFromSpecs(specs, matchedCollectionSpoolPrompt.code));
                   setShowAddModal(true);
                   setMatchedCollectionSpoolPrompt(null);
                 }}
@@ -866,30 +876,7 @@ export default function Home() {
                     onClick={() => {
                       const specs = extractProductSpecsFromSpool(candidate);
                       setSelectedFilament(undefined);
-                      setCopyFromFilament({
-                        id: 0,
-                        name: specs.name,
-                        manufacturer: specs.manufacturer,
-                        material: specs.material,
-                        colorName: specs.colorName,
-                        colorCode: specs.colorCode || "#000000",
-                        diameter: specs.diameter ? String(specs.diameter) : "1.75",
-                        printTemp: specs.printTemp || "",
-                        barcode: collectionConflictPrompt.code || specs.barcode || "",
-                        spoolType: (specs.spoolType as any) || "spooled",
-                        totalWeight: specs.totalWeight ? String(specs.totalWeight) : "1",
-                        remainingPercentage: "100",
-                        status: "sealed",
-                        dryerCount: 0,
-                        userId: 0,
-                        purchaseDate: null,
-                        purchasePrice: null,
-                        storageLocation: null,
-                        lastDryingDate: null,
-                        customFieldValues: null,
-                        createdAt: new Date() as any,
-                        updatedAt: new Date() as any,
-                      } as unknown as Filament);
+                      setCopyFromFilament(createSpoolDraftFromSpecs(specs, collectionConflictPrompt.code));
                       setShowAddModal(true);
                       setCollectionConflictPrompt(null);
                     }}
@@ -918,6 +905,12 @@ export default function Home() {
               })}
             </div>
             <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setCollectionConflictPrompt(null)}
+              >
+                {t('common.cancel')}
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => {
