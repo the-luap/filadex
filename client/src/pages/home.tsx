@@ -18,9 +18,18 @@ import { StatisticsAccordion } from "@/components/statistics";
 import { BatchActionsPanel } from "@/components/batch-actions-panel";
 import { QRScanner } from "@/components/qr-scanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
 import { useToast } from "@/hooks/use-toast";
+import { resolveCollectionBarcode, extractProductSpecsFromSpool } from "@/lib/collection-lookup";
 
 export default function Home() {
   const { toast } = useToast();
@@ -33,6 +42,8 @@ export default function Home() {
   const [showScanner, setShowScanner] = useState(false);
   const [variantCandidates, setVariantCandidates] = useState<CommunityCatalogItem[] | null>(null);
   const [variantCandidateBarcode, setVariantCandidateBarcode] = useState<string>("");
+  const [matchedCollectionSpoolPrompt, setMatchedCollectionSpoolPrompt] = useState<{ spool: Filament; code: string } | null>(null);
+  const [collectionConflictPrompt, setCollectionConflictPrompt] = useState<{ candidates: Filament[]; code: string } | null>(null);
 
   // Batch selection state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -417,20 +428,14 @@ export default function Home() {
     // Case 2: Raw 1D/2D barcode
     const code = (parsed && typeof parsed === "object" && parsed.barcode ? parsed.barcode : decodedText).trim();
 
-    // Check if matching spool exists in current collection (supporting zero-padded GTINs)
-    const normCode = code.replace(/^0+/, "");
-    const matchingSpool = filaments.find((f) => {
-      if (!f.barcode) return false;
-      const normBarcode = f.barcode.trim().replace(/^0+/, "");
-      return (normCode && normBarcode === normCode) || f.barcode.toLowerCase() === code.toLowerCase();
-    });
-
-    if (matchingSpool) {
-      setSearchTerm(matchingSpool.barcode || matchingSpool.name);
-      toast({
-        title: matchingSpool.name,
-        description: matchingSpool.manufacturer ? `${matchingSpool.manufacturer} • ${matchingSpool.material}` : matchingSpool.material,
-      });
+    // Priority 0: Check if matching spool exists in personal collection
+    const collectionLookup = resolveCollectionBarcode(code, filaments);
+    if (collectionLookup.type === "single") {
+      setMatchedCollectionSpoolPrompt({ spool: collectionLookup.spool, code });
+      return;
+    }
+    if (collectionLookup.type === "conflict") {
+      setCollectionConflictPrompt({ candidates: collectionLookup.candidates, code });
       return;
     }
 
@@ -678,6 +683,7 @@ export default function Home() {
         }}
         onSave={handleSaveFilament}
         filament={selectedFilament || copyFromFilament}
+        collectionFilaments={filaments}
       />
 
       {/* Label Print Modal */}
@@ -756,6 +762,170 @@ export default function Home() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setVariantCandidates(null)}>
                 {t('common.close') || 'Close'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Matched Collection Spool Prompt */}
+      {matchedCollectionSpoolPrompt && (
+        <AlertDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setMatchedCollectionSpoolPrompt(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('scanner.spoolMatchedActionTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('scanner.spoolMatchedActionDescription', {
+                  name: matchedCollectionSpoolPrompt.spool.name,
+                  code: matchedCollectionSpoolPrompt.code,
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm(matchedCollectionSpoolPrompt.spool.barcode || matchedCollectionSpoolPrompt.spool.name);
+                  setMatchedCollectionSpoolPrompt(null);
+                }}
+              >
+                {t('scanner.viewInCollection')}
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => {
+                  const spool = matchedCollectionSpoolPrompt.spool;
+                  const specs = extractProductSpecsFromSpool(spool);
+                  setSelectedFilament(undefined);
+                  setCopyFromFilament({
+                    id: 0,
+                    name: specs.name,
+                    manufacturer: specs.manufacturer,
+                    material: specs.material,
+                    colorName: specs.colorName,
+                    colorCode: specs.colorCode || "#000000",
+                    diameter: specs.diameter ? String(specs.diameter) : "1.75",
+                    printTemp: specs.printTemp || "",
+                    barcode: matchedCollectionSpoolPrompt.code || specs.barcode || "",
+                    spoolType: (specs.spoolType as any) || "spooled",
+                    totalWeight: specs.totalWeight ? String(specs.totalWeight) : "1",
+                    remainingPercentage: "100",
+                    status: "sealed",
+                    dryerCount: 0,
+                    userId: 0,
+                    purchaseDate: null,
+                    purchasePrice: null,
+                    storageLocation: null,
+                    lastDryingDate: null,
+                    customFieldValues: null,
+                    createdAt: new Date() as any,
+                    updatedAt: new Date() as any,
+                  } as unknown as Filament);
+                  setShowAddModal(true);
+                  setMatchedCollectionSpoolPrompt(null);
+                }}
+              >
+                {t('scanner.addAnotherSpool')}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {/* Collection Conflict Prompt */}
+      {collectionConflictPrompt && (
+        <Dialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setCollectionConflictPrompt(null);
+          }}
+        >
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{t('scanner.multipleCollectionMatchesTitle')}</DialogTitle>
+              <DialogDescription>
+                {t('scanner.multipleCollectionMatchesDescription', { code: collectionConflictPrompt.code })}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+              {collectionConflictPrompt.candidates.map((candidate) => {
+                const colorCode = candidate.colorCode || "#888888";
+                const spoolTypeText = candidate.spoolType === "spoolless"
+                  ? (t('filaments.spoolless') || 'Refill')
+                  : (t('filaments.spooled') || 'Spooled');
+                const weightText = candidate.totalWeight ? `${candidate.totalWeight}kg` : '';
+                return (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    onClick={() => {
+                      const specs = extractProductSpecsFromSpool(candidate);
+                      setSelectedFilament(undefined);
+                      setCopyFromFilament({
+                        id: 0,
+                        name: specs.name,
+                        manufacturer: specs.manufacturer,
+                        material: specs.material,
+                        colorName: specs.colorName,
+                        colorCode: specs.colorCode || "#000000",
+                        diameter: specs.diameter ? String(specs.diameter) : "1.75",
+                        printTemp: specs.printTemp || "",
+                        barcode: collectionConflictPrompt.code || specs.barcode || "",
+                        spoolType: (specs.spoolType as any) || "spooled",
+                        totalWeight: specs.totalWeight ? String(specs.totalWeight) : "1",
+                        remainingPercentage: "100",
+                        status: "sealed",
+                        dryerCount: 0,
+                        userId: 0,
+                        purchaseDate: null,
+                        purchasePrice: null,
+                        storageLocation: null,
+                        lastDryingDate: null,
+                        customFieldValues: null,
+                        createdAt: new Date() as any,
+                        updatedAt: new Date() as any,
+                      } as unknown as Filament);
+                      setShowAddModal(true);
+                      setCollectionConflictPrompt(null);
+                    }}
+                    className="w-full text-left p-3 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:border-primary hover:bg-neutral-50 dark:hover:bg-neutral-800 transition flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-600 flex-shrink-0"
+                        style={{ backgroundColor: colorCode }}
+                      />
+                      <div>
+                        <div className="font-medium text-sm text-neutral-900 dark:text-neutral-100">
+                          {candidate.name} {candidate.colorName ? `(${candidate.colorName})` : ''}
+                        </div>
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                          {candidate.manufacturer} • {candidate.material}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right text-xs text-neutral-500 dark:text-neutral-400 flex flex-col items-end">
+                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">{spoolTypeText}</span>
+                      {weightText && <span>{weightText}</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm(collectionConflictPrompt.code);
+                  setCollectionConflictPrompt(null);
+                }}
+              >
+                {t('scanner.viewInCollection')}
               </Button>
             </DialogFooter>
           </DialogContent>

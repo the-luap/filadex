@@ -33,6 +33,15 @@ const scanner = {
   keepExistingBarcode: 'Keep "{{code}}"',
   overwriteWithBarcode: 'Overwrite with "{{code}}"',
   selectGtin: 'Select GTIN {{gtin}}',
+  foundInCollection: 'Found matching spool in your collection: {{name}}',
+  searchCommunityCatalogInstead: 'Search Community Catalog instead',
+  multipleCollectionMatchesTitle: 'Multiple Matching Spools Found',
+  multipleCollectionMatchesDescription: 'Barcode {{code}} matches multiple spools in your collection with different specifications. Please select which one to copy:',
+  selectSpool: 'Select Spool',
+  spoolMatchedActionTitle: 'Spool Found in Collection',
+  spoolMatchedActionDescription: 'Found {{name}} with barcode {{code}} in your collection.',
+  viewInCollection: 'View in Collection',
+  addAnotherSpool: 'Add Another Spool',
 };
 
 // English translations

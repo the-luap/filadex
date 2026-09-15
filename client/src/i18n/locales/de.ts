@@ -33,6 +33,15 @@ const scanner = {
   keepExistingBarcode: '„{{code}}“ behalten',
   overwriteWithBarcode: 'Mit „{{code}}“ überschreiben',
   selectGtin: 'GTIN {{gtin}} auswählen',
+  foundInCollection: 'Passende Spule in Ihrer Sammlung gefunden: {{name}}',
+  searchCommunityCatalogInstead: 'Stattdessen im Community-Katalog suchen',
+  multipleCollectionMatchesTitle: 'Mehrere passende Spulen gefunden',
+  multipleCollectionMatchesDescription: 'Der Barcode {{code}} entspricht mehreren Spulen in Ihrer Sammlung mit unterschiedlichen Spezifikationen. Bitte wählen Sie aus, welche kopiert werden soll:',
+  selectSpool: 'Spule auswählen',
+  spoolMatchedActionTitle: 'Spule in Sammlung gefunden',
+  spoolMatchedActionDescription: '{{name}} mit Barcode {{code}} in Ihrer Sammlung gefunden.',
+  viewInCollection: 'In Sammlung ansehen',
+  addAnotherSpool: 'Weitere Spule hinzufügen',
 };
 
 // German translations
