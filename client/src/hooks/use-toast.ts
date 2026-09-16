@@ -6,7 +6,8 @@ import type {
 } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 5
-const TOAST_REMOVE_DELAY = 5000
+const TOAST_REMOVE_DELAY = 1000
+const DEFAULT_TOAST_DURATION = 5000
 
 type ToasterToast = ToastProps & {
   id: string
@@ -54,6 +55,7 @@ interface State {
 }
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
+const toastDismissTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
 const addToRemoveQueue = (toastId: string) => {
   if (toastTimeouts.has(toastId)) {
@@ -69,6 +71,38 @@ const addToRemoveQueue = (toastId: string) => {
   }, TOAST_REMOVE_DELAY)
 
   toastTimeouts.set(toastId, timeout)
+}
+
+const clearDismissTimeout = (toastId?: string) => {
+  if (toastId) {
+    const existing = toastDismissTimeouts.get(toastId)
+    if (existing) {
+      clearTimeout(existing)
+      toastDismissTimeouts.delete(toastId)
+    }
+  } else {
+    toastDismissTimeouts.forEach((timeout) => clearTimeout(timeout))
+    toastDismissTimeouts.clear()
+  }
+}
+
+const scheduleAutoDismiss = (toastId: string, duration?: number) => {
+  clearDismissTimeout(toastId)
+
+  const effectiveDuration = duration !== undefined ? duration : DEFAULT_TOAST_DURATION
+  if (effectiveDuration === Infinity || effectiveDuration <= 0) {
+    return
+  }
+
+  const timeout = setTimeout(() => {
+    toastDismissTimeouts.delete(toastId)
+    dispatch({
+      type: "DISMISS_TOAST",
+      toastId,
+    })
+  }, effectiveDuration)
+
+  toastDismissTimeouts.set(toastId, timeout)
 }
 
 export const reducer = (state: State, action: Action): State => {
@@ -89,6 +123,8 @@ export const reducer = (state: State, action: Action): State => {
 
     case "DISMISS_TOAST": {
       const { toastId } = action
+
+      clearDismissTimeout(toastId)
 
       // ! Side effects ! - This could be extracted into a dismissToast() action,
       // but I'll keep it here for simplicity
@@ -142,11 +178,16 @@ type Toast = Omit<ToasterToast, "id">
 function toast({ ...props }: Toast) {
   const id = genId()
 
-  const update = (props: ToasterToast) =>
+  const update = (updateProps: ToasterToast) => {
     dispatch({
       type: "UPDATE_TOAST",
-      toast: { ...props, id },
+      toast: { ...updateProps, id },
     })
+    if (updateProps.duration !== undefined) {
+      scheduleAutoDismiss(id, updateProps.duration)
+    }
+  }
+
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
   dispatch({
@@ -160,6 +201,8 @@ function toast({ ...props }: Toast) {
       },
     },
   })
+
+  scheduleAutoDismiss(id, props.duration)
 
   return {
     id: id,
@@ -188,4 +231,8 @@ function useToast() {
   }
 }
 
-export { useToast, toast }
+function getToasts(): ToasterToast[] {
+  return memoryState.toasts
+}
+
+export { useToast, toast, getToasts, DEFAULT_TOAST_DURATION, TOAST_REMOVE_DELAY }
