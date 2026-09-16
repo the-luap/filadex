@@ -1294,16 +1294,11 @@ export function FilamentModal({
 
     // Priority 1: Query community catalog (OFD / SpoolmanDB)
     const communityStatus = await queryCommunityCatalogGtin(code);
-    if (communityStatus === "found") {
-      return;
-    }
-    if (communityStatus === "error") {
-      form.setValue('barcode', code);
+    if (communityStatus === "found" || communityStatus === "error") {
       return;
     }
 
     // Priority 2: Fallback (leave barcode in field)
-    form.setValue('barcode', code);
     toast({
       variant: "destructive",
       title: t('scanner.notFoundAllSources', { code }),
@@ -1341,7 +1336,15 @@ export function FilamentModal({
       )}
 
       {collectionCandidates && (
-        <Dialog open={true} onOpenChange={(open) => !open && setCollectionCandidates(null)}>
+        <Dialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCollectionCandidates(null);
+              setCollectionCandidateBarcode("");
+            }
+          }}
+        >
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{t('scanner.multipleCollectionMatchesTitle')}</DialogTitle>
@@ -1362,6 +1365,7 @@ export function FilamentModal({
                     type="button"
                     onClick={() => {
                       setCollectionCandidates(null);
+                      setCollectionCandidateBarcode("");
                       if (isEditing) {
                         setOverwriteSpecsPrompt({
                           spool: candidate,
@@ -1415,7 +1419,13 @@ export function FilamentModal({
               })}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCollectionCandidates(null)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setCollectionCandidates(null);
+                  setCollectionCandidateBarcode("");
+                }}
+              >
                 {t('common.close') || 'Close'}
               </Button>
             </DialogFooter>
@@ -2608,10 +2618,28 @@ export function FilamentModal({
               <Button
                 variant="default"
                 onClick={() => {
-                  applyCollectionSpoolData(overwriteSpecsPrompt.spool, overwriteSpecsPrompt.barcode);
+                  const targetSpool = overwriteSpecsPrompt.spool;
+                  const targetBarcode = overwriteSpecsPrompt.barcode;
+                  applyCollectionSpoolData(targetSpool, targetBarcode);
                   setOverwriteSpecsPrompt(null);
                   toast({
-                    title: t('scanner.foundInCollection', { name: overwriteSpecsPrompt.spool.name }),
+                    title: t('scanner.foundInCollection', { name: targetSpool.name }),
+                    action: (
+                      <ToastAction
+                        altText={t('scanner.searchCommunityCatalogInstead')}
+                        onClick={async () => {
+                          const status = await queryCommunityCatalogGtin(targetBarcode, { ignoreFormHints: true });
+                          if (status === "not_found") {
+                            toast({
+                              variant: "destructive",
+                              title: t('scanner.notFoundAllSources', { code: targetBarcode }),
+                            });
+                          }
+                        }}
+                      >
+                        {t('scanner.searchCommunityCatalogInstead')}
+                      </ToastAction>
+                    ),
                   });
                 }}
               >

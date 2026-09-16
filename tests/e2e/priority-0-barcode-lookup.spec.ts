@@ -175,4 +175,44 @@ test.describe("Priority 0 Barcode Resolution from Personal Collection", () => {
     // Barcode field must have updated to Spool B's scanned barcode
     await expect(editDialog.getByLabel(/barcode/i)).toHaveValue(seededSpoolB.barcode);
   });
+
+  test("scanning another spool's barcode while editing and choosing 'Overwrite Specifications' updates specs while preserving remaining percentage", async ({ page }) => {
+    // Click edit on Spool A (which has remainingPercentage = 35)
+    const spoolCard = page.locator(".filament-card").filter({ hasText: seededSpoolA.name });
+    await expect(spoolCard).toBeVisible();
+    await spoolCard.getByRole("button", { name: /edit/i }).click();
+
+    const editDialog = page.getByRole("dialog");
+    await expect(editDialog).toBeVisible();
+
+    // Open scanner inside the modal
+    await editDialog.getByRole("button", { name: /scan qr/i }).click();
+    await expect(page.getByRole("heading", { name: /scan qr code/i })).toBeVisible();
+
+    // Scan Spool B's barcode
+    await page.evaluate((code) => {
+      window.dispatchEvent(new CustomEvent("filadex:scan", { detail: code }));
+    }, seededSpoolB.barcode);
+
+    // Confirmation prompt appears
+    const confirmDialog = page.getByRole("alertdialog");
+    await expect(confirmDialog).toBeVisible();
+
+    // Choose "Overwrite Specifications"
+    await confirmDialog.getByRole("button", { name: /overwrite specifications/i }).click();
+    await expect(confirmDialog).toBeHidden();
+
+    // Identity fields must now match Spool B
+    await expect(editDialog.getByLabel(/name\*/i)).toHaveValue(seededSpoolB.name);
+    await expect(editDialog.getByRole("combobox", { name: /manufacturer/i })).toHaveText(
+      new RegExp(seededSpoolB.manufacturer, "i")
+    );
+    await expect(editDialog.getByRole("combobox", { name: /material/i })).toHaveText(
+      new RegExp(seededSpoolB.material, "i")
+    );
+    await expect(editDialog.getByLabel(/barcode/i)).toHaveValue(seededSpoolB.barcode);
+
+    // Remaining percentage of Spool A must still be preserved (35%), not overwritten
+    await expect(editDialog.getByText("35%")).toBeVisible();
+  });
 });
