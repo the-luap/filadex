@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { describe, expect, it } from "vitest";
+import { catalogRequestEntityTypes } from "@shared/schema";
 import en from "../../client/src/i18n/locales/en";
 import de from "../../client/src/i18n/locales/de";
 import pl from "../../client/src/i18n/locales/pl";
@@ -43,13 +44,12 @@ function findDeadTranslationFallbacks(content: string): { line: number; text: st
     ) {
       const startLine = line;
       const startIndex = i;
-      i += 2;
+      let k = i + 2;
       let depth = 1;
       let inQuote: string | null = null;
       let escaped = false;
-      while (i < content.length && depth > 0) {
-        const char = content[i];
-        if (char === "\n") line++;
+      while (k < content.length && depth > 0) {
+        const char = content[k];
         if (escaped) {
           escaped = false;
         } else if (char === "\\") {
@@ -63,12 +63,15 @@ function findDeadTranslationFallbacks(content: string): { line: number; text: st
         } else if (char === ")") {
           depth--;
         }
-        i++;
+        k++;
       }
       if (depth === 0) {
-        let j = i;
+        let j = k;
         while (j < content.length && /\s/.test(content[j])) j++;
-        if (content[j] === "|" && content[j + 1] === "|") {
+        if (
+          (content[j] === "|" && content[j + 1] === "|") ||
+          (content[j] === "?" && content[j + 1] === "?")
+        ) {
           const snippet = content.slice(startIndex, j + 2).replace(/\s+/g, " ");
           deadFallbacks.push({ line: startLine, text: snippet });
         }
@@ -118,7 +121,27 @@ describe("source code translation key completeness", () => {
     ).toEqual([]);
   });
 
-  it("does not use dead || fallbacks after t(...) in client/src", () => {
+  it.each(locales)(
+    "resolves settings.${entityType}s.title in %s for all catalogRequestEntityTypes",
+    (localeName, localeObj) => {
+      const missing: string[] = [];
+      for (const entityType of catalogRequestEntityTypes) {
+        const key = `settings.${entityType}s.title`;
+        const value = resolveKey(localeObj, key);
+        if (typeof value !== "string" || value.trim() === "") {
+          missing.push(key);
+        }
+      }
+      expect(
+        missing,
+        `The following catalog request entity type titles are missing or empty in ${localeName}.ts:\n${missing.join(
+          "\n"
+        )}`
+      ).toEqual([]);
+    }
+  );
+
+  it("does not use dead || or ?? fallbacks after t(...) in client/src", () => {
     const violations: string[] = [];
     for (const file of sourceFiles) {
       const relativePath = path.relative(path.resolve(__dirname, "../.."), file);
@@ -130,8 +153,8 @@ describe("source code translation key completeness", () => {
     }
     expect(
       violations,
-      `t(...) returns the key string on missing keys, which is truthy, so '||' fallback chains never trigger.\n` +
-        `Ensure all required keys are defined in locales and remove the dead '||' fallbacks:\n${violations.join(
+      `t(...) returns the key string on missing keys, which is truthy and non-null, so '||' and '??' fallback chains never trigger.\n` +
+        `Ensure all required keys are defined in locales and remove the dead fallbacks:\n${violations.join(
           "\n"
         )}`
     ).toEqual([]);
