@@ -11,12 +11,12 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "@/i18n";
 import { useToast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui/toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Language } from "@shared/languages";
 import { formatCommunityCatalogFilamentName, formatPrintTemps } from "@/lib/community-catalog";
 import { normalizeGtin } from "@shared/community-catalog-dedup";
 import { CommunityCatalogSearchResults } from "./community-catalog-search-results";
+import { CollectionSpoolCard } from "./collection-spool-card";
 import { resolveCollectionBarcode, extractProductSpecsFromSpool } from "@/lib/collection-lookup";
 
 const DATE_LOCALES: Record<Language, Locale> = {
@@ -472,6 +472,10 @@ export function FilamentModal({
     spool: Filament;
     barcode: string;
   } | null>(null);
+  const [collectionMatchPrompt, setCollectionMatchPrompt] = useState<{
+    spool: Filament;
+    code: string;
+  } | null>(null);
   const [communitySearchQuery, setCommunitySearchQuery] = useState("");
   const [catalogSource, setCatalogSource] = useState<"ofd" | "spoolmandb">(() => {
     if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
@@ -801,6 +805,7 @@ export function FilamentModal({
     setCollectionCandidates(null);
     setCollectionCandidateBarcode("");
     setOverwriteSpecsPrompt(null);
+    setCollectionMatchPrompt(null);
     setCommunitySearchQuery("");
     setSimilarManufacturerPrompt(null);
     setSimilarMaterialPrompt(null);
@@ -1263,25 +1268,9 @@ export function FilamentModal({
         });
         return;
       }
-      applyCollectionSpoolData(collectionLookup.spool, code);
-      toast({
-        title: t('scanner.foundInCollection', { name: collectionLookup.spool.name }),
-        action: (
-          <ToastAction
-            altText={t('scanner.searchCommunityCatalogInstead')}
-            onClick={async () => {
-              const status = await queryCommunityCatalogGtin(code, { ignoreFormHints: true });
-              if (status === "not_found") {
-                toast({
-                  variant: "destructive",
-                  title: t('scanner.notFoundAllSources', { code }),
-                });
-              }
-            }}
-          >
-            {t('scanner.searchCommunityCatalogInstead')}
-          </ToastAction>
-        ),
+      setCollectionMatchPrompt({
+        spool: collectionLookup.spool,
+        code,
       });
       return;
     }
@@ -1335,6 +1324,70 @@ export function FilamentModal({
         />
       )}
 
+      {collectionMatchPrompt && (
+        <AlertDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setCollectionMatchPrompt(null);
+          }}
+        >
+          <AlertDialogContent className="w-[calc(100vw-2rem)] sm:w-full max-w-lg">
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('scanner.spoolMatchedActionTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('scanner.spoolMatchedActionDescription', {
+                  name: collectionMatchPrompt.spool.name,
+                  code: collectionMatchPrompt.code,
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-2">
+              <CollectionSpoolCard
+                spool={collectionMatchPrompt.spool}
+                interactive={false}
+              />
+            </div>
+            <AlertDialogFooter className="flex-col sm:flex-row-reverse gap-2">
+              <Button
+                variant="default"
+                onClick={() => {
+                  applyCollectionSpoolData(collectionMatchPrompt.spool, collectionMatchPrompt.code);
+                  setCollectionMatchPrompt(null);
+                }}
+              >
+                {t('scanner.useCollectionSpecs')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  const targetBarcode = collectionMatchPrompt.code;
+                  setCollectionMatchPrompt(null);
+                  form.setValue('barcode', targetBarcode, { shouldValidate: true, shouldDirty: true });
+                  const status = await queryCommunityCatalogGtin(targetBarcode, { ignoreFormHints: true });
+                  if (status === "not_found") {
+                    toast({
+                      variant: "destructive",
+                      title: t('scanner.notFoundAllSources', { code: targetBarcode }),
+                    });
+                  }
+                }}
+              >
+                {t('scanner.searchCommunityCatalogInstead')}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  form.setValue('barcode', collectionMatchPrompt.code, { shouldValidate: true, shouldDirty: true });
+                  setCollectionMatchPrompt(null);
+                }}
+              >
+                {t('common.cancel')}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
       {collectionCandidates && (
         <Dialog
           open={true}
@@ -1345,7 +1398,7 @@ export function FilamentModal({
             }
           }}
         >
-          <DialogContent className="max-w-lg">
+          <DialogContent className="w-[calc(100vw-2rem)] sm:w-full max-w-lg">
             <DialogHeader>
               <DialogTitle>{t('scanner.multipleCollectionMatchesTitle')}</DialogTitle>
               <DialogDescription>
@@ -1353,74 +1406,47 @@ export function FilamentModal({
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-              {collectionCandidates.map((candidate) => {
-                const colorCode = candidate.colorCode || "#888888";
-                const spoolTypeText = candidate.spoolType === "spoolless"
-                  ? t('filaments.spoolless')
-                  : t('filaments.spooled');
-                const weightText = candidate.totalWeight ? `${candidate.totalWeight}kg` : '';
-                return (
-                  <button
-                    key={candidate.id}
-                    type="button"
-                    onClick={() => {
-                      setCollectionCandidates(null);
-                      setCollectionCandidateBarcode("");
-                      if (isEditing) {
-                        setOverwriteSpecsPrompt({
-                          spool: candidate,
-                          barcode: collectionCandidateBarcode,
-                        });
-                        return;
-                      }
-                      applyCollectionSpoolData(candidate, collectionCandidateBarcode);
-                      toast({
-                        title: t('scanner.foundInCollection', { name: candidate.name }),
-                        action: (
-                          <ToastAction
-                            altText={t('scanner.searchCommunityCatalogInstead')}
-                            onClick={async () => {
-                              const status = await queryCommunityCatalogGtin(collectionCandidateBarcode, { ignoreFormHints: true });
-                              if (status === "not_found") {
-                                toast({
-                                  variant: "destructive",
-                                  title: t('scanner.notFoundAllSources', { code: collectionCandidateBarcode }),
-                                });
-                              }
-                            }}
-                          >
-                            {t('scanner.searchCommunityCatalogInstead')}
-                          </ToastAction>
-                        ),
+              {collectionCandidates.map((candidate) => (
+                <CollectionSpoolCard
+                  key={candidate.id}
+                  spool={candidate}
+                  onClick={() => {
+                    const code = collectionCandidateBarcode;
+                    setCollectionCandidates(null);
+                    setCollectionCandidateBarcode("");
+                    if (isEditing) {
+                      setOverwriteSpecsPrompt({
+                        spool: candidate,
+                        barcode: code,
                       });
-                    }}
-                    className="w-full text-left p-3 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:border-primary hover:bg-neutral-50 dark:hover:bg-neutral-800 transition flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-600 flex-shrink-0"
-                        style={{ backgroundColor: colorCode }}
-                      />
-                      <div>
-                        <div className="font-medium text-sm text-neutral-900 dark:text-neutral-100">
-                          {candidate.name} {candidate.colorName ? `(${candidate.colorName})` : ''}
-                        </div>
-                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                          {candidate.manufacturer} • {candidate.material}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right text-xs text-neutral-500 dark:text-neutral-400 flex flex-col items-end">
-                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">{spoolTypeText}</span>
-                      {weightText && <span>{weightText}</span>}
-                    </div>
-                  </button>
-                );
-              })}
+                      return;
+                    }
+                    applyCollectionSpoolData(candidate, code);
+                  }}
+                />
+              ))}
             </div>
-            <DialogFooter>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
               <Button
                 variant="outline"
+                onClick={async () => {
+                  const code = collectionCandidateBarcode;
+                  setCollectionCandidates(null);
+                  setCollectionCandidateBarcode("");
+                  form.setValue('barcode', code, { shouldValidate: true, shouldDirty: true });
+                  const status = await queryCommunityCatalogGtin(code, { ignoreFormHints: true });
+                  if (status === "not_found") {
+                    toast({
+                      variant: "destructive",
+                      title: t('scanner.notFoundAllSources', { code }),
+                    });
+                  }
+                }}
+              >
+                {t('scanner.searchCommunityCatalogInstead')}
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => {
                   setCollectionCandidates(null);
                   setCollectionCandidateBarcode("");
@@ -2591,14 +2617,14 @@ export function FilamentModal({
         </AlertDialog>
       )}
 
-      {!collectionCandidates && !variantCandidates && !similarManufacturerPrompt && !similarMaterialPrompt && overwriteSpecsPrompt && (
+      {!collectionMatchPrompt && !collectionCandidates && !variantCandidates && !similarManufacturerPrompt && !similarMaterialPrompt && overwriteSpecsPrompt && (
         <AlertDialog
           open={true}
           onOpenChange={(open) => {
             if (!open) setOverwriteSpecsPrompt(null);
           }}
         >
-          <AlertDialogContent>
+          <AlertDialogContent className="w-[calc(100vw-2rem)] sm:w-full max-w-lg">
             <AlertDialogHeader>
               <AlertDialogTitle>{t('scanner.overwriteSpecsTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
@@ -2608,13 +2634,13 @@ export function FilamentModal({
                 })}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setOverwriteSpecsPrompt(null)}
-              >
-                {t('scanner.updateBarcodeOnly')}
-              </Button>
+            <div className="py-2">
+              <CollectionSpoolCard
+                spool={overwriteSpecsPrompt.spool}
+                interactive={false}
+              />
+            </div>
+            <AlertDialogFooter className="flex-col sm:flex-row-reverse gap-2">
               <Button
                 variant="default"
                 onClick={() => {
@@ -2622,35 +2648,49 @@ export function FilamentModal({
                   const targetBarcode = overwriteSpecsPrompt.barcode;
                   applyCollectionSpoolData(targetSpool, targetBarcode);
                   setOverwriteSpecsPrompt(null);
-                  toast({
-                    title: t('scanner.foundInCollection', { name: targetSpool.name }),
-                    action: (
-                      <ToastAction
-                        altText={t('scanner.searchCommunityCatalogInstead')}
-                        onClick={async () => {
-                          const status = await queryCommunityCatalogGtin(targetBarcode, { ignoreFormHints: true });
-                          if (status === "not_found") {
-                            toast({
-                              variant: "destructive",
-                              title: t('scanner.notFoundAllSources', { code: targetBarcode }),
-                            });
-                          }
-                        }}
-                      >
-                        {t('scanner.searchCommunityCatalogInstead')}
-                      </ToastAction>
-                    ),
-                  });
                 }}
               >
                 {t('scanner.overwriteSpecs')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const targetBarcode = overwriteSpecsPrompt.barcode;
+                  form.setValue('barcode', targetBarcode, { shouldValidate: true, shouldDirty: true });
+                  setOverwriteSpecsPrompt(null);
+                }}
+              >
+                {t('scanner.updateBarcodeOnly')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  const targetBarcode = overwriteSpecsPrompt.barcode;
+                  setOverwriteSpecsPrompt(null);
+                  form.setValue('barcode', targetBarcode, { shouldValidate: true, shouldDirty: true });
+                  const status = await queryCommunityCatalogGtin(targetBarcode, { ignoreFormHints: true });
+                  if (status === "not_found") {
+                    toast({
+                      variant: "destructive",
+                      title: t('scanner.notFoundAllSources', { code: targetBarcode }),
+                    });
+                  }
+                }}
+              >
+                {t('scanner.searchCommunityCatalogInstead')}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setOverwriteSpecsPrompt(null)}
+              >
+                {t('common.cancel')}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       )}
 
-      {!overwriteSpecsPrompt && !collectionCandidates && !variantCandidates && !similarManufacturerPrompt && !similarMaterialPrompt && overwriteBarcodePrompt && (
+      {!collectionMatchPrompt && !overwriteSpecsPrompt && !collectionCandidates && !variantCandidates && !similarManufacturerPrompt && !similarMaterialPrompt && overwriteBarcodePrompt && (
         <AlertDialog
           open={true}
           onOpenChange={(open) => {

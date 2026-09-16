@@ -95,4 +95,10 @@ Notes for writing e2e specs:
 
 ---
 
+## 6. Mobile-First UI Standard
+
+All visual components, modals, and lists must follow the Mobile-First UI Standard documented in `AGENTS.md`. Never use transient/auto-dismissing toasts for interactive decisions; use persistent in-context modals. Reference PR #40 (`client/src/components/community-catalog-search-results.tsx`) and `client/src/components/collection-spool-card.tsx` as design standards.
+
+---
+
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
