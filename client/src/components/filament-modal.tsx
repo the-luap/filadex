@@ -2689,13 +2689,7 @@ export function FilamentModal({
                 })}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setOverwriteBarcodePrompt(null)}
-              >
-                {t('scanner.keepExistingBarcode', { code: overwriteBarcodePrompt.currentBarcode })}
-              </Button>
+            <AlertDialogFooter className="flex-col sm:flex-row-reverse gap-2">
               <Button
                 variant="default"
                 onClick={() => {
@@ -2704,6 +2698,12 @@ export function FilamentModal({
                 }}
               >
                 {t('scanner.overwriteWithBarcode', { code: overwriteBarcodePrompt.incomingBarcode })}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setOverwriteBarcodePrompt(null)}
+              >
+                {t('scanner.keepExistingBarcode', { code: overwriteBarcodePrompt.currentBarcode })}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -21,9 +21,9 @@ export function CollectionSpoolCard({
   const { t } = useTranslation();
 
   const colorCode = spool.colorCode || "#888888";
-  const spoolTypeText = spool.spoolType === "spoolless"
-    ? t("filaments.spoolless")
-    : t("filaments.spooled");
+  const spoolTypeText = spool.spoolType
+    ? (spool.spoolType === "spoolless" ? t("filaments.spoolless") : t("filaments.spooled"))
+    : null;
 
   const weightText = spool.totalWeight
     ? (String(spool.totalWeight).endsWith("kg") ? spool.totalWeight : `${spool.totalWeight}kg`)

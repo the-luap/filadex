@@ -89,4 +89,18 @@ describe("CollectionSpoolCard", () => {
     // Should render as div rather than clickable button
     expect(html).not.toContain("<button");
   });
+
+  it("does not render spool type badge when spoolType is unset", () => {
+    const unknownTypeSpool: Filament = {
+      ...sampleSpool,
+      spoolType: null as any,
+    };
+
+    const html = renderWithProviders(
+      <CollectionSpoolCard spool={unknownTypeSpool} />
+    );
+
+    expect(html).not.toContain("Spooled");
+    expect(html).not.toContain("Spoolless");
+  });
 });
