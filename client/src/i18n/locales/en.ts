@@ -33,6 +33,18 @@ const scanner = {
   keepExistingBarcode: 'Keep "{{code}}"',
   overwriteWithBarcode: 'Overwrite with "{{code}}"',
   selectGtin: 'Select GTIN {{gtin}}',
+  foundInCollection: 'Found matching spool in your collection: {{name}}',
+  searchCommunityCatalogInstead: 'Search Community Catalog instead',
+  multipleCollectionMatchesTitle: 'Multiple Matching Spools Found',
+  multipleCollectionMatchesDescription: 'Barcode {{code}} matches multiple spools in your collection with different specifications. Please select which one to copy:',
+  overwriteSpecsTitle: 'Overwrite Spool Specifications?',
+  overwriteSpecsDescription: 'Barcode {{code}} matches "{{name}}" in your collection. Do you want to update this spool\'s specifications to match, or only update the barcode?',
+  updateBarcodeOnly: 'Update Barcode Only',
+  overwriteSpecs: 'Overwrite Specifications',
+  spoolMatchedActionTitle: 'Spool Found in Collection',
+  spoolMatchedActionDescription: 'Found {{name}} with barcode {{code}} in your collection.',
+  viewInCollection: 'View in Collection',
+  addAnotherSpool: 'Add Another Spool',
 };
 
 // English translations
@@ -617,6 +629,7 @@ const translations = {
       addButton: 'Add Material',
       namePlaceholder: 'Material name',
       density: 'Density (g/cm³)',
+      invalidDensity: 'Density must be a positive number',
       hygroscopic: 'Hygroscopic',
       ownershipOwn: 'Your addition',
       ownershipGlobal: 'Shared catalog',

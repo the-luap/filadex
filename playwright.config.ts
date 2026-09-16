@@ -24,10 +24,11 @@ import path from "node:path";
  *
  * ## Running
  *
- *   npm run build && npm run test:e2e
+ *   npm run build:e2e && npm run test:e2e
  *
- * The build is deliberately not implicit. These specs drive the real bundle,
- * and rebuilding silently on every run would hide which artifact failed.
+ * The build is deliberately not implicit. These specs drive the real bundle
+ * (with test affordances compiled in via build:e2e), and rebuilding silently on
+ * every run would hide which artifact failed.
  */
 
 // A fixed path, not mkdtemp: Playwright evaluates this config once in the main
@@ -43,7 +44,21 @@ const DATABASE_URL = `file:${path.join(DB_DIR, "e2e.db")}`;
 const PORT = process.env.E2E_PORT ?? "5183";
 
 if (!fs.existsSync("dist/index.sqlite.js")) {
-  throw new Error("dist/index.sqlite.js is missing - run `npm run build` before `npm run test:e2e`.");
+  throw new Error("dist/index.sqlite.js is missing - run `npm run build:e2e` before `npm run test:e2e`.");
+}
+
+const clientAssetsDir = path.resolve("dist/public/assets");
+if (fs.existsSync(clientAssetsDir)) {
+  const jsFiles = fs.readdirSync(clientAssetsDir).filter((f) => f.endsWith(".js"));
+  const hasAffordance = jsFiles.some((f) =>
+    fs.readFileSync(path.join(clientAssetsDir, f), "utf-8").includes("filadex:scan")
+  );
+  if (!hasAffordance) {
+    throw new Error(
+      "dist/public/assets was built without test affordances (e.g. from standard `npm run build`). " +
+      "Run `npm run build:e2e` before running `npm run test:e2e`."
+    );
+  }
 }
 
 // Rebuilt per run: scripts/seed.ts --demo refuses a populated database, which is

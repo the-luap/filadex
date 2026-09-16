@@ -37,11 +37,13 @@ npm run db:init
 ### 4. Production Build ✅
 ```bash
 npm run build
+npm run verify:bundle
 ```
 **Expected**:
 - Frontend builds successfully
 - Backend builds successfully
 - `dist/` directory created with compiled files
+- `verify:bundle` confirms zero test affordances leaked into client assets
 
 ### 5. API Endpoint Testing
 
@@ -129,6 +131,23 @@ npm run db:verify-upgrade
 - No errors
 - Database schema updated correctly
 - `db:verify-upgrade` reports every check as PASS
+
+### 8. Browser E2E Testing (Playwright)
+
+Filadex runs E2E tests against built distribution bundles using SQLite:
+```bash
+# Build bundles with test affordances enabled
+npm run build:e2e
+
+# Run the Playwright E2E suite
+npm run test:e2e
+```
+**Expected**:
+- Production bundles compile with `VITE_TEST_AFFORDANCES=true`
+- Web server boots against throwaway SQLite database
+- All browser specs pass
+
+> **Note on Test Affordances**: Real production builds (`npm run build`, Docker images, releases) do not set `VITE_TEST_AFFORDANCES`, completely stripping test event listeners from production bundles. See [ADR 0013](adr/0013-test-affordance-build-gating.md).
 
 ## Common Issues & Solutions
 

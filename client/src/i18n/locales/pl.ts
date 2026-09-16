@@ -33,6 +33,18 @@ const scanner = {
   keepExistingBarcode: 'Zachowaj „{{code}}”',
   overwriteWithBarcode: 'Nadpisz na „{{code}}”',
   selectGtin: 'Wybierz GTIN {{gtin}}',
+  foundInCollection: 'Znaleziono pasującą szpulę w Twojej kolekcji: {{name}}',
+  searchCommunityCatalogInstead: 'Wyszukaj zamiast tego w katalogu społeczności',
+  multipleCollectionMatchesTitle: 'Znaleziono wiele pasujących szpul',
+  multipleCollectionMatchesDescription: 'Kod kreskowy {{code}} pasuje do wielu szpul w Twojej kolekcji o różnych parametrach. Wybierz, którą chcesz skopiować:',
+  overwriteSpecsTitle: 'Zastąpić parametry szpuli?',
+  overwriteSpecsDescription: 'Kod kreskowy {{code}} pasuje do „{{name}}” w Twojej kolekcji. Czy chcesz zaktualizować specyfikację tej szpuli, czy tylko zmienić kod kreskowy?',
+  updateBarcodeOnly: 'Aktualizuj tylko kod kreskowy',
+  overwriteSpecs: 'Zastąp specyfikację',
+  spoolMatchedActionTitle: 'Szpula znaleziona w kolekcji',
+  spoolMatchedActionDescription: 'Znaleziono {{name}} z kodem kreskowym {{code}} w Twojej kolekcji.',
+  viewInCollection: 'Zobacz w kolekcji',
+  addAnotherSpool: 'Dodaj kolejną szpulę',
 };
 
 // Polish translations
@@ -617,6 +629,7 @@ const translations = {
       addButton: 'Dodaj materiał',
       namePlaceholder: 'Nazwa materiału',
       density: 'Gęstość (g/cm³)',
+      invalidDensity: 'Gęstość musi być liczbą dodatnią',
       hygroscopic: 'Higroskopijny',
       ownershipOwn: 'Twój dodatek',
       ownershipGlobal: 'Wspólny katalog',

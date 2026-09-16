@@ -17,6 +17,11 @@ storage location. Stored in the `filaments` table, which is why "filament" is
 ambiguous in code and should be avoided when a spool is what is meant.
 _Avoid_: Filament (when referring to a single owned reel), Roll, Item
 
+**Collection**:
+A user's personal inventory of owned Spools and their associated Filament Types.
+Queried first (Priority 0) when scanning barcodes to autofill new spool specifications.
+_Avoid_: Database (when referring to personal inventory), Stash, Stock
+
 **Filament Type**:
 The product identity two spools share when they are the same thing off the
 shelf — manufacturer, material, colour and diameter. Belongs to one user;

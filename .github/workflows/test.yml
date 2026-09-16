@@ -51,6 +51,21 @@ jobs:
       - run: npm ci
       - run: npm run lint
 
+  # Proves that standard production release bundles compile successfully and do
+  # not leak test-only affordances (such as window event listeners for barcode
+  # simulation) into shipped client assets.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run verify:bundle
+
   # Catches schema changes that missed a migration on either dialect: runs
   # drizzle-kit generate for each engine into temporary directories and fails
   # if any new migration is generated. Proves that checked-in migrations
@@ -184,7 +199,7 @@ jobs:
       - run: npm ci
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - run: npm run build
+      - run: npm run build:e2e
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
