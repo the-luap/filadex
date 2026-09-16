@@ -123,6 +123,31 @@ describe("collection-lookup", () => {
         expect(result.candidates.map((c) => c.material)).toEqual(["PETG", "PLA"]);
       }
     });
+
+    it("returns conflict when spools differ only by weight or spoolType", () => {
+      const spool1000g = mockSpool({
+        id: 1,
+        barcode: "123456",
+        totalWeight: "1",
+        spoolType: "spooled",
+      });
+      const spool250g = mockSpool({
+        id: 2,
+        barcode: "123456",
+        totalWeight: "0.25",
+        spoolType: "spoolless",
+      });
+
+      const result = resolveCollectionBarcode("123456", [spool1000g, spool250g]);
+      expect(result.type).toBe("conflict");
+      if (result.type === "conflict") {
+        expect(result.candidates).toHaveLength(2);
+        expect(result.candidates[0].totalWeight).toBe("0.25");
+        expect(result.candidates[0].spoolType).toBe("spoolless");
+        expect(result.candidates[1].totalWeight).toBe("1");
+        expect(result.candidates[1].spoolType).toBe("spooled");
+      }
+    });
   });
 
   describe("extractProductSpecsFromSpool", () => {

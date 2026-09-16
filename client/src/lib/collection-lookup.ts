@@ -33,9 +33,6 @@ export function normalizeBarcode(code: string | null | undefined): string {
  * Checks whether two spools share the same filament product specifications.
  */
 export function haveSameProductSpecs(a: Filament, b: Filament): boolean {
-  if (a.filamentTypeId && b.filamentTypeId && a.filamentTypeId === b.filamentTypeId) {
-    return true;
-  }
   const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
   const numEq = (x: any, y: any) => {
     if (x == null && y == null) return true;
@@ -43,13 +40,21 @@ export function haveSameProductSpecs(a: Filament, b: Filament): boolean {
     return Number(x) === Number(y);
   };
 
+  const sameMaterialSpec =
+    Boolean(a.filamentTypeId && b.filamentTypeId && a.filamentTypeId === b.filamentTypeId) ||
+    (
+      norm(a.manufacturer) === norm(b.manufacturer) &&
+      norm(a.material) === norm(b.material) &&
+      norm(a.colorName) === norm(b.colorName) &&
+      norm(a.colorCode) === norm(b.colorCode) &&
+      numEq(a.diameter, b.diameter) &&
+      norm(a.printTemp) === norm(b.printTemp)
+    );
+
   return (
-    norm(a.manufacturer) === norm(b.manufacturer) &&
-    norm(a.material) === norm(b.material) &&
-    norm(a.colorName) === norm(b.colorName) &&
-    norm(a.colorCode) === norm(b.colorCode) &&
-    numEq(a.diameter, b.diameter) &&
-    norm(a.printTemp) === norm(b.printTemp)
+    sameMaterialSpec &&
+    numEq(a.totalWeight, b.totalWeight) &&
+    norm(a.spoolType) === norm(b.spoolType)
   );
 }
 

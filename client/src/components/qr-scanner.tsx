@@ -533,6 +533,20 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
     }
   };
   handleScanSuccessRef.current = handleScanSuccess;
+
+  useEffect(() => {
+    const handleSimulateScan = (event: CustomEvent<string | { code: string }>) => {
+      const code = typeof event.detail === "string" ? event.detail : event.detail?.code;
+      if (code) {
+        handleScanSuccessRef.current(code);
+      }
+    };
+    window.addEventListener("filadex:scan" as any, handleSimulateScan);
+    return () => {
+      window.removeEventListener("filadex:scan" as any, handleSimulateScan);
+    };
+  }, []);
+
   // Stop scanner when closing the dialog
   const handleClose = () => {
     if (scannerRef.current && isScanning) {
