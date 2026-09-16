@@ -37,11 +37,13 @@ npm run db:init
 ### 4. Production Build ✅
 ```bash
 npm run build
+npm run verify:bundle
 ```
 **Expected**:
 - Frontend builds successfully
 - Backend builds successfully
 - `dist/` directory created with compiled files
+- `verify:bundle` confirms zero test affordances leaked into client assets
 
 ### 5. API Endpoint Testing
 

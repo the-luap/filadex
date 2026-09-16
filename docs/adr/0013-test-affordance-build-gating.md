@@ -42,9 +42,11 @@ This architecture decision records how Filadex strips browser test affordances (
   - `"build:e2e"`: `VITE_TEST_AFFORDANCES=true npm run build`, compiling minified production bundles with test affordances enabled for E2E runs.
 - CI E2E workflows (`.github/workflows/test.yml`) run `npm run build:e2e && npm run test:e2e`.
 
-### 4. Automated Bundle Leak Prevention
+### 4. Automated Bundle Leak Prevention & CI Verification
 
-- An automated build assertion tests that standard production bundle assets (`dist/public/assets/*.js`) contain zero occurrences of test-only strings like `"filadex:scan"`.
+- Filadex provides `npm run verify:bundle` (`scripts/verify-bundle-affordances.ts`), which inspects compiled client assets in `dist/public/assets/*.js` and asserts that no test affordance identifiers (such as `"filadex:scan"` or `"E2EScanAffordance"`) leaked into the bundle.
+- A dedicated CI job (`build` in `.github/workflows/test.yml`) compiles the standard release bundle via `npm run build` and runs `npm run verify:bundle` on every push and PR, ensuring that release builds never break and never leak test code.
+- To prevent developer confusion when alternating between standard and E2E builds, `playwright.config.ts` inspects built client assets at startup and fails fast with an explanatory error if assets were built without test affordances.
 
 ## Consequences
 

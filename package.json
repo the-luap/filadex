@@ -33,6 +33,7 @@
     "setup": "bash scripts/setup-local.sh",
     "lint": "eslint . --max-warnings 0",
     "type-check": "tsc --noEmit",
+    "verify:bundle": "tsx scripts/verify-bundle-affordances.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

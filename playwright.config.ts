@@ -47,6 +47,20 @@ if (!fs.existsSync("dist/index.sqlite.js")) {
   throw new Error("dist/index.sqlite.js is missing - run `npm run build:e2e` before `npm run test:e2e`.");
 }
 
+const clientAssetsDir = path.resolve("dist/public/assets");
+if (fs.existsSync(clientAssetsDir)) {
+  const jsFiles = fs.readdirSync(clientAssetsDir).filter((f) => f.endsWith(".js"));
+  const hasAffordance = jsFiles.some((f) =>
+    fs.readFileSync(path.join(clientAssetsDir, f), "utf-8").includes("filadex:scan")
+  );
+  if (!hasAffordance) {
+    throw new Error(
+      "dist/public/assets was built without test affordances (e.g. from standard `npm run build`). " +
+      "Run `npm run build:e2e` before running `npm run test:e2e`."
+    );
+  }
+}
+
 // Rebuilt per run: scripts/seed.ts --demo refuses a populated database, which is
 // what makes a stale file from a previous run a hard failure rather than a
 // confusing pass.
