@@ -31,7 +31,7 @@ export function CommunityCatalogSearchResults({
   if (isLoading) {
     return (
       <div className="py-4 text-center text-sm dark:text-neutral-400 text-gray-500">
-        {t("common.loading") || "Loading..."}
+        {t("common.loading")}
       </div>
     );
   }

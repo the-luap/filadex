@@ -20,6 +20,8 @@ const scanner = {
   multipleMatchesDescription: 'Barcode {{code}} matches multiple variants. Please select yours:',
   selectVariant: 'Select Variant',
   lookupError: 'Failed to search community catalog for barcode {{code}}.',
+  fetchFromLabelError: 'Failed to fetch filament from label',
+  openFilamentError: 'Failed to open filament',
   similarManufacturerTitle: 'Similar Manufacturer Found',
   similarManufacturerDescription: 'The scanned filament has manufacturer "{{scanned}}", but you have similar manufacturers in your database. Would you like to use an existing one or create a new one?',
   createNewManufacturer: 'Create "{{name}}"',

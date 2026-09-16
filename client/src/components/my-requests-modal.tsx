@@ -56,7 +56,7 @@ export function MyRequestsModal({ open, onOpenChange }: MyRequestsModalProps) {
               <TableBody>
                 {requests.map((request) => (
                   <TableRow key={request.id}>
-                    <TableCell>{t(`settings.${request.entityType}s.title`) || request.entityType}</TableCell>
+                    <TableCell>{t(`settings.${request.entityType}s.title`)}</TableCell>
                     <TableCell>{formatPayload(request.entityType, request.payload)}</TableCell>
                     <TableCell>
                       <Badge variant={statusVariant(request.status)}>

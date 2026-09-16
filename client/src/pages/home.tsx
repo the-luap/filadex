@@ -385,8 +385,8 @@ export default function Home() {
         if (err?.status !== 404) {
           toast({
             variant: "destructive",
-            title: t('common.error') || 'Error',
-            description: err?.message || 'Failed to open filament',
+            title: t('common.error'),
+            description: err?.message || t('scanner.openFilamentError'),
           });
           return;
         }
@@ -486,8 +486,8 @@ export default function Home() {
         lookupFailed = true;
         toast({
           variant: "destructive",
-          title: t('common.error') || 'Error',
-          description: t('scanner.lookupError', { code }) || err?.message || 'Failed to search community catalog',
+          title: t('common.error'),
+          description: t('scanner.lookupError', { code }),
         });
       }
     }
@@ -752,7 +752,7 @@ export default function Home() {
             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
               {variantCandidates.map((candidate) => {
                 const colorCode = candidate.colorCode || "#888888";
-                const spoolTypeText = candidate.spoolRefill ? (t('filaments.spoolless') || 'Refill') : (t('filaments.spooled') || 'Spooled');
+                const spoolTypeText = candidate.spoolRefill ? t('filaments.spoolless') : t('filaments.spooled');
                 const weightText = candidate.weightGrams ? `${(candidate.weightGrams / 1000).toFixed(1)}kg` : '';
                 return (
                   <button
@@ -788,7 +788,7 @@ export default function Home() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setVariantCandidates(null)}>
-                {t('common.close') || 'Close'}
+                {t('common.close')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -866,8 +866,8 @@ export default function Home() {
               {collectionConflictPrompt.candidates.map((candidate) => {
                 const colorCode = candidate.colorCode || "#888888";
                 const spoolTypeText = candidate.spoolType === "spoolless"
-                  ? (t('filaments.spoolless') || 'Refill')
-                  : (t('filaments.spooled') || 'Spooled');
+                  ? t('filaments.spoolless')
+                  : t('filaments.spooled');
                 const weightText = candidate.totalWeight ? `${candidate.totalWeight}kg` : '';
                 return (
                   <button

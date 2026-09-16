@@ -20,6 +20,8 @@ const scanner = {
   multipleMatchesDescription: 'Kod kreskowy {{code}} odpowiada wielu wariantom. Wybierz swój wariant:',
   selectVariant: 'Wybierz wariant',
   lookupError: 'Błąd podczas wyszukiwania kodu {{code}} w katalogu społeczności.',
+  fetchFromLabelError: 'Nie udało się pobrać filamentu z etykiety',
+  openFilamentError: 'Nie udało się otworzyć filamentu',
   similarManufacturerTitle: 'Znaleziono podobnego producenta',
   similarManufacturerDescription: 'Zeskanowany filament ma producenta "{{scanned}}", ale masz już podobnych producentów w bazie danych. Czy chcesz użyć istniejącego, czy utworzyć nowego?',
   createNewManufacturer: 'Utwórz "{{name}}"',
