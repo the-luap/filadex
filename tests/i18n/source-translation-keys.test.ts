@@ -28,6 +28,56 @@ function resolveKey(obj: any, keyPath: string): any {
   return keyPath.split(".").reduce((acc, part) => (acc && typeof acc === "object" ? acc[part] : undefined), obj);
 }
 
+function findDeadTranslationFallbacks(content: string): { line: number; text: string }[] {
+  const deadFallbacks: { line: number; text: string }[] = [];
+  let line = 1;
+  for (let i = 0; i < content.length; i++) {
+    if (content[i] === "\n") {
+      line++;
+      continue;
+    }
+    if (
+      content[i] === "t" &&
+      (i === 0 || !/[a-zA-Z0-9_$]/.test(content[i - 1])) &&
+      content[i + 1] === "("
+    ) {
+      const startLine = line;
+      const startIndex = i;
+      i += 2;
+      let depth = 1;
+      let inQuote: string | null = null;
+      let escaped = false;
+      while (i < content.length && depth > 0) {
+        const char = content[i];
+        if (char === "\n") line++;
+        if (escaped) {
+          escaped = false;
+        } else if (char === "\\") {
+          escaped = true;
+        } else if (inQuote) {
+          if (char === inQuote) inQuote = null;
+        } else if (char === "'" || char === '"' || char === "`") {
+          inQuote = char;
+        } else if (char === "(") {
+          depth++;
+        } else if (char === ")") {
+          depth--;
+        }
+        i++;
+      }
+      if (depth === 0) {
+        let j = i;
+        while (j < content.length && /\s/.test(content[j])) j++;
+        if (content[j] === "|" && content[j + 1] === "|") {
+          const snippet = content.slice(startIndex, j + 2).replace(/\s+/g, " ");
+          deadFallbacks.push({ line: startLine, text: snippet });
+        }
+      }
+    }
+  }
+  return deadFallbacks;
+}
+
 describe("source code translation key completeness", () => {
   const clientSrc = path.resolve(__dirname, "../../client/src");
   const sourceFiles = walkSourceFiles(clientSrc);
@@ -67,4 +117,24 @@ describe("source code translation key completeness", () => {
       )}`
     ).toEqual([]);
   });
+
+  it("does not use dead || fallbacks after t(...) in client/src", () => {
+    const violations: string[] = [];
+    for (const file of sourceFiles) {
+      const relativePath = path.relative(path.resolve(__dirname, "../.."), file);
+      const content = fs.readFileSync(file, "utf-8");
+      const occurrences = findDeadTranslationFallbacks(content);
+      for (const occ of occurrences) {
+        violations.push(`${relativePath}:${occ.line} -> ${occ.text}`);
+      }
+    }
+    expect(
+      violations,
+      `t(...) returns the key string on missing keys, which is truthy, so '||' fallback chains never trigger.\n` +
+        `Ensure all required keys are defined in locales and remove the dead '||' fallbacks:\n${violations.join(
+          "\n"
+        )}`
+    ).toEqual([]);
+  });
 });
+

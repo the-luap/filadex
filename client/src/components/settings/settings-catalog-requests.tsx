@@ -84,7 +84,7 @@ export function CatalogRequestsReview() {
                 {requests.map((request) => (
                   <TableRow key={request.id}>
                     <TableCell>
-                      <Badge variant="outline">{t(`settings.${request.entityType}s.title`) || request.entityType}</Badge>
+                      <Badge variant="outline">{t(`settings.${request.entityType}s.title`)}</Badge>
                     </TableCell>
                     <TableCell>{formatPayload(request.entityType, request.payload)}</TableCell>
                     <TableCell>{request.requestedBy}</TableCell>

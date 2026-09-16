@@ -32,17 +32,17 @@ const createMaterialTypes = (t: (key: string) => string) => [
   { value: "ABS", label: "ABS" },
   { value: "TPU", label: "TPU" },
   { value: "ASA", label: "ASA" },
-  { value: "PA", label: `PA (${t('settings.materials.nylon') || 'Nylon'})` },
-  { value: "PC", label: `PC (${t('settings.materials.polycarbonate') || 'Polycarbonate'})` },
+  { value: "PA", label: `PA (${t('settings.materials.nylon')})` },
+  { value: "PC", label: `PC (${t('settings.materials.polycarbonate')})` },
   { value: "PVA", label: "PVA" },
   { value: "HIPS", label: "HIPS" },
-  { value: "PLA-CF", label: `PLA-CF (${t('settings.materials.carbon') || 'Carbon'})` },
-  { value: "PA-CF", label: `PA-CF (${t('settings.materials.nylonCarbon') || 'Nylon Carbon'})` },
-  { value: "PETG-CF", label: `PETG-CF (${t('settings.materials.carbon') || 'Carbon'})` },
-  { value: "PET-CF", label: `PET-CF (${t('settings.materials.carbon') || 'Carbon'})` },
-  { value: "PLA-HF", label: `PLA-HF (${t('settings.materials.highFlow') || 'High Flow'})` },
-  { value: "PP", label: `PP (${t('settings.materials.polypropylene') || 'Polypropylene'})` },
-  { value: "PETG-HF", label: `PETG-HF (${t('settings.materials.highFlow') || 'High Flow'})` },
+  { value: "PLA-CF", label: `PLA-CF (${t('settings.materials.carbon')})` },
+  { value: "PA-CF", label: `PA-CF (${t('settings.materials.nylonCarbon')})` },
+  { value: "PETG-CF", label: `PETG-CF (${t('settings.materials.carbon')})` },
+  { value: "PET-CF", label: `PET-CF (${t('settings.materials.carbon')})` },
+  { value: "PLA-HF", label: `PLA-HF (${t('settings.materials.highFlow')})` },
+  { value: "PP", label: `PP (${t('settings.materials.polypropylene')})` },
+  { value: "PETG-HF", label: `PETG-HF (${t('settings.materials.highFlow')})` },
   { value: "PPS", label: "PPS" },
   { value: "PEEK", label: "PEEK" },
   { value: "PEI", label: "PEI/ULTEM" }
@@ -51,53 +51,53 @@ const createMaterialTypes = (t: (key: string) => string) => [
 // Colors will be created with translations in the component
 const createColorsList = (t: (key: string) => string) => [
   // Standard colors
-  { name: t('settings.colors.black') || 'Black', code: "#000000" },
-  { name: t('settings.colors.white') || 'White', code: "#FFFFFF" },
-  { name: t('settings.colors.gray') || 'Gray', code: "#808080" },
-  { name: t('settings.colors.darkGray') || 'Dark Gray', code: "#444444" },
-  { name: t('settings.colors.lightGray') || 'Light Gray', code: "#D3D3D3" },
-  { name: t('settings.colors.silver') || 'Silver', code: "#C0C0C0" },
-  { name: t('settings.colors.red') || 'Red', code: "#FF0000" },
-  { name: t('settings.colors.lightRed') || 'Light Red', code: "#FF5252" },
-  { name: t('settings.colors.darkRed') || 'Dark Red', code: "#8B0000" },
-  { name: t('settings.colors.blue') || 'Blue', code: "#0000FF" },
-  { name: t('settings.colors.lightBlue') || 'Light Blue', code: "#ADD8E6" },
-  { name: t('settings.colors.darkBlue') || 'Dark Blue', code: "#00008B" },
-  { name: t('settings.colors.green') || 'Green', code: "#00FF00" },
-  { name: t('settings.colors.lightGreen') || 'Light Green', code: "#90EE90" },
-  { name: t('settings.colors.darkGreen') || 'Dark Green', code: "#006400" },
-  { name: t('settings.colors.yellow') || 'Yellow', code: "#FFFF00" },
-  { name: t('settings.colors.orange') || 'Orange', code: "#FFA500" },
-  { name: t('settings.colors.purple') || 'Purple', code: "#800080" },
-  { name: t('settings.colors.pink') || 'Pink', code: "#FFC0CB" },
-  { name: t('settings.colors.brown') || 'Brown', code: "#A52A2A" },
+  { name: t('settings.colors.black'), code: "#000000" },
+  { name: t('settings.colors.white'), code: "#FFFFFF" },
+  { name: t('settings.colors.gray'), code: "#808080" },
+  { name: t('settings.colors.darkGray'), code: "#444444" },
+  { name: t('settings.colors.lightGray'), code: "#D3D3D3" },
+  { name: t('settings.colors.silver'), code: "#C0C0C0" },
+  { name: t('settings.colors.red'), code: "#FF0000" },
+  { name: t('settings.colors.lightRed'), code: "#FF5252" },
+  { name: t('settings.colors.darkRed'), code: "#8B0000" },
+  { name: t('settings.colors.blue'), code: "#0000FF" },
+  { name: t('settings.colors.lightBlue'), code: "#ADD8E6" },
+  { name: t('settings.colors.darkBlue'), code: "#00008B" },
+  { name: t('settings.colors.green'), code: "#00FF00" },
+  { name: t('settings.colors.lightGreen'), code: "#90EE90" },
+  { name: t('settings.colors.darkGreen'), code: "#006400" },
+  { name: t('settings.colors.yellow'), code: "#FFFF00" },
+  { name: t('settings.colors.orange'), code: "#FFA500" },
+  { name: t('settings.colors.purple'), code: "#800080" },
+  { name: t('settings.colors.pink'), code: "#FFC0CB" },
+  { name: t('settings.colors.brown'), code: "#A52A2A" },
 
   // Special finishes
-  { name: t('settings.colors.gold') || 'Gold', code: "#FFD700" },
-  { name: t('settings.colors.copper') || 'Copper', code: "#B87333" },
-  { name: t('settings.colors.transparent') || 'Transparent', code: "#FFFFFF", opacity: 0.3 },
-  { name: t('settings.colors.glitterSilver') || 'Glitter Silver', code: "#E0E0E0" },
-  { name: t('settings.colors.glitterGold') || 'Glitter Gold', code: "#FFD700" },
-  { name: t('settings.colors.glitterBlue') || 'Glitter Blue', code: "#4169E1" },
-  { name: t('settings.colors.pearlescent') || 'Pearlescent', code: "#EAEAEA" },
-  { name: t('settings.colors.neonYellow') || 'Neon Yellow', code: "#FFFF00" },
-  { name: t('settings.colors.neonGreen') || 'Neon Green', code: "#39FF14" },
-  { name: t('settings.colors.neonPink') || 'Neon Pink', code: "#FF69B4" },
-  { name: t('settings.colors.glow') || 'Glow in the Dark', code: "#CCFFCC" },
+  { name: t('settings.colors.gold'), code: "#FFD700" },
+  { name: t('settings.colors.copper'), code: "#B87333" },
+  { name: t('settings.colors.transparent'), code: "#FFFFFF", opacity: 0.3 },
+  { name: t('settings.colors.glitterSilver'), code: "#E0E0E0" },
+  { name: t('settings.colors.glitterGold'), code: "#FFD700" },
+  { name: t('settings.colors.glitterBlue'), code: "#4169E1" },
+  { name: t('settings.colors.pearlescent'), code: "#EAEAEA" },
+  { name: t('settings.colors.neonYellow'), code: "#FFFF00" },
+  { name: t('settings.colors.neonGreen'), code: "#39FF14" },
+  { name: t('settings.colors.neonPink'), code: "#FF69B4" },
+  { name: t('settings.colors.glow'), code: "#CCFFCC" },
 
   // Wood series
-  { name: `${t('settings.colors.wood') || 'Wood'} - ${t('settings.colors.birch') || 'Birch'}`, code: "#F5DEB3" },
-  { name: `${t('settings.colors.wood') || 'Wood'} - ${t('settings.colors.oak') || 'Oak'}`, code: "#DEB887" },
-  { name: `${t('settings.colors.wood') || 'Wood'} - ${t('settings.colors.maple') || 'Maple'}`, code: "#EADDCA" },
-  { name: `${t('settings.colors.wood') || 'Wood'} - ${t('settings.colors.cherry') || 'Cherry'}`, code: "#954535" },
-  { name: `${t('settings.colors.wood') || 'Wood'} - ${t('settings.colors.walnut') || 'Walnut'}`, code: "#614126" },
-  { name: `${t('settings.colors.wood') || 'Wood'} - ${t('settings.colors.ebony') || 'Ebony'}`, code: "#3D2B1F" },
+  { name: `${t('settings.colors.wood')} - ${t('settings.colors.birch')}`, code: "#F5DEB3" },
+  { name: `${t('settings.colors.wood')} - ${t('settings.colors.oak')}`, code: "#DEB887" },
+  { name: `${t('settings.colors.wood')} - ${t('settings.colors.maple')}`, code: "#EADDCA" },
+  { name: `${t('settings.colors.wood')} - ${t('settings.colors.cherry')}`, code: "#954535" },
+  { name: `${t('settings.colors.wood')} - ${t('settings.colors.walnut')}`, code: "#614126" },
+  { name: `${t('settings.colors.wood')} - ${t('settings.colors.ebony')}`, code: "#3D2B1F" },
 
   // Cool/Marble series
-  { name: t('settings.colors.marble') || 'Marble', code: "#F5F5F5" },
-  { name: t('settings.colors.galaxy') || 'Galaxy', code: "#191970" },
-  { name: t('settings.colors.colorChangingBlueGreen') || 'Color Changing Blue-Green', code: "#1E90FF" },
-  { name: t('settings.colors.colorChangingRedYellow') || 'Color Changing Red-Yellow', code: "#FF4500" }
+  { name: t('settings.colors.marble'), code: "#F5F5F5" },
+  { name: t('settings.colors.galaxy'), code: "#191970" },
+  { name: t('settings.colors.colorChangingBlueGreen'), code: "#1E90FF" },
+  { name: t('settings.colors.colorChangingRedYellow'), code: "#FF4500" }
 ];
 
 // Print temperatures by material type
@@ -193,8 +193,8 @@ const createFormSchema = (t: (key: string) => string) => z.object({
   density: z.union([
     z.number().positive(),
     z.string()
-      .regex(/^\d+(\.\d+)?$/, t('settings.materials.invalidDensity') || 'Density must be a positive number')
-      .refine((v) => Number(v) > 0, t('settings.materials.invalidDensity') || 'Density must be a positive number'),
+      .regex(/^\d+(\.\d+)?$/, t('settings.materials.invalidDensity'))
+      .refine((v) => Number(v) > 0, t('settings.materials.invalidDensity')),
   ]).optional().nullable(),
 });
 
@@ -1185,8 +1185,8 @@ export function FilamentModal({
       if (err?.status !== 404) {
         toast({
           variant: "destructive",
-          title: t('common.error') || 'Error',
-          description: t('scanner.lookupError', { code }) || err?.message || 'Failed to search community catalog',
+          title: t('common.error'),
+          description: t('scanner.lookupError', { code }),
         });
         return "error";
       }
@@ -1226,7 +1226,7 @@ export function FilamentModal({
         if (err?.status !== 404) {
           toast({
             variant: "destructive",
-            title: t('common.error') || 'Error',
+            title: t('common.error'),
             description: err?.message || 'Failed to fetch filament from label',
           });
           return;
@@ -1356,8 +1356,8 @@ export function FilamentModal({
               {collectionCandidates.map((candidate) => {
                 const colorCode = candidate.colorCode || "#888888";
                 const spoolTypeText = candidate.spoolType === "spoolless"
-                  ? (t('filaments.spoolless') || 'Refill')
-                  : (t('filaments.spooled') || 'Spooled');
+                  ? t('filaments.spoolless')
+                  : t('filaments.spooled');
                 const weightText = candidate.totalWeight ? `${candidate.totalWeight}kg` : '';
                 return (
                   <button
@@ -1426,7 +1426,7 @@ export function FilamentModal({
                   setCollectionCandidateBarcode("");
                 }}
               >
-                {t('common.close') || 'Close'}
+                {t('common.close')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1445,7 +1445,7 @@ export function FilamentModal({
             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
               {variantCandidates.map((candidate) => {
                 const colorCode = candidate.colorCode || "#888888";
-                const spoolTypeText = candidate.spoolRefill ? (t('filaments.spoolless') || 'Refill') : (t('filaments.spooled') || 'Spooled');
+                const spoolTypeText = candidate.spoolRefill ? t('filaments.spoolless') : t('filaments.spooled');
                 const weightText = candidate.weightGrams ? `${(candidate.weightGrams / 1000).toFixed(1)}kg` : '';
                 return (
                   <button
@@ -1484,7 +1484,7 @@ export function FilamentModal({
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setVariantCandidates(null)}>
-                {t('common.close') || 'Close'}
+                {t('common.close')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1631,7 +1631,7 @@ export function FilamentModal({
                             </SelectItem>
                           ))}
                           <SelectItem value="Other">
-                            {t('filaments.otherManufacturer') || t('common.other') || 'Other'}
+                            {t('filaments.otherManufacturer')}
                           </SelectItem>
                         </SelectContent>
                       </Select>
@@ -2084,11 +2084,11 @@ export function FilamentModal({
                     {isEditing && (
                       <div>
                         <label className="text-sm dark:text-neutral-300 text-gray-600 mb-1 block">
-                          {t('filaments.usageNote') || 'Note (optional)'}
+                          {t('filaments.usageNote')}
                         </label>
                         <Input
                           type="text"
-                          placeholder={t('filaments.usageNotePlaceholder') || 'e.g. printing cover piece'}
+                          placeholder={t('filaments.usageNotePlaceholder')}
                           value={usageNote}
                           onChange={(e) => setUsageNote(e.target.value)}
                         />
@@ -2102,13 +2102,13 @@ export function FilamentModal({
                           onClick={() => setShowHistory((prev) => !prev)}
                           className="text-sm font-medium dark:text-neutral-300 text-gray-700 hover:underline"
                         >
-                          {showHistory ? '▾' : '▸'} {t('filaments.usageHistory') || 'History'}
+                          {showHistory ? '▾' : '▸'} {t('filaments.usageHistory')}
                         </button>
                         {showHistory && (
                           <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
                             {usageLog.length === 0 ? (
                               <p className="text-sm dark:text-neutral-400 text-gray-500">
-                                {t('filaments.noUsageHistory') || 'No changes recorded yet.'}
+                                {t('filaments.noUsageHistory')}
                               </p>
                             ) : (
                               usageLog.map((entry) => (

@@ -10,14 +10,14 @@ import { useTheme } from "@/lib/use-theme";
 
 // Preset color options
 const getPresetColors = (t: (key: string) => string) => [
-  { name: t('settings.colors.red') || "Red", value: "#E11D48" },  // Default
-  { name: t('settings.colors.blue') || "Blue", value: "#0369A1" },
-  { name: t('settings.colors.green') || "Green", value: "#16A34A" },
-  { name: t('settings.colors.purple') || "Purple", value: "#9333EA" },
-  { name: t('settings.colors.orange') || "Orange", value: "#EA580C" },
-  { name: t('settings.colors.yellow') || "Yellow", value: "#CA8A04" },
-  { name: t('settings.colors.pink') || "Pink", value: "#DB2777" },
-  { name: t('settings.colors.teal') || "Teal", value: "#0D9488" },
+  { name: t('settings.colors.red'), value: "#E11D48" },  // Default
+  { name: t('settings.colors.blue'), value: "#0369A1" },
+  { name: t('settings.colors.green'), value: "#16A34A" },
+  { name: t('settings.colors.purple'), value: "#9333EA" },
+  { name: t('settings.colors.orange'), value: "#EA580C" },
+  { name: t('settings.colors.yellow'), value: "#CA8A04" },
+  { name: t('settings.colors.pink'), value: "#DB2777" },
+  { name: t('settings.colors.teal'), value: "#0D9488" },
 ];
 
 interface ThemeSelectorProps {
@@ -42,7 +42,7 @@ export function ThemeSelector({ open, onOpenChange }: ThemeSelectorProps) {
     setPrimaryColor(color);
     toast({
       title: t('settings.themeUpdated'),
-      description: t('settings.themeUpdatedDescription') || "Settings saved successfully."
+      description: t('settings.themeUpdatedDescription')
     });
     onOpenChange(false);
   };
