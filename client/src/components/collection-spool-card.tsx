@@ -25,8 +25,12 @@ export function CollectionSpoolCard({
     ? t("filaments.spoolless")
     : t("filaments.spooled");
 
-  const weightText = spool.totalWeight ? `${spool.totalWeight}kg` : null;
-  const diameterText = spool.diameter ? `${spool.diameter}mm` : null;
+  const weightText = spool.totalWeight
+    ? (String(spool.totalWeight).endsWith("kg") ? spool.totalWeight : `${spool.totalWeight}kg`)
+    : null;
+  const diameterText = spool.diameter
+    ? (String(spool.diameter).endsWith("mm") ? spool.diameter : `${spool.diameter}mm`)
+    : null;
   const printTempText = spool.printTemp ? (spool.printTemp.includes("°") ? spool.printTemp : `${spool.printTemp}°C`) : null;
 
   const content = (
@@ -133,7 +137,7 @@ export function CollectionSpoolCard({
       <button
         type="button"
         onClick={onClick}
-        className="w-full text-left p-3 flex flex-col gap-2 min-h-[44px] hover:bg-primary/5 active:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
+        className="w-full text-left p-3 flex flex-col gap-2 min-h-[44px] hover:bg-primary/5 active:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset rounded-lg"
       >
         {content}
       </button>

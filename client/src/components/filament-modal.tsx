@@ -1187,7 +1187,8 @@ export function FilamentModal({
       }
       return "not_found";
     } catch (err: any) {
-      if (err?.status !== 404) {
+      const isNotFound = err?.status === 404 || (typeof err?.message === "string" && err.message.includes("404"));
+      if (!isNotFound) {
         toast({
           variant: "destructive",
           title: t('common.error'),
@@ -1196,6 +1197,21 @@ export function FilamentModal({
         return "error";
       }
       return "not_found";
+    }
+  };
+
+  const handleSearchCommunityCatalogFallback = async (barcode: string) => {
+    setCollectionMatchPrompt(null);
+    setCollectionCandidates(null);
+    setCollectionCandidateBarcode("");
+    setOverwriteSpecsPrompt(null);
+    form.setValue('barcode', barcode, { shouldValidate: true, shouldDirty: true });
+    const status = await queryCommunityCatalogGtin(barcode, { ignoreFormHints: true });
+    if (status === "not_found") {
+      toast({
+        variant: "destructive",
+        title: t('scanner.notFoundAllSources', { code: barcode }),
+      });
     }
   };
 
@@ -1359,18 +1375,7 @@ export function FilamentModal({
               </Button>
               <Button
                 variant="outline"
-                onClick={async () => {
-                  const targetBarcode = collectionMatchPrompt.code;
-                  setCollectionMatchPrompt(null);
-                  form.setValue('barcode', targetBarcode, { shouldValidate: true, shouldDirty: true });
-                  const status = await queryCommunityCatalogGtin(targetBarcode, { ignoreFormHints: true });
-                  if (status === "not_found") {
-                    toast({
-                      variant: "destructive",
-                      title: t('scanner.notFoundAllSources', { code: targetBarcode }),
-                    });
-                  }
-                }}
+                onClick={() => handleSearchCommunityCatalogFallback(collectionMatchPrompt.code)}
               >
                 {t('scanner.searchCommunityCatalogInstead')}
               </Button>
@@ -1429,19 +1434,7 @@ export function FilamentModal({
             <DialogFooter className="flex-col sm:flex-row gap-2">
               <Button
                 variant="outline"
-                onClick={async () => {
-                  const code = collectionCandidateBarcode;
-                  setCollectionCandidates(null);
-                  setCollectionCandidateBarcode("");
-                  form.setValue('barcode', code, { shouldValidate: true, shouldDirty: true });
-                  const status = await queryCommunityCatalogGtin(code, { ignoreFormHints: true });
-                  if (status === "not_found") {
-                    toast({
-                      variant: "destructive",
-                      title: t('scanner.notFoundAllSources', { code }),
-                    });
-                  }
-                }}
+                onClick={() => handleSearchCommunityCatalogFallback(collectionCandidateBarcode)}
               >
                 {t('scanner.searchCommunityCatalogInstead')}
               </Button>
@@ -2664,18 +2657,7 @@ export function FilamentModal({
               </Button>
               <Button
                 variant="outline"
-                onClick={async () => {
-                  const targetBarcode = overwriteSpecsPrompt.barcode;
-                  setOverwriteSpecsPrompt(null);
-                  form.setValue('barcode', targetBarcode, { shouldValidate: true, shouldDirty: true });
-                  const status = await queryCommunityCatalogGtin(targetBarcode, { ignoreFormHints: true });
-                  if (status === "not_found") {
-                    toast({
-                      variant: "destructive",
-                      title: t('scanner.notFoundAllSources', { code: targetBarcode }),
-                    });
-                  }
-                }}
+                onClick={() => handleSearchCommunityCatalogFallback(overwriteSpecsPrompt.barcode)}
               >
                 {t('scanner.searchCommunityCatalogInstead')}
               </Button>
