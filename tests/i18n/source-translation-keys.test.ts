@@ -29,6 +29,15 @@ function resolveKey(obj: any, keyPath: string): any {
   return keyPath.split(".").reduce((acc, part) => (acc && typeof acc === "object" ? acc[part] : undefined), obj);
 }
 
+/**
+ * Lightweight heuristic scanner to detect dead fallback chains after `t(...)`
+ * (e.g. `t('key') || 'fallback'` or `t('key') ?? 'fallback'`).
+ *
+ * NOTE: This is a fast character scanner rather than a full TypeScript AST parser.
+ * It reliably catches direct and nested calls while avoiding false positives on real
+ * fallbacks like `x || t('key')`. Complex syntax like `(t('k')) || 'fallback'` or
+ * inline comments with quotes inside arguments are not parsed exhaustively.
+ */
 function findDeadTranslationFallbacks(content: string): { line: number; text: string }[] {
   const deadFallbacks: { line: number; text: string }[] = [];
   let line = 1;
@@ -160,4 +169,3 @@ describe("source code translation key completeness", () => {
     ).toEqual([]);
   });
 });
-

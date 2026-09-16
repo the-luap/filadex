@@ -20,6 +20,8 @@ const scanner = {
   multipleMatchesDescription: 'Barcode {{code}} entspricht mehreren Varianten. Bitte wählen Sie Ihre:',
   selectVariant: 'Variante auswählen',
   lookupError: 'Fehler bei der Suche im Community-Katalog nach Barcode {{code}}.',
+  fetchFromLabelError: 'Filament vom Etikett konnte nicht abgerufen werden',
+  openFilamentError: 'Filament konnte nicht geöffnet werden',
   similarManufacturerTitle: 'Ähnlicher Hersteller gefunden',
   similarManufacturerDescription: 'Das gescannte Filament hat den Hersteller "{{scanned}}", aber Sie haben bereits ähnliche Hersteller in Ihrer Datenbank. Möchten Sie einen vorhandenen verwenden oder einen neuen erstellen?',
   createNewManufacturer: '"{{name}}" erstellen',

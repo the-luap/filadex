@@ -386,7 +386,7 @@ export default function Home() {
           toast({
             variant: "destructive",
             title: t('common.error'),
-            description: err?.message || 'Failed to open filament',
+            description: err?.message || t('scanner.openFilamentError'),
           });
           return;
         }

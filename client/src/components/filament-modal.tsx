@@ -1227,7 +1227,7 @@ export function FilamentModal({
           toast({
             variant: "destructive",
             title: t('common.error'),
-            description: err?.message || 'Failed to fetch filament from label',
+            description: err?.message || t('scanner.fetchFromLabelError'),
           });
           return;
         }
