@@ -421,6 +421,31 @@ export const processBambuLabQRCode = (qrCode: string): BambuFilamentData => {
   };
 };
 
+/**
+ * Test-only affordance: simulates scanning a barcode via a window custom event.
+ * Only mounted when VITE_TEST_AFFORDANCES is enabled at build time (e.g., E2E runs).
+ * Dead-code eliminated from production release builds (see docs/adr/0013-test-affordance-build-gating.md).
+ */
+function E2EScanAffordance({ onScan }: { onScan: (code: string) => void }) {
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
+
+  useEffect(() => {
+    const handleSimulateScan = (event: CustomEvent<string | { code: string }>) => {
+      const code = typeof event.detail === "string" ? event.detail : event.detail?.code;
+      if (code) {
+        onScanRef.current(code);
+      }
+    };
+    window.addEventListener("filadex:scan" as any, handleSimulateScan);
+    return () => {
+      window.removeEventListener("filadex:scan" as any, handleSimulateScan);
+    };
+  }, []);
+
+  return null;
+}
+
 export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
   const { t } = useTranslation();
   const [isScanning, setIsScanning] = useState(false);
@@ -534,19 +559,6 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
   };
   handleScanSuccessRef.current = handleScanSuccess;
 
-  useEffect(() => {
-    const handleSimulateScan = (event: CustomEvent<string | { code: string }>) => {
-      const code = typeof event.detail === "string" ? event.detail : event.detail?.code;
-      if (code) {
-        handleScanSuccessRef.current(code);
-      }
-    };
-    window.addEventListener("filadex:scan" as any, handleSimulateScan);
-    return () => {
-      window.removeEventListener("filadex:scan" as any, handleSimulateScan);
-    };
-  }, []);
-
   // Stop scanner when closing the dialog
   const handleClose = () => {
     if (scannerRef.current && isScanning) {
@@ -563,6 +575,9 @@ export function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
 
   return (
     <Dialog open onOpenChange={() => handleClose()}>
+      {import.meta.env.VITE_TEST_AFFORDANCES === "true" && (
+        <E2EScanAffordance onScan={handleScanSuccess} />
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="justify-between flex-row items-center">
           <DialogTitle className="flex items-center">

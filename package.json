@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx server/index.ts",
     "build": "vite build && npm run build:server:pg && npm run build:server:sqlite && npm run build:migrate:pg && npm run build:migrate:sqlite && npm run build:seed:pg && npm run build:seed:sqlite",
+    "build:e2e": "VITE_TEST_AFFORDANCES=true npm run build",
     "build:server:pg": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/index.pg.js",
     "build:server:sqlite": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/index.sqlite.js --tsconfig=tsconfig.sqlite.json",
     "build:migrate:pg": "esbuild scripts/migrate.pg.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/migrate.pg.js",
