@@ -3,7 +3,7 @@ import { Filament, type CommunityCatalogItem } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, type Locale } from "date-fns";
+import { format, parseISO, type Locale } from "date-fns";
 import { de, enUS, pl } from "date-fns/locale";
 import { CalendarIcon, Scan, ScanFace } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -157,7 +157,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger, PopoverClose } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -171,6 +171,46 @@ import { useUnits } from "@/lib/use-units";
 import { formatCurrency, getTemperatureUnitSymbol } from "@/lib/units";
 import { findSimilarManufacturers, findSimilarMaterials } from "@shared/similarity";
 
+export function parseDateValue(value: string | Date | null | undefined): Date | undefined {
+  if (!value) return undefined;
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? undefined : value;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    const datePart = trimmed.includes("T") ? trimmed.split("T")[0] : trimmed;
+    const parsed = parseISO(datePart);
+    return isNaN(parsed.getTime()) ? undefined : parsed;
+  }
+  return undefined;
+}
+
+export function formatDatePayload(
+  value: Date | string | null | undefined,
+  isEditing: boolean
+): string | null | undefined {
+  if (!value) {
+    return isEditing ? null : undefined;
+  }
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? (isEditing ? null : undefined) : format(value, "yyyy-MM-dd");
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return isEditing ? null : undefined;
+    const datePart = trimmed.includes("T") ? trimmed.split("T")[0] : trimmed;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+      return datePart;
+    }
+    const parsed = parseISO(datePart);
+    if (!isNaN(parsed.getTime())) {
+      return format(parsed, "yyyy-MM-dd");
+    }
+  }
+  return isEditing ? null : undefined;
+}
+
 // Create a custom schema for the form with translations
 const createFormSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(1, t('filaments.nameRequired')),
@@ -182,12 +222,12 @@ const createFormSchema = (t: (key: string) => string) => z.object({
   printTemp: z.string().optional(),
   totalWeight: z.number().min(0.1, t('filaments.weightRequired')),
   remainingPercentage: z.number().min(0).max(100),
-  purchaseDate: z.date().optional(),
+  purchaseDate: z.union([z.date(), z.string()]).optional().nullable(),
   purchasePrice: z.number().min(0).optional(),
   status: z.enum(["sealed", "opened"]),
   spoolType: z.enum(["spooled", "spoolless"]),
   dryerCount: z.number().min(0).default(0),
-  lastDryingDate: z.date().optional(),
+  lastDryingDate: z.union([z.date(), z.string()]).optional().nullable(),
   storageLocation: z.string().optional(),
   barcode: z.string().optional(),
   density: z.union([
@@ -766,12 +806,12 @@ export function FilamentModal({
       printTemp: filament?.printTemp || "",
       totalWeight: filament?.totalWeight ? Number(filament.totalWeight) : 1,
       remainingPercentage: filament?.remainingPercentage ? Number(filament.remainingPercentage) : 100,
-      purchaseDate: filament?.purchaseDate ? new Date(filament.purchaseDate) : undefined,
+      purchaseDate: parseDateValue(filament?.purchaseDate),
       purchasePrice: filament?.purchasePrice ? Number(filament.purchasePrice) : undefined,
       status: (filament?.status as any) || undefined,
       spoolType: (filament?.spoolType as any) || undefined,
       dryerCount: filament?.dryerCount || 0,
-      lastDryingDate: filament?.lastDryingDate ? new Date(filament.lastDryingDate) : undefined,
+      lastDryingDate: parseDateValue(filament?.lastDryingDate),
       storageLocation: filament?.storageLocation || "",
       barcode: filament?.barcode || "",
       density: undefined,
@@ -866,12 +906,12 @@ export function FilamentModal({
         printTemp: filament.printTemp || "",
         totalWeight: Number(filament.totalWeight),
         remainingPercentage: Number(filament.remainingPercentage),
-        purchaseDate: filament.purchaseDate ? new Date(filament.purchaseDate) : undefined,
+        purchaseDate: parseDateValue(filament.purchaseDate),
         purchasePrice: filament.purchasePrice ? Number(filament.purchasePrice) : undefined,
         status: (filament.status as any) || undefined,
         spoolType: (filament.spoolType as any) || undefined,
         dryerCount: filament.dryerCount || 0,
-        lastDryingDate: filament.lastDryingDate ? new Date(filament.lastDryingDate) : undefined,
+        lastDryingDate: parseDateValue(filament.lastDryingDate),
         storageLocation: filament.storageLocation || "",
         barcode: filament.barcode || "",
         density: undefined,
@@ -942,6 +982,8 @@ export function FilamentModal({
 
     const payload: any = {
       ...data,
+      purchaseDate: formatDatePayload(data.purchaseDate, isEditing),
+      lastDryingDate: formatDatePayload(data.lastDryingDate, isEditing),
       customFieldValues,
       saveManufacturer: isCustomManufacturer ? saveCustomManufacturer : undefined,
       saveMaterial: isCustomMaterial ? saveCustomMaterial : undefined,
@@ -2134,44 +2176,60 @@ export function FilamentModal({
                     <FormField
                       control={form.control}
                       name="purchaseDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>{t('filaments.purchaseDate')}</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant={"outline"}
-                                className={
-                                  "w-full pl-3 text-left font-normal flex justify-between"
-                                }
-                              >
-                                {field.value ? (
-                                  format(field.value, "dd.MM.yyyy", { locale: DATE_LOCALES[language] })
-                                ) : (
-                                  <span className="dark:text-neutral-400 text-gray-500">{t('common.selectDate')}</span>
+                      render={({ field }) => {
+                        const dateVal = parseDateValue(field.value);
+                        return (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>{t('filaments.purchaseDate')}</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant={"outline"}
+                                    className="w-full pl-3 text-left font-normal flex justify-between"
+                                  >
+                                    {dateVal ? (
+                                      format(dateVal, "dd.MM.yyyy", { locale: DATE_LOCALES[language] })
+                                    ) : (
+                                      <span className="dark:text-neutral-400 text-gray-500">{t('common.selectDate')}</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="center" side="bottom" sideOffset={5} avoidCollisions={false}>
+                                <Calendar
+                                  mode="single"
+                                  selected={dateVal}
+                                  onSelect={field.onChange}
+                                  disabled={(date) =>
+                                    date > new Date() || date < new Date("1900-01-01")
+                                  }
+                                  locale={DATE_LOCALES[language]}
+                                  initialFocus
+                                />
+                                {dateVal && (
+                                  <div className="p-2 border-t border-border flex justify-end">
+                                    <PopoverClose asChild>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-9 px-3 text-sm min-w-[44px]"
+                                        onClick={() => field.onChange(undefined)}
+                                      >
+                                        {t('common.none')}
+                                      </Button>
+                                    </PopoverClose>
+                                  </div>
                                 )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="center" side="bottom" sideOffset={5} avoidCollisions={false}>
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
-                              }
-                              locale={DATE_LOCALES[language]}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
+                    />
 
                     <FormField
                       control={form.control}
@@ -2379,44 +2437,62 @@ export function FilamentModal({
                   <FormField
                     control={form.control}
                     name="lastDryingDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('filaments.lastDryingDate')}</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "dd.MM.yyyy", { locale: DATE_LOCALES[language] })
-                                ) : (
-                                  <span>{t('common.noDate')}</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="center" side="bottom" sideOffset={5} avoidCollisions={false}>
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              locale={DATE_LOCALES[language]}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormDescription className="text-xs">
-                          {t('filaments.lastDryingDateDescription')}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const dateVal = parseDateValue(field.value);
+                      return (
+                        <FormItem>
+                          <FormLabel>{t('filaments.lastDryingDate')}</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant={"outline"}
+                                  className={cn(
+                                    "w-full pl-3 text-left font-normal",
+                                    !dateVal && "text-muted-foreground"
+                                  )}
+                                >
+                                  {dateVal ? (
+                                    format(dateVal, "dd.MM.yyyy", { locale: DATE_LOCALES[language] })
+                                  ) : (
+                                    <span>{t('common.noDate')}</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="center" side="bottom" sideOffset={5} avoidCollisions={false}>
+                              <Calendar
+                                mode="single"
+                                selected={dateVal}
+                                onSelect={field.onChange}
+                                locale={DATE_LOCALES[language]}
+                                initialFocus
+                              />
+                              {dateVal && (
+                                <div className="p-2 border-t border-border flex justify-end">
+                                  <PopoverClose asChild>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-9 px-3 text-sm min-w-[44px]"
+                                      onClick={() => field.onChange(undefined)}
+                                    >
+                                      {t('common.none')}
+                                    </Button>
+                                  </PopoverClose>
+                                </div>
+                              )}
+                            </PopoverContent>
+                          </Popover>
+                          <FormDescription className="text-xs">
+                            {t('filaments.lastDryingDateDescription')}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 </div>
               </div>

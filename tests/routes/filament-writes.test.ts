@@ -74,6 +74,18 @@ describe("POST /api/filaments", () => {
     expect(res.status).toBe(400);
   });
 
+  it("accepts lastDryingDate and purchaseDate as YYYY-MM-DD strings and ISO strings", async () => {
+    const res = await create({
+      ...spool,
+      lastDryingDate: "2026-09-17",
+      purchaseDate: "2026-09-17T00:00:00.000Z",
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.lastDryingDate).toBe("2026-09-17");
+    expect(res.body.purchaseDate).toBe("2026-09-17");
+  });
+
   it("refuses a percentage above 100 and a negative weight", async () => {
     expect((await create({ ...spool, remainingPercentage: 150 })).status).toBe(400);
     expect((await create({ ...spool, totalWeight: -1 })).status).toBe(400);
@@ -175,6 +187,20 @@ describe("PATCH /api/filaments/:id and /batch", () => {
     const good = await request(app).patch(`/api/filaments/${created.id}`).set("Cookie", cookie).send({ remainingPercentage: 40, note: "used some" });
     expect(good.status).toBe(200);
     expect(good.body.remainingPercentage).toBe("40");
+  });
+
+  it("clears lastDryingDate and purchaseDate on patch when null is sent", async () => {
+    const { body: created } = await create({ ...spool, lastDryingDate: "2026-09-17", purchaseDate: "2026-09-17" });
+    expect(created.lastDryingDate).toBe("2026-09-17");
+    expect(created.purchaseDate).toBe("2026-09-17");
+
+    const patchRes = await request(app)
+      .patch(`/api/filaments/${created.id}`)
+      .set("Cookie", cookie)
+      .send({ lastDryingDate: null, purchaseDate: null });
+    expect(patchRes.status).toBe(200);
+    expect(patchRes.body.lastDryingDate).toBeNull();
+    expect(patchRes.body.purchaseDate).toBeNull();
   });
 
   it("validates a batch update the same way", async () => {
