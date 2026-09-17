@@ -48,7 +48,7 @@ export function CollectionSpoolCard({
               {spool.name}
             </span>
             {(spool.manufacturer || spool.colorName) && (
-              <span className="text-xs text-muted-foreground font-medium mt-0.5 block">
+              <span className="text-xs text-muted-foreground font-medium mt-0.5 block break-words">
                 {spool.manufacturer}
                 {spool.manufacturer && spool.colorName && " • "}
                 {spool.colorName}

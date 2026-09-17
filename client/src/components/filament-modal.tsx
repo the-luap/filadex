@@ -1431,7 +1431,7 @@ export function FilamentModal({
                 />
               ))}
             </div>
-            <DialogFooter className="flex-col sm:flex-row gap-2">
+            <DialogFooter className="flex flex-col sm:flex-row-reverse gap-2">
               <Button
                 variant="outline"
                 onClick={() => handleSearchCommunityCatalogFallback(collectionCandidateBarcode)}

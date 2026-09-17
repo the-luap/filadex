@@ -99,4 +99,26 @@ describe("use-toast auto-dismiss and manual dismiss", () => {
     current = getToasts().find((t) => t.id === id);
     expect(current?.open).toBe(false);
   });
+
+  it("renews auto-dismiss timer on toast update", () => {
+    const { id, update } = toast({ title: "Initial text", duration: 3000 });
+
+    // Advance 2000ms
+    vi.advanceTimersByTime(2000);
+    let current = getToasts().find((t) => t.id === id);
+    expect(current?.open).toBe(true);
+
+    // Update toast content without changing duration
+    update({ id, title: "Updated text" });
+
+    // Advancing 1500ms (total 3500ms from start) should keep toast open due to renewal
+    vi.advanceTimersByTime(1500);
+    current = getToasts().find((t) => t.id === id);
+    expect(current?.open).toBe(true);
+
+    // Advancing another 1500ms (3000ms since update) dismisses it
+    vi.advanceTimersByTime(1500);
+    current = getToasts().find((t) => t.id === id);
+    expect(current?.open).toBe(false);
+  });
 });

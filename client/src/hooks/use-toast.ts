@@ -183,9 +183,7 @@ function toast({ ...props }: Toast) {
       type: "UPDATE_TOAST",
       toast: { ...updateProps, id },
     })
-    if (updateProps.duration !== undefined) {
-      scheduleAutoDismiss(id, updateProps.duration)
-    }
+    scheduleAutoDismiss(id, updateProps.duration ?? props.duration)
   }
 
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
