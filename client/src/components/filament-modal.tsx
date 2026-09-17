@@ -157,7 +157,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger, PopoverClose } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -179,7 +179,8 @@ export function parseDateValue(value: string | Date | null | undefined): Date | 
   if (typeof value === "string") {
     const trimmed = value.trim();
     if (!trimmed) return undefined;
-    const parsed = parseISO(trimmed);
+    const datePart = trimmed.includes("T") ? trimmed.split("T")[0] : trimmed;
+    const parsed = parseISO(datePart);
     return isNaN(parsed.getTime()) ? undefined : parsed;
   }
   return undefined;
@@ -198,10 +199,11 @@ export function formatDatePayload(
   if (typeof value === "string") {
     const trimmed = value.trim();
     if (!trimmed) return isEditing ? null : undefined;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-      return trimmed;
+    const datePart = trimmed.includes("T") ? trimmed.split("T")[0] : trimmed;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+      return datePart;
     }
-    const parsed = parseISO(trimmed);
+    const parsed = parseISO(datePart);
     if (!isNaN(parsed.getTime())) {
       return format(parsed, "yyyy-MM-dd");
     }
@@ -2227,15 +2229,17 @@ export function FilamentModal({
                                 />
                                 {dateVal && (
                                   <div className="p-2 border-t border-border flex justify-end">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-9 px-3 text-sm min-w-[44px]"
-                                      onClick={() => field.onChange(undefined)}
-                                    >
-                                      {t('common.none')}
-                                    </Button>
+                                    <PopoverClose asChild>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-9 px-3 text-sm min-w-[44px]"
+                                        onClick={() => field.onChange(undefined)}
+                                      >
+                                        {t('common.none')}
+                                      </Button>
+                                    </PopoverClose>
                                   </div>
                                 )}
                               </PopoverContent>
@@ -2487,15 +2491,17 @@ export function FilamentModal({
                               />
                               {dateVal && (
                                 <div className="p-2 border-t border-border flex justify-end">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-9 px-3 text-sm min-w-[44px]"
-                                    onClick={() => field.onChange(undefined)}
-                                  >
-                                    {t('common.none')}
-                                  </Button>
+                                  <PopoverClose asChild>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-9 px-3 text-sm min-w-[44px]"
+                                      onClick={() => field.onChange(undefined)}
+                                    >
+                                      {t('common.none')}
+                                    </Button>
+                                  </PopoverClose>
                                 </div>
                               )}
                             </PopoverContent>
