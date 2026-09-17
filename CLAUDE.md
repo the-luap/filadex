@@ -95,4 +95,10 @@ Notes for writing e2e specs:
 
 ---
 
+## 6. Mobile-First UI Standard
+
+All visual components, modals, and lists must follow the Mobile-First UI principles documented in `AGENTS.md`. Never use transient/auto-dismissing notifications for interactive decisions; use persistent in-context modals. Ensure touch targets are at least 44x44px and test down to 320px viewport width.
+
+---
+
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
