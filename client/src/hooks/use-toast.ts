@@ -6,7 +6,8 @@ import type {
 } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 5
-const TOAST_REMOVE_DELAY = 5000
+const TOAST_REMOVE_DELAY = 1000
+const DEFAULT_TOAST_DURATION = 5000
 
 type ToasterToast = ToastProps & {
   id: string
@@ -53,7 +54,16 @@ interface State {
   toasts: ToasterToast[]
 }
 
+interface ToastTimer {
+  timeoutId: ReturnType<typeof setTimeout>
+  startTime: number
+  duration: number
+  remaining: number
+  isPaused: boolean
+}
+
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
+const toastTimers = new Map<string, ToastTimer>()
 
 const addToRemoveQueue = (toastId: string) => {
   if (toastTimeouts.has(toastId)) {
@@ -69,6 +79,91 @@ const addToRemoveQueue = (toastId: string) => {
   }, TOAST_REMOVE_DELAY)
 
   toastTimeouts.set(toastId, timeout)
+}
+
+const clearDismissTimeout = (toastId?: string) => {
+  if (toastId) {
+    const existing = toastTimers.get(toastId)
+    if (existing) {
+      clearTimeout(existing.timeoutId)
+      toastTimers.delete(toastId)
+    }
+  } else {
+    toastTimers.forEach((timer) => clearTimeout(timer.timeoutId))
+    toastTimers.clear()
+  }
+}
+
+const scheduleAutoDismiss = (toastId: string, duration?: number) => {
+  clearDismissTimeout(toastId)
+
+  const effectiveDuration = duration !== undefined ? duration : DEFAULT_TOAST_DURATION
+  if (effectiveDuration === Infinity || effectiveDuration <= 0) {
+    return
+  }
+
+  const timeoutId = setTimeout(() => {
+    toastTimers.delete(toastId)
+    dispatch({
+      type: "DISMISS_TOAST",
+      toastId,
+    })
+  }, effectiveDuration)
+
+  toastTimers.set(toastId, {
+    timeoutId,
+    startTime: Date.now(),
+    duration: effectiveDuration,
+    remaining: effectiveDuration,
+    isPaused: false,
+  })
+}
+
+const pauseToastTimer = (timer: ToastTimer) => {
+  if (timer.isPaused) return
+  clearTimeout(timer.timeoutId)
+  const elapsed = Date.now() - timer.startTime
+  timer.remaining = Math.max(0, timer.remaining - elapsed)
+  timer.isPaused = true
+}
+
+const resumeToastTimer = (toastId: string, timer: ToastTimer) => {
+  if (!timer.isPaused) return
+  if (timer.remaining <= 0) {
+    toastTimers.delete(toastId)
+    dispatch({
+      type: "DISMISS_TOAST",
+      toastId,
+    })
+    return
+  }
+  timer.startTime = Date.now()
+  timer.isPaused = false
+  timer.timeoutId = setTimeout(() => {
+    toastTimers.delete(toastId)
+    dispatch({
+      type: "DISMISS_TOAST",
+      toastId,
+    })
+  }, timer.remaining)
+}
+
+function pauseAutoDismiss(toastId?: string) {
+  if (toastId) {
+    const timer = toastTimers.get(toastId)
+    if (timer) pauseToastTimer(timer)
+  } else {
+    toastTimers.forEach(pauseToastTimer)
+  }
+}
+
+function resumeAutoDismiss(toastId?: string) {
+  if (toastId) {
+    const timer = toastTimers.get(toastId)
+    if (timer) resumeToastTimer(toastId, timer)
+  } else {
+    toastTimers.forEach((timer, id) => resumeToastTimer(id, timer))
+  }
 }
 
 export const reducer = (state: State, action: Action): State => {
@@ -89,6 +184,8 @@ export const reducer = (state: State, action: Action): State => {
 
     case "DISMISS_TOAST": {
       const { toastId } = action
+
+      clearDismissTimeout(toastId)
 
       // ! Side effects ! - This could be extracted into a dismissToast() action,
       // but I'll keep it here for simplicity
@@ -142,11 +239,14 @@ type Toast = Omit<ToasterToast, "id">
 function toast({ ...props }: Toast) {
   const id = genId()
 
-  const update = (props: ToasterToast) =>
+  const update = (updateProps: ToasterToast) => {
     dispatch({
       type: "UPDATE_TOAST",
-      toast: { ...props, id },
+      toast: { ...updateProps, id },
     })
+    scheduleAutoDismiss(id, updateProps.duration ?? props.duration)
+  }
+
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
   dispatch({
@@ -161,11 +261,24 @@ function toast({ ...props }: Toast) {
     },
   })
 
+  scheduleAutoDismiss(id, props.duration)
+
   return {
     id: id,
     dismiss,
     update,
   }
+}
+
+function dismiss(toastId?: string) {
+  dispatch({ type: "DISMISS_TOAST", toastId })
+}
+
+function clearToasts() {
+  clearDismissTimeout()
+  toastTimeouts.forEach((timeout) => clearTimeout(timeout))
+  toastTimeouts.clear()
+  dispatch({ type: "REMOVE_TOAST" })
 }
 
 function useToast() {
@@ -184,8 +297,24 @@ function useToast() {
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+    dismiss,
+    pauseAutoDismiss,
+    resumeAutoDismiss,
   }
 }
 
-export { useToast, toast }
+function getToasts(): ToasterToast[] {
+  return memoryState.toasts
+}
+
+export {
+  useToast,
+  toast,
+  dismiss,
+  clearToasts,
+  pauseAutoDismiss,
+  resumeAutoDismiss,
+  getToasts,
+  DEFAULT_TOAST_DURATION,
+  TOAST_REMOVE_DELAY,
+}
