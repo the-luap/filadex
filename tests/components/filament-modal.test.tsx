@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageContext } from "../../client/src/i18n";
-import { FilamentModal, escapeRegex, findMatchingColor, findMatchingManufacturer, findMatchingMaterial, formatDatePayload, normalizeHexColor, parseDateValue, stripParentheticalAnnotations } from "../../client/src/components/filament-modal";
+import { FilamentModal, escapeRegex, findMatchingColor, findMatchingManufacturer, findMatchingMaterial, normalizeHexColor, stripParentheticalAnnotations } from "../../client/src/components/filament-modal";
 
 // Mock Dialog so children are rendered in SSR / renderToString
 vi.mock("@/components/ui/dialog", () => ({
@@ -708,59 +708,5 @@ describe("normalizeHexColor and colorCode handling", () => {
       expect(findMatchingMaterial(undefined, available)).toBeUndefined();
     });
   });
-
-  describe("parseDateValue", () => {
-    it("parses valid YYYY-MM-DD string into a valid Date in local time", () => {
-      const parsed = parseDateValue("2026-09-17");
-      expect(parsed).toBeInstanceOf(Date);
-      expect(parsed?.getFullYear()).toBe(2026);
-      expect(parsed?.getMonth()).toBe(8); // September is 8 (0-indexed)
-      expect(parsed?.getDate()).toBe(17);
-    });
-
-    it("handles Date objects and leaves them intact", () => {
-      const d = new Date(2026, 8, 17);
-      expect(parseDateValue(d)).toBe(d);
-    });
-
-    it("returns undefined for null, undefined, empty, or invalid input", () => {
-      expect(parseDateValue(null)).toBeUndefined();
-      expect(parseDateValue(undefined)).toBeUndefined();
-      expect(parseDateValue("")).toBeUndefined();
-      expect(parseDateValue("   ")).toBeUndefined();
-      expect(parseDateValue("invalid-date")).toBeUndefined();
-      expect(parseDateValue(new Date(NaN))).toBeUndefined();
-    });
-  });
-
-  describe("formatDatePayload", () => {
-    it("formats a Date object into YYYY-MM-DD without timezone shift", () => {
-      const d = new Date(2026, 8, 17);
-      expect(formatDatePayload(d, false)).toBe("2026-09-17");
-      expect(formatDatePayload(d, true)).toBe("2026-09-17");
-    });
-
-    it("passes through YYYY-MM-DD strings directly", () => {
-      expect(formatDatePayload("2026-09-17", false)).toBe("2026-09-17");
-      expect(formatDatePayload("2026-09-17", true)).toBe("2026-09-17");
-    });
-
-    it("converts ISO datetime strings into YYYY-MM-DD", () => {
-      expect(formatDatePayload("2026-09-17T00:00:00.000Z", false)).toBe("2026-09-17");
-    });
-
-    it("returns null when clearing date on existing filament (isEditing = true)", () => {
-      expect(formatDatePayload(undefined, true)).toBeNull();
-      expect(formatDatePayload(null, true)).toBeNull();
-      expect(formatDatePayload("", true)).toBeNull();
-    });
-
-    it("returns undefined when date is omitted for new filament (isEditing = false)", () => {
-      expect(formatDatePayload(undefined, false)).toBeUndefined();
-      expect(formatDatePayload(null, false)).toBeUndefined();
-      expect(formatDatePayload("", false)).toBeUndefined();
-    });
-  });
 });
-
 

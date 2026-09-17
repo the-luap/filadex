@@ -375,17 +375,7 @@ const numberish = (min: number, max?: number) => z.union([z.string(), z.number()
   .refine((value) => Number(value) >= min, { message: `must be at least ${min}` })
   .refine((value) => max === undefined || Number(value) <= max, { message: `must be at most ${max}` });
 
-export const isoDate = z.string()
-  .transform((val) => val.trim())
-  .refine(
-    (val) =>
-      /^\d{4}-\d{2}-\d{2}$/.test(val) ||
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}(:?\d{2})?)?$/.test(val),
-    {
-      message: "must be a date in YYYY-MM-DD form",
-    }
-  )
-  .transform((val) => (val.includes("T") ? val.split("T")[0] : val));
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be a date in YYYY-MM-DD form");
 
 export const filamentStatuses = ["sealed", "opened"] as const;
 export const spoolTypes = ["spooled", "spoolless"] as const;

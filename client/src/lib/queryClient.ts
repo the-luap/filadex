@@ -16,20 +16,19 @@ async function throwIfResNotOk(res: Response) {
     try {
       const textResponse = await res.text();
       // Try to parse the response as JSON
-      let jsonData: any = null;
       try {
-        jsonData = JSON.parse(textResponse);
+        const jsonData = JSON.parse(textResponse);
         redirectIfPasswordChangeRequired(res.status, jsonData);
+        // If 'message' or 'detail' is present, return it
+        if (jsonData.message || jsonData.detail) {
+          // Add status code to the error object for better error handling
+          jsonData.status = res.status;
+          throw jsonData;
+        }
       } catch (parseError) {
         // If not valid JSON, use the text
       }
-      if (jsonData && (jsonData.message || jsonData.detail)) {
-        jsonData.status = res.status;
-        throw jsonData;
-      }
-      const err: any = new Error(`${res.status}: ${textResponse || res.statusText}`);
-      err.status = res.status;
-      throw err;
+      throw new Error(`${res.status}: ${textResponse || res.statusText}`);
     } catch (error) {
       if (error instanceof Error) {
         throw error;
