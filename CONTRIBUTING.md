@@ -72,7 +72,8 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/the-lu
 
 * Fill in the required template
 * Do not include issue numbers in the PR title
-* Include screenshots and animated GIFs in your pull request whenever possible
+* Include screenshots for every change a user can see — see *Screenshots for UI
+  changes* below
 * Follow the TypeScript and Documentation styleguides below
 * Include adequate tests — `npm test` runs against both database engines, and
   `npm run test:e2e` covers browser-only behaviour
@@ -81,6 +82,30 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/the-lu
   files under `migrations/pg/` are written and identified by `drizzle-kit`, and
   a trailing newline changes the hash `scripts/migrate.pg.ts` records when it
   baselines an existing installation. See `docs/adr/0001` before touching them.
+
+### Screenshots for UI changes
+
+A pull request that changes what a user sees must show it. A reviewer can read a
+diff of Tailwind classes and still have no idea what the screen looks like
+afterwards, and several defects that reached `main` — a dialog overflowing a
+phone screen, a close button invisible without a mouse — were visible in a
+screenshot and invisible in the diff.
+
+This applies to any change to a component, dialog, layout, colour, icon, or
+piece of user-facing copy. It is not required for a change no user can see.
+
+* Show before and after. For a surface that did not exist before, after alone is
+  enough — say so.
+* Include a phone width (390px or narrower) as well as desktop. `AGENTS.md` asks
+  for mobile-first layouts, and a screenshot is how a reviewer checks that.
+* Show both themes when the change touches colour or contrast; otherwise say
+  which one you captured.
+* For something that moves — a dialog opening, a toast dismissing — a short
+  screen recording says more than two stills.
+
+Captures from the running application are fine; they do not need to be polished.
+`npx playwright test --headed` against a seeded database is an easy way to reach
+a screen that is otherwise tedious to set up.
 
 ## Styleguides
 
