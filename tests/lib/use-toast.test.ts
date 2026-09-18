@@ -59,6 +59,23 @@ describe("use-toast auto-dismiss and manual dismiss", () => {
     expect(current?.open).toBe(false);
   });
 
+  it("supports durations exceeding standard 5000ms (e.g. 8000ms)", () => {
+    const { id } = toast({ title: "Long duration test", duration: 8000 });
+
+    let current = getToasts().find((t) => t.id === id);
+    expect(current?.open).toBe(true);
+
+    // After 5000ms, toast remains open
+    vi.advanceTimersByTime(5000);
+    current = getToasts().find((t) => t.id === id);
+    expect(current?.open).toBe(true);
+
+    // After remaining 3000ms, it closes
+    vi.advanceTimersByTime(3000);
+    current = getToasts().find((t) => t.id === id);
+    expect(current?.open).toBe(false);
+  });
+
   it("does not auto-dismiss when duration is Infinity", () => {
     const { id } = toast({ title: "Persistent toast", duration: Infinity });
 
