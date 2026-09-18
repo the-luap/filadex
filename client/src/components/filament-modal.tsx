@@ -1389,7 +1389,7 @@ export function FilamentModal({
             if (!open) setCollectionMatchPrompt(null);
           }}
         >
-          <AlertDialogContent className="w-[calc(100vw-2rem)] sm:w-full max-w-lg">
+          <AlertDialogContent className="w-[calc(100vw-2rem)] sm:w-full max-w-xl">
             <AlertDialogHeader>
               <AlertDialogTitle>{t('scanner.spoolMatchedActionTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
@@ -1405,7 +1405,7 @@ export function FilamentModal({
                 interactive={false}
               />
             </div>
-            <AlertDialogFooter className="flex-col sm:flex-row-reverse gap-2">
+            <AlertDialogFooter className="flex-col sm:flex-row-reverse sm:flex-wrap gap-2">
               <Button
                 variant="default"
                 onClick={() => {
@@ -2693,7 +2693,7 @@ export function FilamentModal({
             if (!open) setOverwriteSpecsPrompt(null);
           }}
         >
-          <AlertDialogContent className="w-[calc(100vw-2rem)] sm:w-full max-w-lg">
+          <AlertDialogContent className="w-[calc(100vw-2rem)] sm:w-full max-w-xl">
             <AlertDialogHeader>
               <AlertDialogTitle>{t('scanner.overwriteSpecsTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
@@ -2709,7 +2709,7 @@ export function FilamentModal({
                 interactive={false}
               />
             </div>
-            <AlertDialogFooter className="flex-col sm:flex-row-reverse gap-2">
+            <AlertDialogFooter className="flex-col sm:flex-row-reverse sm:flex-wrap gap-2">
               <Button
                 variant="default"
                 onClick={() => {
