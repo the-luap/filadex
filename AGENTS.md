@@ -22,7 +22,7 @@ All visual components, dialogs, modals, forms, and lists in Filadex should follo
 ### 4. Dialog & Modal Action Stacking
 - Dialog footers with multiple action buttons should stack vertically on mobile (e.g. `flex-col sm:flex-row-reverse gap-2`), placing primary action buttons within easy thumb reach.
 - Dialog containers should provide safe margins on narrow screens (e.g. `w-[calc(100vw-2rem)] sm:w-full max-w-lg` or `max-w-xl` for multi-action prompts).
-- **Flex Gap Spacing:** Always use `gap-*` (e.g. `gap-2` or `sm:gap-2`) rather than margin-based sibling spacing (`space-x-*` / `space-y-*`). Margin-based space utilities break across wrapped rows (`flex-wrap`) and apply asymmetric margins when reversed (`flex-row-reverse`). `AlertDialogFooter` and `DialogFooter` default to `sm:gap-2`.
+- **Flex Gap Spacing:** Always use `gap-*` (e.g. `gap-2` or `sm:gap-2`) rather than margin-based sibling spacing (`space-x-*` / `space-y-*`). Margin-based space utilities break across wrapped rows (`flex-wrap`) and apply asymmetric margins when reversed (`flex-row-reverse`). `AlertDialogFooter`, `DialogFooter`, and `SheetFooter` default to `sm:gap-2`.
 
 ### 5. Text Containment & Overflow
 - Ensure text containers inside flexbox or grid layouts use `min-w-0` and allow word breaking so user-provided titles, barcodes, or catalog descriptions do not cause horizontal blowout.

@@ -12,7 +12,11 @@
 # Requirements:
 #   - gh CLI installed and authenticated (gh auth login)
 #   - curl
-#   - node (available in project environment for JSON parsing)
+#   - node (available in project environment for JSON parsing and URL encoding)
+#
+# Note:
+#   Uploads to GitHub's 'user-attachments/assets' backend. This endpoint requires
+#   an authenticated user session or personal access token with repo scope.
 #
 
 set -euo pipefail
@@ -35,23 +39,24 @@ get_repo_name() {
   local remote="$1"
   local url
   url=$(git config --get "remote.${remote}.url" 2>/dev/null || true)
-  if [[ "$url" =~ github\.com[:/]([^/]+/[^/.]+)(\.git)?$ ]]; then
+  url="${url%.git}"
+  if [[ "$url" =~ github\.com[:/]([^/]+/[^/]+)$ ]]; then
     echo "${BASH_REMATCH[1]}"
   fi
 }
 
 get_repo_id() {
   local repo="$1"
-  gh api "repos/${repo}" 2>/dev/null | node -e '
-    let d = "";
-    process.stdin.on("data", c => d += c);
-    process.stdin.on("end", () => {
+  local raw
+  raw=$(gh api "repos/${repo}" 2>/dev/null || true)
+  if [ -n "$raw" ]; then
+    node -e '
       try {
-        const obj = JSON.parse(d);
+        const obj = JSON.parse(process.argv[1]);
         if (obj && obj.id) console.log(obj.id);
       } catch {}
-    });
-  '
+    ' "$raw"
+  fi
 }
 
 # Find a repository where the authenticated user can upload assets.
@@ -88,7 +93,8 @@ if [ -z "$REPO_ID" ]; then
 fi
 
 get_mime() {
-  case "${1##*.}" in
+  local ext="${1##*.}"
+  case "${ext,,}" in
     png) echo "image/png" ;;
     jpg|jpeg) echo "image/jpeg" ;;
     gif) echo "image/gif" ;;
@@ -109,16 +115,17 @@ for FILE in "$@"; do
   fi
 
   BASENAME=$(basename "$FILE")
-  EXT="${FILE##*.}"
   NAME_WITHOUT_EXT="${BASENAME%.*}"
   MIME=$(get_mime "$FILE")
+  ENCODED_NAME=$(node -e 'console.log(encodeURIComponent(process.argv[1]))' "$BASENAME")
 
-  RESPONSE=$(curl -s -X POST "https://uploads.github.com/user-attachments/assets?name=${BASENAME}&content_type=${MIME}&repository_id=${REPO_ID}" \
+  RESPONSE=$(curl -s -X POST "https://uploads.github.com/user-attachments/assets?name=${ENCODED_NAME}&content_type=${MIME}&repository_id=${REPO_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json" \
     --data-binary "@${FILE}")
 
-  URL=$(node -e '
+  PARSED_OUTPUT=""
+  if ! PARSED_OUTPUT=$(node -e '
     const raw = process.argv[1];
     try {
       const res = JSON.parse(raw);
@@ -132,7 +139,12 @@ for FILE in "$@"; do
       console.error("Failed to parse response:", raw);
       process.exit(1);
     }
-  ' "$RESPONSE")
+  ' "$RESPONSE" 2>&1); then
+    echo "Error uploading ${FILE}: ${PARSED_OUTPUT}" >&2
+    continue
+  fi
+
+  URL="$PARSED_OUTPUT"
 
   if [ -n "$URL" ]; then
     if [[ "$MIME" == video/* ]]; then
