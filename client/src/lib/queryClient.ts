@@ -11,31 +11,35 @@ export function redirectIfPasswordChangeRequired(status: number, body: unknown):
   }
 }
 
-async function throwIfResNotOk(res: Response) {
+export class ApiError extends Error {
+  status: number;
+  data?: any;
+
+  constructor(status: number, message: string, data?: any) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.data = data;
+    Object.setPrototypeOf(this, ApiError.prototype);
+  }
+}
+
+export async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
+    const textResponse = await res.text();
+    let jsonData: any = null;
     try {
-      const textResponse = await res.text();
-      // Try to parse the response as JSON
-      try {
-        const jsonData = JSON.parse(textResponse);
-        redirectIfPasswordChangeRequired(res.status, jsonData);
-        // If 'message' or 'detail' is present, return it
-        if (jsonData.message || jsonData.detail) {
-          // Add status code to the error object for better error handling
-          jsonData.status = res.status;
-          throw jsonData;
-        }
-      } catch (parseError) {
-        // If not valid JSON, use the text
-      }
-      throw new Error(`${res.status}: ${textResponse || res.statusText}`);
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      } else {
-        throw error; // If it's already a JSON object
-      }
+      jsonData = JSON.parse(textResponse);
+      redirectIfPasswordChangeRequired(res.status, jsonData);
+    } catch {
+      // If not valid JSON, use textResponse
     }
+
+    const message =
+      (jsonData && (jsonData.message || jsonData.detail)) ||
+      `${res.status}: ${textResponse || res.statusText}`;
+
+    throw new ApiError(res.status, String(message), jsonData ?? undefined);
   }
 }
 
@@ -72,10 +76,11 @@ export async function apiRequest<T = any>(
 
     return await res.json();
   } catch (error) {
-    // Only log errors for non-authentication endpoints or if it's not a 401 error
     const isAuthEndpoint = url.includes('/api/auth/');
-    const is401Error = error instanceof Error &&
-      (error.message.includes('401') || error.message.includes('Not authenticated'));
+    const is401Error =
+      (error instanceof ApiError && error.status === 401) ||
+      (error instanceof Error &&
+        (error.message.includes('401') || error.message.includes('Not authenticated')));
 
     if (!isAuthEndpoint || !is401Error) {
       console.error(`API request to ${url} failed:`, error);
@@ -116,10 +121,11 @@ export const getQueryFn: <T>(options: {
     } catch (error) {
       const url = queryKey[0] as string;
       const isAuthEndpoint = url.includes('/api/auth/');
-      const is401Error = error instanceof Error &&
-        (error.message.includes('401') || error.message.includes('Not authenticated'));
+      const is401Error =
+        (error instanceof ApiError && error.status === 401) ||
+        (error instanceof Error &&
+          (error.message.includes('401') || error.message.includes('Not authenticated')));
 
-      // Only log errors for non-authentication endpoints or if it's not a 401 error
       if (!isAuthEndpoint || !is401Error) {
         console.error(`Query to ${url} failed:`, error);
       }
