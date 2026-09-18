@@ -47,6 +47,7 @@ const scanner = {
   spoolMatchedActionDescription: '{{name}} mit Barcode {{code}} in Ihrer Sammlung gefunden.',
   viewInCollection: 'In Sammlung ansehen',
   addAnotherSpool: 'Weitere Spule hinzufügen',
+  useCollectionSpecs: 'Spezifikationen aus Sammlung übernehmen',
 };
 
 // German translations

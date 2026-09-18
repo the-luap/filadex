@@ -47,6 +47,7 @@ const scanner = {
   spoolMatchedActionDescription: 'Found {{name}} with barcode {{code}} in your collection.',
   viewInCollection: 'View in Collection',
   addAnotherSpool: 'Add Another Spool',
+  useCollectionSpecs: 'Use Collection Specs',
 };
 
 // English translations

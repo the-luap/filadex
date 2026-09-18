@@ -18,6 +18,7 @@ describe("collection scanner translations", () => {
       "spoolMatchedActionDescription",
       "viewInCollection",
       "addAnotherSpool",
+      "useCollectionSpecs",
     ];
 
     for (const key of requiredKeys) {

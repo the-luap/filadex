@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
 import { useToast } from "@/hooks/use-toast";
+import { CollectionSpoolCard } from "@/components/collection-spool-card";
 import { resolveCollectionBarcode, extractProductSpecsFromSpool, type ExtractedProductSpecs } from "@/lib/collection-lookup";
 
 function createSpoolDraftFromSpecs(specs: ExtractedProductSpecs, barcode: string): Filament {
@@ -803,7 +804,7 @@ export default function Home() {
             if (!open) setMatchedCollectionSpoolPrompt(null);
           }}
         >
-          <AlertDialogContent>
+          <AlertDialogContent className="w-[calc(100vw-2rem)] sm:w-full max-w-lg">
             <AlertDialogHeader>
               <AlertDialogTitle>{t('scanner.spoolMatchedActionTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
@@ -813,22 +814,13 @@ export default function Home() {
                 })}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => setMatchedCollectionSpoolPrompt(null)}
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchTerm(matchedCollectionSpoolPrompt.code);
-                  setMatchedCollectionSpoolPrompt(null);
-                }}
-              >
-                {t('scanner.viewInCollection')}
-              </Button>
+            <div className="py-2">
+              <CollectionSpoolCard
+                spool={matchedCollectionSpoolPrompt.spool}
+                interactive={false}
+              />
+            </div>
+            <AlertDialogFooter className="flex-col sm:flex-row-reverse gap-2">
               <Button
                 variant="default"
                 onClick={() => {
@@ -841,6 +833,21 @@ export default function Home() {
                 }}
               >
                 {t('scanner.addAnotherSpool')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm(matchedCollectionSpoolPrompt.code);
+                  setMatchedCollectionSpoolPrompt(null);
+                }}
+              >
+                {t('scanner.viewInCollection')}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setMatchedCollectionSpoolPrompt(null)}
+              >
+                {t('common.cancel')}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -855,7 +862,7 @@ export default function Home() {
             if (!open) setCollectionConflictPrompt(null);
           }}
         >
-          <DialogContent className="max-w-lg">
+          <DialogContent className="w-[calc(100vw-2rem)] sm:w-full max-w-lg">
             <DialogHeader>
               <DialogTitle>{t('scanner.multipleCollectionMatchesTitle')}</DialogTitle>
               <DialogDescription>
@@ -863,54 +870,21 @@ export default function Home() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-              {collectionConflictPrompt.candidates.map((candidate) => {
-                const colorCode = candidate.colorCode || "#888888";
-                const spoolTypeText = candidate.spoolType === "spoolless"
-                  ? t('filaments.spoolless')
-                  : t('filaments.spooled');
-                const weightText = candidate.totalWeight ? `${candidate.totalWeight}kg` : '';
-                return (
-                  <button
-                    key={candidate.id}
-                    type="button"
-                    onClick={() => {
-                      const specs = extractProductSpecsFromSpool(candidate);
-                      setSelectedFilament(undefined);
-                      setCopyFromFilament(createSpoolDraftFromSpecs(specs, collectionConflictPrompt.code));
-                      setShowAddModal(true);
-                      setCollectionConflictPrompt(null);
-                    }}
-                    className="w-full text-left p-3 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:border-primary hover:bg-neutral-50 dark:hover:bg-neutral-800 transition flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-5 h-5 rounded-full border border-neutral-300 dark:border-neutral-600 flex-shrink-0"
-                        style={{ backgroundColor: colorCode }}
-                      />
-                      <div>
-                        <div className="font-medium text-sm text-neutral-900 dark:text-neutral-100">
-                          {candidate.name} {candidate.colorName ? `(${candidate.colorName})` : ''}
-                        </div>
-                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                          {candidate.manufacturer} • {candidate.material}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right text-xs text-neutral-500 dark:text-neutral-400 flex flex-col items-end">
-                      <span className="font-semibold text-neutral-700 dark:text-neutral-300">{spoolTypeText}</span>
-                      {weightText && <span>{weightText}</span>}
-                    </div>
-                  </button>
-                );
-              })}
+              {collectionConflictPrompt.candidates.map((candidate) => (
+                <CollectionSpoolCard
+                  key={candidate.id}
+                  spool={candidate}
+                  onClick={() => {
+                    const specs = extractProductSpecsFromSpool(candidate);
+                    setSelectedFilament(undefined);
+                    setCopyFromFilament(createSpoolDraftFromSpecs(specs, collectionConflictPrompt.code));
+                    setShowAddModal(true);
+                    setCollectionConflictPrompt(null);
+                  }}
+                />
+              ))}
             </div>
-            <DialogFooter className="flex-col sm:flex-row gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => setCollectionConflictPrompt(null)}
-              >
-                {t('common.cancel')}
-              </Button>
+            <DialogFooter className="flex-col sm:flex-row-reverse gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -919,6 +893,12 @@ export default function Home() {
                 }}
               >
                 {t('scanner.viewInCollection')}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setCollectionConflictPrompt(null)}
+              >
+                {t('common.cancel')}
               </Button>
             </DialogFooter>
           </DialogContent>

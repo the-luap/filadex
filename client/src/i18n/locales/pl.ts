@@ -47,6 +47,7 @@ const scanner = {
   spoolMatchedActionDescription: 'Znaleziono {{name}} z kodem kreskowym {{code}} w Twojej kolekcji.',
   viewInCollection: 'Zobacz w kolekcji',
   addAnotherSpool: 'Dodaj kolejną szpulę',
+  useCollectionSpecs: 'Użyj specyfikacji z kolekcji',
 };
 
 // Polish translations
