@@ -39,7 +39,9 @@ get_repo_name() {
   local remote="$1"
   local url
   url=$(git config --get "remote.${remote}.url" 2>/dev/null || true)
+  url="${url%/}"
   url="${url%.git}"
+  url="${url%/}"
   if [[ "$url" =~ github\.com[:/]([^/]+/[^/]+)$ ]]; then
     echo "${BASH_REMATCH[1]}"
   fi
@@ -47,16 +49,7 @@ get_repo_name() {
 
 get_repo_id() {
   local repo="$1"
-  local raw
-  raw=$(gh api "repos/${repo}" 2>/dev/null || true)
-  if [ -n "$raw" ]; then
-    node -e '
-      try {
-        const obj = JSON.parse(process.argv[1]);
-        if (obj && obj.id) console.log(obj.id);
-      } catch {}
-    ' "$raw"
-  fi
+  gh api "repos/${repo}" --jq .id 2>/dev/null || true
 }
 
 # Find a repository where the authenticated user can upload assets.
@@ -101,6 +94,7 @@ get_mime() {
     webp) echo "image/webp" ;;
     svg) echo "image/svg+xml" ;;
     mp4) echo "video/mp4" ;;
+    webm) echo "video/webm" ;;
     mov) echo "video/quicktime" ;;
     *) echo "application/octet-stream" ;;
   esac
@@ -108,9 +102,12 @@ get_mime() {
 
 echo "Uploading using repository context: ${ACTIVE_REPO} (ID: ${REPO_ID})" >&2
 
+FAILED_COUNT=0
+
 for FILE in "$@"; do
   if [ ! -f "$FILE" ]; then
     echo "Error: File not found: $FILE" >&2
+    FAILED_COUNT=$((FAILED_COUNT + 1))
     continue
   fi
 
@@ -119,10 +116,15 @@ for FILE in "$@"; do
   MIME=$(get_mime "$FILE")
   ENCODED_NAME=$(node -e 'console.log(encodeURIComponent(process.argv[1]))' "$BASENAME")
 
-  RESPONSE=$(curl -s -X POST "https://uploads.github.com/user-attachments/assets?name=${ENCODED_NAME}&content_type=${MIME}&repository_id=${REPO_ID}" \
+  RESPONSE=""
+  if ! RESPONSE=$(curl -sS -X POST "https://uploads.github.com/user-attachments/assets?name=${ENCODED_NAME}&content_type=${MIME}&repository_id=${REPO_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json" \
-    --data-binary "@${FILE}")
+    --data-binary "@${FILE}" 2>&1); then
+    echo "Error uploading ${FILE}: Network/curl failure: ${RESPONSE}" >&2
+    FAILED_COUNT=$((FAILED_COUNT + 1))
+    continue
+  fi
 
   PARSED_OUTPUT=""
   if ! PARSED_OUTPUT=$(node -e '
@@ -141,6 +143,7 @@ for FILE in "$@"; do
     }
   ' "$RESPONSE" 2>&1); then
     echo "Error uploading ${FILE}: ${PARSED_OUTPUT}" >&2
+    FAILED_COUNT=$((FAILED_COUNT + 1))
     continue
   fi
 
@@ -159,3 +162,8 @@ for FILE in "$@"; do
     echo ""
   fi
 done
+
+if [ "$FAILED_COUNT" -gt 0 ]; then
+  echo "Finished with ${FAILED_COUNT} upload error(s)." >&2
+  exit 1
+fi
