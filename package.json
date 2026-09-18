@@ -34,7 +34,8 @@
     "lint": "eslint . --max-warnings 0",
     "type-check": "tsc --noEmit",
     "verify:bundle": "tsx scripts/verify-bundle-affordances.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "upload:pr-asset": "bash scripts/upload-pr-asset.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

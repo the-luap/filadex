@@ -95,13 +95,18 @@ This applies to any change to a component, dialog, layout, colour, icon, or
 piece of user-facing copy. It is not required for a change no user can see.
 
 * Show before and after. For a surface that did not exist before, after alone is
-  enough — say so.
+  enough — say so. Capture genuine "before" states from the unmodified base branch
+  (`main`) before making changes rather than reconstructing the old UI.
 * Include a phone width (390px or narrower) as well as desktop. `AGENTS.md` asks
   for mobile-first layouts, and a screenshot is how a reviewer checks that.
 * Show both themes when the change touches colour or contrast; otherwise say
   which one you captured.
 * For something that moves — a dialog opening, a toast dismissing — a short
   screen recording says more than two stills.
+* Attach images directly to the pull request rather than serving them from a git branch
+  (which risks broken links if branches or forks are cleaned up). Dragging images into
+  the GitHub description box or running `npm run upload:pr-asset -- <files...>` uploads
+  them directly to GitHub's native attachment storage.
 
 Captures from the running application are fine; they do not need to be polished.
 `npx playwright test --headed` against a seeded database is an easy way to reach
