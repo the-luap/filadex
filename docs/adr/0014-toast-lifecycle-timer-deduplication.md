@@ -42,10 +42,14 @@ This architecture decision records the consolidation of toast lifecycle manageme
   By omitting `duration` from the `<Toast>` props and supplying `duration={Infinity}` at the provider level, Radix's internal `duration = durationProp || context.duration` evaluates to `Infinity`. Radix's internal `startTimer` explicitly checks `if (!duration || duration === Infinity) return`, ensuring Radix never schedules any `setTimeout`.
 
 ### 3. Verification & Guardrails
-- Automated tests verify:
-  - `DEFAULT_TOAST_DURATION` changes take effect deterministically.
-  - Toasts with `duration: Infinity` remain open without being dismissed by Radix.
-  - Custom durations (e.g. 3000ms) are respected cleanly without duplicate timer racing.
+- **Structural Wiring Guardrails (`tests/components/toaster.test.tsx`)**:
+  - Mocks Radix toast primitives to verify the prop contract: ensures `<ToastProvider>` receives `duration={Infinity}` and individual `<Toast>` elements receive `duration: undefined`.
+  - *Scope*: This asserts JSX wiring to prevent accidental regressions (e.g. someone re-adding `duration={5000}` or spreading `duration` onto `<Toast>`), but does not assert Radix's internal consumption of those props.
+- **Behavioral Timing Authority (`tests/lib/use-toast.test.ts`)**:
+  - Uses Vitest fake timers (`vi.useFakeTimers()`) to verify the timing authority in `use-toast.ts`.
+  - Asserts that toasts with extended durations (e.g. 8000ms) remain open past 5000ms and dismiss precisely at their designated time, proving `use-toast.ts` controls the lifecycle without early cutoff.
+- **Real DOM Integration (`tests/e2e/toast-auto-dismiss.spec.ts`)**:
+  - Exercises full browser execution via Playwright against unmocked Radix primitives to verify real DOM presentation, hover pause/resume, and dismiss lifecycle.
 
 ## Consequences
 
@@ -53,3 +57,10 @@ This architecture decision records the consolidation of toast lifecycle manageme
 - **Persistent Toasts Supported**: `toast({ duration: Infinity })` remains open until explicitly dismissed by user interaction or programmatically.
 - **Cleaner Lifecycle**: Eliminated race conditions between Radix's DOM event loop timer and `use-toast`'s state machine.
 - **Preserved Accessibility & Animations**: Radix still handles all keyboard navigation (Escape, focus management), ARIA attributes, swipe dismiss gestures, and open/close animation lifecycle states without interfering with the timer.
+- **Trade-off: Loss of Secondary Dismissal Backstop**:
+  - Radix's provider timer previously acted as an incidental backstop: if `use-toast.ts`'s timer was ever paused and never resumed (such as a missed `pointerleave` event under edge browser conditions), Radix's 5000ms timer would eventually dismiss the toast regardless.
+  - With Radix's internal timer disabled, a toast stuck in a paused state will no longer auto-dismiss on its own.
+  - This trade-off is accepted because:
+    1. Pauses are isolated per toast timer; other existing or future toasts are completely unaffected.
+    2. Users retain the ability to dismiss the toast manually at any time via the close button (`ToastClose`) or keyboard (`Escape`).
+    3. The reliability gained by supporting extended durations and persistent toasts without silent truncation outweighs the reliance on an accidental fallback timer.

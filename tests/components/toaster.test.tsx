@@ -2,6 +2,18 @@ import React from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+/**
+ * Guardrail test for Toaster prop wiring.
+ *
+ * NOTE: This test asserts that the expected props are passed to Radix primitives
+ * (duration={Infinity} on ToastProvider and duration: undefined on Toast) to prevent
+ * accidental regression of the JSX wiring. Because Radix components are mocked here,
+ * this does not assert Radix's internal consumption of those props or the timer behavior.
+ *
+ * Actual runtime timer behavior is pinned by unit tests in tests/lib/use-toast.test.ts
+ * and end-to-end browser execution in tests/e2e/toast-auto-dismiss.spec.ts.
+ */
+
 // Spy on Toast and ToastProvider props
 const toastProviderProps: any[] = [];
 const toastProps: any[] = [];
