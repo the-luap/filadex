@@ -21,7 +21,26 @@ All visual components, dialogs, modals, forms, and lists in Filadex should follo
 
 ### 4. Dialog & Modal Action Stacking
 - Dialog footers with multiple action buttons should stack vertically on mobile (e.g. `flex-col sm:flex-row-reverse gap-2`), placing primary action buttons within easy thumb reach.
-- Dialog containers should provide safe margins on narrow screens (e.g. `w-[calc(100vw-2rem)] sm:w-full max-w-lg`).
+- Dialog containers should provide safe margins on narrow screens (e.g. `w-[calc(100vw-2rem)] sm:w-full max-w-lg` or `max-w-xl` for multi-action prompts).
+- **Flex Gap Spacing:** Always use `gap-*` (e.g. `gap-2` or `sm:gap-2`) rather than margin-based sibling spacing (`space-x-*` / `space-y-*`). Margin-based space utilities break across wrapped rows (`flex-wrap`) and apply asymmetric margins when reversed (`flex-row-reverse`). `AlertDialogFooter`, `DialogFooter`, and `SheetFooter` default to `sm:gap-2`.
 
 ### 5. Text Containment & Overflow
 - Ensure text containers inside flexbox or grid layouts use `min-w-0` and allow word breaking so user-provided titles, barcodes, or catalog descriptions do not cause horizontal blowout.
+
+## UI Evidence & Pull Request Screenshots
+
+All user-visible changes require visual verification under `CONTRIBUTING.md`. Follow these rules when capturing and linking screenshots.
+
+### 1. Genuine Before/After Captures (No Reconstructions)
+- **Capture Baseline First:** For any layout bugfix, redesign, or UI change, capture the genuine "before" state from the **unmodified base branch (`main`)** *before* touching code (or via a separate git worktree of `main`).
+- **Do Not Reconstruct:** Never create synthetic comparison pages or side-by-side mockup components that emulate the old UI on the feature branch. Reviewers require genuine captures of the real running application to verify that the bug existed and has been resolved.
+- **Identical Conditions:** Capture at both mobile (390px or narrower) and desktop (1280px) viewports using identical seed data and themes (light/dark if color or contrast changes).
+- **Local Storage:** Store temporary captures locally in `.screenshots/` (gitignored).
+
+### 2. PR Screenshot Hosting (Native User-Attachments)
+- **Never Host on Git Branches:** Never serve PR screenshots from a git branch (such as a `media/*` branch or a fork repository). If the branch or fork is deleted or cleaned up later, the PR loses its visual history.
+- **Upload to GitHub Attachments:** AI agents and contributors must upload images/videos directly to GitHub's native user-attachments storage using the helper script:
+  ```bash
+  npm run upload:pr-asset -- <screenshot1.png> [screenshot2.png ...]
+  ```
+- Paste the returned canonical `https://github.com/user-attachments/assets/<uuid>` Markdown snippets directly into the PR description.

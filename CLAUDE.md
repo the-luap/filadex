@@ -95,9 +95,9 @@ Notes for writing e2e specs:
 
 ---
 
-## 6. Mobile-First UI Standard
+## 6. UI Standards & Visual Evidence
 
-All visual components, modals, and lists must follow the Mobile-First UI principles documented in `AGENTS.md`. Never use transient/auto-dismissing notifications for interactive decisions; use persistent in-context modals. Ensure touch targets are at least 44x44px and test down to 320px viewport width.
+All visual components, modals, forms, and pull request visual evidence must follow `AGENTS.md`. Refer to `AGENTS.md` for mobile-first design principles, viewport standards, touch targets, dialog action stacking, and the pull request screenshot workflow (genuine baseline captures and native attachment uploads).
 
 ---
 
