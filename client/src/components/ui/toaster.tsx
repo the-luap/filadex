@@ -12,8 +12,8 @@ export function Toaster() {
   const { toasts } = useToast()
 
   return (
-    <ToastProvider duration={5000}>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+    <ToastProvider duration={Infinity}>
+      {toasts.map(function ({ id, title, description, action, duration: _duration, ...props }) {
         return (
           <Toast key={id} {...props}>
             <div className="grid gap-1 w-full min-w-0 flex-1">
