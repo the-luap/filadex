@@ -42,7 +42,5 @@ All user-visible changes require visual verification under `CONTRIBUTING.md`. Fo
 - **Upload to GitHub Attachments:** AI agents and contributors must upload images/videos directly to GitHub's native user-attachments storage using the helper script:
   ```bash
   npm run upload:pr-asset -- <screenshot1.png> [screenshot2.png ...]
-  # or
-  bash scripts/upload-pr-asset.sh <screenshot1.png> [screenshot2.png ...]
   ```
 - Paste the returned canonical `https://github.com/user-attachments/assets/<uuid>` Markdown snippets directly into the PR description.

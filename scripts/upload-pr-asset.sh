@@ -47,47 +47,44 @@ get_repo_name() {
   fi
 }
 
-get_repo_id() {
-  local repo="$1"
-  gh api "repos/${repo}" --jq .id 2>/dev/null || true
-}
-
-# Find a repository where the authenticated user can upload assets.
-# Prefer user's fork (origin), then upstream repository.
-REPO_CANDIDATES=()
-if [ -n "${GITHUB_REPOSITORY:-}" ]; then
-  REPO_CANDIDATES+=("${GITHUB_REPOSITORY}")
-fi
-ORIGIN_REPO=$(get_repo_name "origin")
-if [ -n "$ORIGIN_REPO" ]; then
-  REPO_CANDIDATES+=("$ORIGIN_REPO")
-fi
-UPSTREAM_REPO=$(get_repo_name "upstream")
-if [ -n "$UPSTREAM_REPO" ]; then
-  REPO_CANDIDATES+=("$UPSTREAM_REPO")
-fi
-REPO_CANDIDATES+=("the-luap/filadex")
-
-REPO_ID=""
+# Resolve repository context. In a GitHub fork workflow, contributors have write
+# access to their fork ('origin') rather than 'upstream', while maintainers have
+# write access to 'origin' directly.
 ACTIVE_REPO=""
-
-for CANDIDATE in "${REPO_CANDIDATES[@]}"; do
-  CANDIDATE_ID=$(get_repo_id "$CANDIDATE")
-  if [ -n "$CANDIDATE_ID" ]; then
-    REPO_ID="$CANDIDATE_ID"
+for CANDIDATE in "$(get_repo_name "origin")" "$(get_repo_name "upstream")" "${GITHUB_REPOSITORY:-}" "$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)"; do
+  if [ -n "$CANDIDATE" ]; then
     ACTIVE_REPO="$CANDIDATE"
     break
   fi
 done
 
-if [ -z "$REPO_ID" ]; then
-  echo "Error: Could not determine GitHub repository ID from candidates: ${REPO_CANDIDATES[*]}" >&2
+if [ -z "$ACTIVE_REPO" ]; then
+  echo "Error: Could not determine GitHub repository from git remotes or gh CLI." >&2
   exit 1
 fi
 
+# The user-attachments endpoint requires GitHub's numeric REST database ID (bigint)
+# rather than GraphQL node ID ('R_kg...'). Query the REST API for the ID.
+REPO_ID=$(gh api "repos/${ACTIVE_REPO}" --jq .id 2>/dev/null || true)
+if [ -z "$REPO_ID" ]; then
+  echo "Error: Could not retrieve repository ID for '${ACTIVE_REPO}'." >&2
+  exit 1
+fi
+
+get_file_size() {
+  local file="$1"
+  local size=""
+  if [ "$(uname -s)" = "Darwin" ]; then
+    size=$(stat -f %z "$file" 2>/dev/null || wc -c < "$file")
+  else
+    size=$(stat -c %s "$file" 2>/dev/null || wc -c < "$file")
+  fi
+  printf '%s' "$size" | tr -d '[:space:]'
+}
+
 get_mime() {
   local ext="${1##*.}"
-  case "${ext,,}" in
+  case "$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')" in
     png) echo "image/png" ;;
     jpg|jpeg) echo "image/jpeg" ;;
     gif) echo "image/gif" ;;
@@ -107,6 +104,16 @@ FAILED_COUNT=0
 for FILE in "$@"; do
   if [ ! -f "$FILE" ]; then
     echo "Error: File not found: $FILE" >&2
+    FAILED_COUNT=$((FAILED_COUNT + 1))
+    continue
+  fi
+
+  FILE_SIZE=$(get_file_size "$FILE")
+  # GitHub user attachments are capped at 10MB (10,485,760 bytes)
+  if [ -n "$FILE_SIZE" ] && [ "$FILE_SIZE" -gt 10485760 ]; then
+    MB=$((FILE_SIZE / 1048576))
+    DEC=$(( (FILE_SIZE % 1048576) * 100 / 1048576 ))
+    echo "Error: File exceeds GitHub 10MB attachment limit: ${FILE} ($(printf "%d.%02dMB" "$MB" "$DEC") / ${FILE_SIZE} bytes)" >&2
     FAILED_COUNT=$((FAILED_COUNT + 1))
     continue
   fi
