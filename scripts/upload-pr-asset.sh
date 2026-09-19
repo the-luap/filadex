@@ -21,12 +21,17 @@
 
 set -euo pipefail
 
-if [ "$#" -lt 1 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+if [ "$#" -ge 1 ] && { [ "$1" = "-h" ] || [ "$1" = "--help" ]; }; then
   echo "Usage: $0 <image-or-video-file> [more-files...]"
   echo ""
   echo "Uploads assets to GitHub's native attachment storage (user-attachments)"
   echo "and outputs canonical Markdown embed snippets for PR descriptions."
   exit 0
+fi
+
+if [ "$#" -lt 1 ]; then
+  echo "Usage: $0 <image-or-video-file> [more-files...]" >&2
+  exit 1
 fi
 
 TOKEN=$(gh auth token 2>/dev/null || true)
@@ -47,16 +52,13 @@ get_repo_name() {
   fi
 }
 
-# Resolve repository context. In a GitHub fork workflow, contributors have write
-# access to their fork ('origin') rather than 'upstream', while maintainers have
-# write access to 'origin' directly.
-ACTIVE_REPO=""
-for CANDIDATE in "$(get_repo_name "origin")" "$(get_repo_name "upstream")" "${GITHUB_REPOSITORY:-}" "$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)"; do
-  if [ -n "$CANDIDATE" ]; then
-    ACTIVE_REPO="$CANDIDATE"
-    break
-  fi
-done
+# Resolve repository context lazily to avoid unnecessary network calls to 'gh repo view'.
+# In a GitHub fork workflow, contributors have write access to their fork ('origin')
+# rather than 'upstream', while maintainers have write access to 'origin' directly.
+ACTIVE_REPO="$(get_repo_name "origin")"
+[ -z "$ACTIVE_REPO" ] && ACTIVE_REPO="$(get_repo_name "upstream")"
+[ -z "$ACTIVE_REPO" ] && ACTIVE_REPO="${GITHUB_REPOSITORY:-}"
+[ -z "$ACTIVE_REPO" ] && ACTIVE_REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)"
 
 if [ -z "$ACTIVE_REPO" ]; then
   echo "Error: Could not determine GitHub repository from git remotes or gh CLI." >&2
