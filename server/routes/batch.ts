@@ -5,7 +5,7 @@ import { storage } from "../storage";
 import { authenticate } from "../auth";
 import { InsertFilament, filamentPatchSchema } from "@shared/schema";
 import { logger as appLogger } from "../utils/logger";
-import { validateBatchIds } from "../utils/batch-operations";
+import { MAX_BATCH_IDS, validateBatchIds } from "../utils/batch-operations";
 
 export function registerBatchRoutes(app: Express): void {
   // BATCH DELETE multiple filaments
@@ -16,6 +16,10 @@ export function registerBatchRoutes(app: Express): void {
 
       if (!Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ message: "Invalid request: ids must be a non-empty array" });
+      }
+
+      if (ids.length > MAX_BATCH_IDS) {
+        return res.status(400).json({ message: `Invalid request: at most ${MAX_BATCH_IDS} ids per batch` });
       }
 
       const validIds = validateBatchIds(ids);
@@ -46,6 +50,10 @@ export function registerBatchRoutes(app: Express): void {
 
       if (!Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ message: "Invalid request: ids must be a non-empty array" });
+      }
+
+      if (ids.length > MAX_BATCH_IDS) {
+        return res.status(400).json({ message: `Invalid request: at most ${MAX_BATCH_IDS} ids per batch` });
       }
 
       if (!updates || typeof updates !== 'object') {

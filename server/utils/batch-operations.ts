@@ -11,12 +11,22 @@ export interface BatchResult<T> {
 }
 
 /**
- * Validates batch IDs from request
+ * The most spools one batch request may name. A caller used to be able to
+ * repeat one owned id ten thousand times in a 20 KB body; every occurrence ran
+ * its own SELECT, UPDATE and SELECT, so the request budget was bytes rather
+ * than database work. Deduplicating is what removes the amplification - the
+ * ceiling is here so that a collection larger than any real one cannot be
+ * driven in a single request either.
+ */
+export const MAX_BATCH_IDS = 1000;
+
+/**
+ * Validates batch IDs from request, keeping each id once
  * @param ids - The IDs to validate (from request body)
- * @returns Array of validated IDs as numbers
+ * @returns Array of unique validated IDs as numbers, in first-seen order
  */
 export function validateBatchIds(ids: unknown[]): number[] {
-  return validateIds(ids);
+  return Array.from(new Set(validateIds(ids)));
 }
 
 /**
