@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { ApiError, throwIfResNotOk, apiRequest } from "../../client/src/lib/queryClient";
+import { ApiError, throwIfResNotOk, apiRequest, queryClient, retireAccountScopedCache } from "../../client/src/lib/queryClient";
 
 describe("ApiError and queryClient error handling contract", () => {
   let consoleErrorSpy: any;
@@ -137,5 +137,24 @@ describe("ApiError and queryClient error handling contract", () => {
 
     const result = await apiRequest("/api/filaments/123", { method: "DELETE" });
     expect(result).toBeUndefined();
+  });
+});
+
+/**
+ * The SPA mounts one QueryClient above every account, and private queries are
+ * keyed by endpoint alone. Signing out and back in as somebody else used to
+ * leave the first account's rows in that cache, where the second account's
+ * components read them while their own request was still in flight.
+ */
+describe("account-scoped cache retirement", () => {
+  it("drops cached private results", () => {
+    queryClient.setQueryData(["/api/filaments"], [{ id: 1, name: "Alice's PETG" }]);
+    queryClient.setQueryData(["/api/statistics"], { totalPurchaseValue: 1234 });
+
+    retireAccountScopedCache();
+
+    expect(queryClient.getQueryData(["/api/filaments"])).toBeUndefined();
+    expect(queryClient.getQueryData(["/api/statistics"])).toBeUndefined();
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
   });
 });
