@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { apiRequest } from "./api";
+import { retireAccountScopedCache } from "./queryClient";
 import { useLocation } from "wouter";
 
 // Define public routes that don't require authentication
@@ -41,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = (userData: User) => {
+    retireAccountScopedCache();
     setUser(userData);
     localStorage.setItem("isAuthenticated", "true");
   };
@@ -51,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
+      retireAccountScopedCache();
       setUser(null);
       localStorage.removeItem("isAuthenticated");
     }

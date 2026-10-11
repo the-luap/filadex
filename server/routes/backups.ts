@@ -99,6 +99,12 @@ export async function createBackupFile(): Promise<{ filename: string; size: numb
   if (!fs.existsSync(backupDir)) {
     fs.mkdirSync(backupDir, { recursive: true, mode: 0o700 });
   }
+  // The chmod below only protects a snapshot once VACUUM INTO has finished
+  // writing it, and a reader who opened it before that keeps reading. An
+  // owner-only directory closes the window, and the directory may predate this
+  // code - the container entrypoint creates it - so the mode is set every time
+  // rather than only at creation.
+  await fs.promises.chmod(backupDir, 0o700);
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${BACKUP_FILENAME_PREFIX}${timestamp}.db`;
@@ -223,12 +229,21 @@ export function registerBackupRoutes(app: Express): void {
 
   // Stream a fresh snapshot directly without leaving a persistent file behind (admin only, SQLite only)
   app.post("/api/admin/backups/stream", authenticate, isAdmin, requireSqliteDialect, sensitiveActionLimiter, async (_req: Request, res: Response) => {
-    const tempFile = path.join(os.tmpdir(), `filadex-snapshot-${nanoid()}.db`);
+    // A snapshot holds every password hash and pending token, and the OS temp
+    // directory is world-traversable: whatever mode SQLite creates the file
+    // with, any other local account could open it while it is being streamed.
+    // mkdtemp creates the directory 0700 and owned by this process, so the file
+    // inside is unreachable regardless of umask.
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "filadex-snapshot-"));
+    const tempFile = path.join(tempDir, `${nanoid()}.db`);
     const cleanup = () => {
       try {
-        if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+        // The directory, not just the snapshot: SQLite may leave a journal or
+        // WAL sibling next to the file it wrote, and an empty-only rmdir would
+        // then leave the whole directory behind.
+        fs.rmSync(tempDir, { recursive: true, force: true });
       } catch {
-        // Best effort: the file is in the OS temp directory anyway.
+        // Best effort: the directory is in the OS temp directory anyway.
       }
     };
 

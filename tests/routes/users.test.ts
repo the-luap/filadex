@@ -113,6 +113,11 @@ describe("an account that must still change its password", () => {
   });
 });
 
+// Throwaway values for a throwaway test database, not credentials anywhere
+// (hence the ggignore tags).
+const WEAK_GUESSES = ["admin", "password", "filadex"]; // ggignore: throwaway test fixture credential
+const OPERATOR_CHOICE = "chosen-by-the-operator"; // ggignore: throwaway test fixture credential
+
 describe("initializeAdminUser", () => {
   it("does not bring admin/admin back once the bootstrap account has been renamed", async () => {
     const admins = await request(app).get("/api/users").set("Cookie", adminCookie);
@@ -137,6 +142,48 @@ describe("initializeAdminUser", () => {
 
     const created = await storage.getUserByUsername("admin");
     expect(created).toMatchObject({ role: "admin", forceChangePassword: true });
+  });
+
+  // A fresh installation used to be owned by whoever reached it first: the
+  // password was the string "admin", and the pending-password-change gate
+  // lets that session set a password of its own.
+  it("never creates the first admin with a password that ships in the repository", async () => {
+    const admins = await request(app).get("/api/users").set("Cookie", adminCookie);
+    const admin = admins.body.find((user: { role: string }) => user.role === "admin");
+    await storage.deleteUser(admin.id);
+    // What a real installation has: no operator-supplied password, so the
+    // server generates one. tests/setup.ts sets it for every other test.
+    const suiteDefault = process.env.INITIAL_ADMIN_PASSWORD;
+    delete process.env.INITIAL_ADMIN_PASSWORD;
+
+    try {
+      await initializeAdminUser();
+
+      for (const guess of WEAK_GUESSES) {
+        await request(app).post("/api/auth/login").send({ username: "admin", password: guess }).expect(401);
+      }
+    } finally {
+      process.env.INITIAL_ADMIN_PASSWORD = suiteDefault;
+    }
+  });
+
+  it("uses INITIAL_ADMIN_PASSWORD when the operator sets one", async () => {
+    const admins = await request(app).get("/api/users").set("Cookie", adminCookie);
+    const admin = admins.body.find((user: { role: string }) => user.role === "admin");
+    await storage.deleteUser(admin.id);
+    const suiteDefault = process.env.INITIAL_ADMIN_PASSWORD;
+    process.env.INITIAL_ADMIN_PASSWORD = OPERATOR_CHOICE;
+
+    try {
+      await initializeAdminUser();
+
+      await request(app)
+        .post("/api/auth/login")
+        .send({ username: "admin", password: OPERATOR_CHOICE }) // ggignore: throwaway test fixture credential
+        .expect(200);
+    } finally {
+      process.env.INITIAL_ADMIN_PASSWORD = suiteDefault;
+    }
   });
 });
 

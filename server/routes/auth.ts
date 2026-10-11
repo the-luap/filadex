@@ -9,6 +9,7 @@ import {
   resendVerificationSchema,
   usernameSchema,
 } from "../../shared/schema";
+import { rejectCrossSiteRequest } from "../utils/same-origin";
 import { authenticate, hashPassword, verifyPassword, verifyPasswordOrBurnTime, generateToken, hashSecretToken, setSessionCookie } from "../auth";
 import { storage } from "../storage";
 import { sendMail } from "../utils/mailer";
@@ -253,7 +254,7 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // Login
-  app.post("/api/auth/login", loginLimiter, async (req, res) => {
+  app.post("/api/auth/login", rejectCrossSiteRequest, loginLimiter, async (req, res) => {
     try {
       const { username, password } = req.body;
       if (typeof username !== "string" || typeof password !== "string") {
@@ -313,7 +314,7 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // Change password
-  app.post("/api/auth/change-password", authenticate, loginLimiter, async (req, res) => {
+  app.post("/api/auth/change-password", rejectCrossSiteRequest, authenticate, loginLimiter, async (req, res) => {
     try {
       const result = changePasswordSchema.safeParse(req.body);
 

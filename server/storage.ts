@@ -939,8 +939,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async batchUpdateFilaments(ids: number[], updates: Partial<InsertFilament>, userId: number): Promise<number> {
-    // Convert all IDs to numbers to ensure they're valid
-    const validIds = ids.map(id => Number(id));
+    // Convert all IDs to numbers to ensure they're valid. Each id is applied
+    // once however often the caller named it: a repeated id costs a SELECT, an
+    // UPDATE and another SELECT every time, and applying the same update twice
+    // changes nothing the first pass did not already do. The route rejects an
+    // oversized array before this point; the set is what keeps the guarantee
+    // for any other caller.
+    const validIds = Array.from(new Set(ids.map(id => Number(id))));
 
     // Applied one at a time (not a single bulk UPDATE): each filament may
     // need its own filamentType resolved/created if the update touches a

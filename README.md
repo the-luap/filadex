@@ -157,10 +157,12 @@ PORT=8080                     # Port the application will run on
 LOG_LEVEL=INFO                # Logging level (DEBUG, INFO, WARN, ERROR)
 
 # Authentication
-# The first admin is created as admin/admin whenever no admin account exists,
-# and every route except changing the password and setting a language
-# preference is refused until it has been changed. There is no variable that
-# sets it.
+# The first admin account is created whenever no admin account exists. Its
+# password is INITIAL_ADMIN_PASSWORD if you set one, and otherwise a random
+# password printed once to the server log. Every route except changing the
+# password and setting a language preference is refused until it has been
+# changed.
+INITIAL_ADMIN_PASSWORD=       # Optional; a random one is generated and logged
 JWT_SECRET=your_secret_key    # Secret key for JWT token generation
 
 # The address users open Filadex at. Verification and password-reset emails
@@ -187,8 +189,8 @@ For Docker deployment, you can configure the port in the `docker-compose.yml` fi
 
 ### Authentication and User Management
 
-1. **First Login**: The system comes with a default admin user (username: `admin`, password: `admin`)
-2. **Password Change**: Until the default password has been changed, the server refuses every other request from that account, and the app takes you to the change-password page
+1. **First Login**: The first start creates the admin account (username: `admin`). Its password is whatever you set in `INITIAL_ADMIN_PASSWORD`, or a random one the server prints to its log once — `docker compose logs filadex` shows it
+2. **Password Change**: Until that first password has been changed, the server refuses every other request from that account, and the app takes you to the change-password page
 3. **User Management**: Admin users can access the user management interface by clicking the users icon in the header
 4. **Creating Users**: Admins can create new users, set permissions, and manage existing accounts
 5. **Sharing Filaments**: Users can share their filament collection by clicking the share icon in the header

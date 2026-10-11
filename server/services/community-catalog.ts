@@ -10,6 +10,12 @@ export type { CommunityCatalogItem };
 export const MAX_SPOOLMANDB_RESPONSE_BYTES = 8 * 1024 * 1024;
 export const MAX_OFD_RESPONSE_BYTES = 15 * 1024 * 1024;
 export const MAX_GUNZIP_OUTPUT_BYTES = 50 * 1024 * 1024;
+// Input bytes do not bound the objects a dataset expands into: variants are
+// multiplied by the sizes grouped under them, so a small file can describe a
+// very large catalog. The real OFD catalog is a few tens of thousands of items;
+// anything past this is a provider fault or an attack, and aborting leaves the
+// previous cache in place.
+export const MAX_CATALOG_ITEMS = 250_000;
 
 export interface CatalogSourceStatus {
   count: number;
@@ -299,11 +305,22 @@ export class CommunityCatalogService {
     }
 
     const items: CommunityCatalogItem[] = [];
+    // One variant id may appear once. The provider's sizes are grouped by
+    // variant id above, so a dataset that repeats an id - a few hundred bytes
+    // each - would append that whole group again per occurrence and expand a
+    // download well inside the byte and decompression limits into millions of
+    // objects, on the event loop that is serving requests. Deduplication here
+    // bounds the output by the number of distinct variants; setSourceItems
+    // merges duplicates afterwards either way, so nothing legitimate is lost.
+    const seenVariantIds = new Set<string>();
 
     for (const rawVariant of data.variants || []) {
       const parsedVariant = ofdVariantSchema.safeParse(rawVariant);
       if (!parsedVariant.success) continue;
       const variant = parsedVariant.data;
+
+      if (seenVariantIds.has(variant.id)) continue;
+      seenVariantIds.add(variant.id);
 
       const filament = filamentMap.get(variant.filament_id);
       if (!filament) continue;
@@ -395,6 +412,10 @@ export class CommunityCatalogService {
             gtin: size.gtin ? String(size.gtin).trim() : null,
           });
         }
+      }
+
+      if (items.length > MAX_CATALOG_ITEMS) {
+        throw new Error(`OFD dataset expands past ${MAX_CATALOG_ITEMS} catalog items; preserving existing cache`);
       }
     }
 

@@ -890,3 +890,60 @@ describe("POST /api/auth/change-password", () => {
     await expect(loginAs(app, "shorty", shortPassword)).resolves.toBeTruthy();
   });
 });
+
+/**
+ * SameSite=Lax still allows a top-level form POST, and login answers with a
+ * session cookie - so a page on another origin could submit the attacker's own
+ * credentials and leave the browser signed in as them, with whatever the
+ * visitor filed afterwards landing in the attacker's inventory.
+ */
+describe("a login driven from another site", () => {
+  beforeEach(async () => {
+    await registerAndVerify(app, alice);
+  });
+
+  it("is refused when the browser says the request came from another site", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .set("Sec-Fetch-Site", "cross-site")
+      .send({ username: alice.username, password: alice.password });
+
+    expect(res.status).toBe(403);
+    expect(res.headers["set-cookie"]).toBeUndefined();
+  });
+
+  it("is refused when the Origin belongs to another site", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .set("Origin", "https://attacker.example")
+      .send({ username: alice.username, password: alice.password });
+
+    expect(res.status).toBe(403);
+    expect(res.headers["set-cookie"]).toBeUndefined();
+  });
+
+  it("is refused when it arrives as an HTML form submission", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .type("form")
+      .send({ username: alice.username, password: alice.password });
+
+    expect(res.status).toBe(415);
+    expect(res.headers["set-cookie"]).toBeUndefined();
+  });
+
+  it("still admits the application's own request and a typed URL", async () => {
+    const own = await request(app)
+      .post("/api/auth/login")
+      .set("Sec-Fetch-Site", "same-origin")
+      .send({ username: alice.username, password: alice.password });
+    expect(own.status).toBe(200);
+    expect(own.headers["set-cookie"]).toBeDefined();
+
+    const typed = await request(app)
+      .post("/api/auth/login")
+      .set("Sec-Fetch-Site", "none")
+      .send({ username: alice.username, password: alice.password });
+    expect(typed.status).toBe(200);
+  });
+});

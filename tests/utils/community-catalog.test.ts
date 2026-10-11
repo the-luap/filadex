@@ -159,6 +159,29 @@ describe("CommunityCatalogService", () => {
   });
 
   describe("parseOfdDataset", () => {
+    // The sizes under a variant are grouped by variant id, so a dataset that
+    // repeats an id appended that whole group again per occurrence. A provider
+    // - or whoever can influence what it serves - could turn a download well
+    // inside the byte and decompression limits into millions of objects, built
+    // synchronously on the event loop that serves requests.
+    it("expands a variant id that the dataset repeats only once", () => {
+      const variant = { id: "v1", filament_id: "f1", name: "Green", color_hex: "#00AE42" };
+      const mockOfd: OfdDataset = {
+        version: "2026.09.08",
+        generated_at: "2026-09-08T00:00:00Z",
+        brands: [{ id: "b1", name: "Bambu Lab", slug: "bambu_lab" }],
+        filaments: [{ id: "f1", brand_id: "b1", name: "PLA Basic", material: "PLA" }],
+        variants: new Array(500).fill(variant),
+        sizes: [
+          { id: "s1", variant_id: "v1", diameter: 1.75, filament_weight: 1000 },
+          { id: "s2", variant_id: "v1", diameter: 1.75, filament_weight: 250 },
+        ],
+      };
+
+      // Two sizes, once - not 500 x 2.
+      expect(service.parseOfdDataset(mockOfd).length).toBe(2);
+    });
+
     it("transforms OFD all.json hierarchy into flat CommunityCatalogItems", () => {
       const mockOfd: OfdDataset = {
         version: "2026.09.08",

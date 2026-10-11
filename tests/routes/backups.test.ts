@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import type { Express } from "express";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { registerAuthRoutes } from "../../server/routes/auth";
 import { registerBackupRoutes } from "../../server/routes/backups";
 import { storage } from "../../server/storage";
@@ -260,5 +261,47 @@ describe.skipIf(storage.getDialect() !== "sqlite")("Backup routes on SQLite", ()
     // No files should be left in the backup directory
     const files = fs.readdirSync(backupDir());
     expect(files.length).toBe(0);
+  });
+
+  // A snapshot carries every password hash and pending token. It used to be
+  // written straight into the world-traversable OS temp directory, where any
+  // other local account could open it for as long as the download ran.
+  it("keeps the streamed snapshot inside an owner-only directory and removes it", async () => {
+    const before = fs.readdirSync(os.tmpdir()).filter((entry) => entry.startsWith("filadex-snapshot-"));
+    expect(before).toEqual([]);
+
+    let observed: { mode: number; isDirectory: boolean } | null = null;
+    const createBackup = storage.createBackup.bind(storage);
+    const spy = vi.spyOn(storage, "createBackup").mockImplementation(async (destination: string) => {
+      const stat = fs.statSync(path.dirname(destination));
+      observed = { mode: stat.mode & 0o777, isDirectory: stat.isDirectory() };
+      return createBackup(destination);
+    });
+
+    try {
+      const res = await request(app)
+        .post("/api/admin/backups/stream")
+        .set("Cookie", adminCookie)
+        .responseType("blob");
+      expect(res.status).toBe(200);
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(observed).toEqual({ mode: 0o700, isDirectory: true });
+
+    // The route cleans up once its own pipeline resolves, which can be a tick
+    // after the client has the last byte.
+    await expect
+      .poll(() => fs.readdirSync(os.tmpdir()).filter((entry) => entry.startsWith("filadex-snapshot-")))
+      .toEqual([]);
+  });
+
+  it("keeps the backup directory owner-only even when it already existed", async () => {
+    fs.chmodSync(backupDir(), 0o755);
+
+    await request(app).post("/api/admin/backups").set("Cookie", adminCookie).expect(201);
+
+    expect(fs.statSync(backupDir()).mode & 0o777).toBe(0o700);
   });
 });

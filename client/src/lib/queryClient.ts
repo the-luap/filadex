@@ -148,3 +148,18 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+/**
+ * Empties the one QueryClient the whole SPA shares.
+ *
+ * Private queries are keyed by endpoint alone - ['/api/filaments'],
+ * ['/api/statistics'], ['/api/api-tokens'] - so after one account logs out and
+ * another logs in without a page load, the second account's components read the
+ * first account's rows from the cache while their own request is still in
+ * flight, and keep reading them if that request fails. Cancelling first stops a
+ * reply to the old session from repopulating what clear() just removed.
+ */
+export function retireAccountScopedCache(): void {
+  void queryClient.cancelQueries();
+  queryClient.clear();
+}
