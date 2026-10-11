@@ -218,6 +218,22 @@ export const isAdmin = requireRole("admin");
 // all. The check is for the role, not the name: it used to look for an account
 // called "admin", so renaming the bootstrap account brought a fresh admin/admin
 // back on the next restart.
+//
+// The password used to be the string "admin". Whoever reached a fresh instance
+// first could log in with it and - the pending-password-change gate permits
+// exactly that route - set a password of their own, which left them owning the
+// installation. The credential is now either operator-supplied or unique to the
+// installation, and a generated one is printed once to the server log: the
+// channel only whoever runs the process can read.
+function resolveInitialAdminPassword(): { password: string; generated: boolean } {
+  const configured = process.env.INITIAL_ADMIN_PASSWORD?.trim();
+  if (configured) {
+    return { password: configured, generated: false };
+  }
+  // base64url so the operator can copy it out of a log line without escaping.
+  return { password: crypto.randomBytes(18).toString("base64url"), generated: true };
+}
+
 export async function initializeAdminUser() {
   try {
     if (await storage.countAdmins() > 0) {
@@ -232,18 +248,28 @@ export async function initializeAdminUser() {
       return;
     }
 
-    {
-      // Create default admin user
-      const hashedPassword = await hashPassword("admin");
-      await storage.createUser({
-        username: "admin",
-        password: hashedPassword,
-        isAdmin: true,
-        role: "admin",
-        emailVerified: true,
-        forceChangePassword: true
-      });
-      logger.warn("Default admin user created with the well-known password 'admin'. Log in and change it now; every other route is refused until you do.");
+    const { password, generated } = resolveInitialAdminPassword();
+    await storage.createUser({
+      username: "admin",
+      password: await hashPassword(password),
+      isAdmin: true,
+      role: "admin",
+      emailVerified: true,
+      forceChangePassword: true
+    });
+
+    if (generated) {
+      logger.warn(
+        "Created the first admin account 'admin' with a one-time password, printed here and nowhere else:\n" +
+        `\n    ${password}\n\n` +
+        "Log in with it and set your own password; every other route is refused until you do. " +
+        "Set INITIAL_ADMIN_PASSWORD to choose this password yourself instead."
+      );
+    } else {
+      logger.warn(
+        "Created the first admin account 'admin' with the password from INITIAL_ADMIN_PASSWORD. " +
+        "Log in and change it; every other route is refused until you do."
+      );
     }
   } catch (error) {
     logger.error("Error initializing admin user:", error);

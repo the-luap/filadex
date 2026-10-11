@@ -1,5 +1,12 @@
 import { afterAll, beforeAll, beforeEach, vi } from "vitest";
 
+// The first admin is created with INITIAL_ADMIN_PASSWORD, or a random password
+// when that is unset (server/auth.ts). The suite logs in as admin/admin against
+// a throwaway database, so it supplies the password here rather than changing
+// it after the fact - a change would stamp passwordChangedAt and retire the
+// sessions a test is holding.
+process.env.INITIAL_ADMIN_PASSWORD = "admin"; // ggignore: throwaway test fixture credential
+
 // The application builds its database connection at import time from DATABASE_URL
 // (server/db.ts or server/db.sqlite.ts via @db). Point it at the test database
 // instead - reached through the dialect's driver, owned by the test suite.

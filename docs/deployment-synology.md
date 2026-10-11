@@ -39,10 +39,10 @@ openssl rand -hex 32
 **4. Initial admin credentials & immediate password change.**
 On first startup, [`server/auth.ts`](../server/auth.ts) automatically creates the default administrator account:
 * Username: `admin`
-* Password: `admin`
+* Password: the value of `INITIAL_ADMIN_PASSWORD`, or - when that is unset - a random password the container prints once at startup (`docker compose logs filadex`, or Container Manager's log view)
 * Force password change: `forceChangePassword: true`
 
-There is no variable that sets this password. The account is created whenever no account has the admin role, so renaming it does not bring a second one back. Until the password has been changed, the server answers every request from that account except the change itself and updating language preference with `403`, and the web interface takes you to `/change-password`.
+The account is created whenever no account has the admin role, so renaming it does not bring a second one back. Until the password has been changed, the server answers every request from that account except the change itself and updating language preference with `403`, and the web interface takes you to `/change-password`.
 
 **4a. `APP_URL`.** Set this to the address users open Filadex at (for example `https://filadex.your-nas.synology.me`). Verification and password-reset emails link to it, and they are not sent while it is unset - the link must not come from the request, whose `Host` header anyone can forge.
 
@@ -84,7 +84,7 @@ docker run --rm -p 8080:8080 \
   filadex:1.0.0
 ```
 
-Open `http://localhost:8080` in your browser. Log in with `admin` / `admin`, verify that it prompts you to change your password, then stop the container (`Ctrl+C`) and delete the temporary `data-test` directory.
+Open `http://localhost:8080` in your browser. Log in as `admin` with the password from the startup log, verify that it prompts you to change your password, then stop the container (`Ctrl+C`) and delete the temporary `data-test` directory.
 
 ---
 
