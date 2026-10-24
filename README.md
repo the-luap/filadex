@@ -37,7 +37,7 @@ Filadex is an open-source filament management system for 3D printing enthusiasts
 
 ## 📋 Prerequisites
 
-- Node.js (v16 or higher)
+- Node.js (v22.22 or higher)
 - npm or yarn
 - PostgreSQL (v12 or higher) or SQLite (embedded, no separate server needed)
 - Docker & Docker Compose (optional, for containerized deployment)

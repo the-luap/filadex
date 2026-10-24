@@ -20,8 +20,8 @@ jobs:
           # .markAsUncloneable` at import. That export does not exist on Node 20,
           # so both jobs died loading the test harness, before any test ran.
           # The application itself is unaffected - testcontainers is a
-          # devDependency, and the image is on node:22-alpine too.
-          node-version: '22'
+          # devDependency, and the image is on node:22.23.4-alpine too.
+          node-version: '22.23.4'
           cache: npm
       - run: npm ci
       - name: Type check (Postgres)
@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.4'
           cache: npm
       - run: npm ci
       - run: npm run lint
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.4'
           cache: npm
       - run: npm ci
       - run: npm run build
@@ -76,7 +76,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.4'
           cache: npm
       - run: npm ci
       - run: npm run db:check-drift
@@ -98,8 +98,8 @@ jobs:
           # .markAsUncloneable` at import. That export does not exist on Node 20,
           # so both jobs died loading the test harness, before any test ran.
           # The application itself is unaffected - testcontainers is a
-          # devDependency, and the image is on node:22-alpine too.
-          node-version: '22'
+          # devDependency, and the image is on node:22.23.4-alpine too.
+          node-version: '22.23.4'
           cache: npm
       - run: npm ci
       - run: npm run db:verify-upgrade
@@ -123,7 +123,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.4'
           cache: npm
       - run: npm ci
       - name: Starter fixture
@@ -165,7 +165,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.4'
           cache: npm
       - run: npm ci
       - name: Starter fixture
@@ -194,7 +194,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.4'
           cache: npm
       - run: npm ci
       - name: Install Chromium

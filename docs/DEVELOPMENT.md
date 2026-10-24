@@ -18,7 +18,7 @@ This guide provides detailed information for developers working on Filadex.
 
 Before you begin, ensure you have the following installed:
 
-- **Node.js** v16 or higher ([Download](https://nodejs.org/))
+- **Node.js** v22.22 or higher ([Download](https://nodejs.org/))
 - **PostgreSQL** v12 or higher ([Download](https://www.postgresql.org/download/)) or **SQLite** (built-in; no external server needed)
 - **npm** (comes with Node.js) or **yarn**
 - **Git**
@@ -454,7 +454,7 @@ This runs TypeScript compiler without emitting files.
 
 - Clear `node_modules` and reinstall: `rm -rf node_modules && npm install`
 - Clear build cache: `rm -rf dist`
-- Check Node.js version: `node -v` (should be v16+)
+- Check Node.js version: `node -v` (should be v22.22+)
 
 ### Database Schema Issues
 

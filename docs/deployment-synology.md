@@ -61,7 +61,7 @@ In your terminal (PowerShell, bash, or zsh) inside the project root:
 docker build -t filadex:1.0.0 -t filadex:latest .
 ```
 
-The build is a multi-stage Dockerfile (`node:20-alpine`) that compiles the Vite frontend, the Express backend bundles (both Postgres and SQLite engines), database migrators, and seeders.
+The build is a multi-stage Dockerfile (`node:22.23.4-alpine`) that compiles the Vite frontend, the Express backend bundles (both Postgres and SQLite engines), database migrators, and seeders.
 
 ### Verify Architecture
 Ensure the built image matches your Synology NAS CPU architecture (typically `amd64` on Intel/AMD Plus series models):
@@ -347,9 +347,9 @@ If the domain does not load, run the following diagnostic steps in order:
 ## Stage 9 — First Login and Initial Configuration
 
 1. Open `https://filadex.yourdomain.synology.me` in your web browser.
-2. Sign in with the default credentials:
+2. Sign in with the initial administrator credentials:
    * **Username:** `admin`
-   * **Password:** `admin`
+   * **Password:** the value of `INITIAL_ADMIN_PASSWORD`, or the one-time random password printed in the container log when that variable is unset (`docker compose logs filadex`, or Container Manager's log view)
 3. You will immediately be redirected to the change password form. Enter a strong, secure password.
 4. **Starter Data:** Because `INIT_SAMPLE_DATA=true` was set, common manufacturers (Bambu Lab, Prusament, etc.), materials (PLA, PETG, ABS, TPU), and standard 1.75 mm diameters are ready for use.
 5. **3D Printer & Moonraker Integration (Optional):**
