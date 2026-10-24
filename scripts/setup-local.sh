@@ -11,13 +11,14 @@ echo ""
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
-    echo "❌ Node.js is not installed. Please install Node.js v16 or higher."
+    echo "❌ Node.js is not installed. Please install Node.js v22.22 or higher."
     exit 1
 fi
 
-NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-if [ "$NODE_VERSION" -lt 16 ]; then
-    echo "❌ Node.js version must be 16 or higher. Current version: $(node -v)"
+NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
+NODE_MINOR=$(node -p 'process.versions.node.split(".")[1]')
+if [ "$NODE_MAJOR" -lt 22 ] || { [ "$NODE_MAJOR" -eq 22 ] && [ "$NODE_MINOR" -lt 22 ]; }; then
+    echo "❌ Node.js version must be 22.22 or higher. Current version: $(node -v)"
     exit 1
 fi
 

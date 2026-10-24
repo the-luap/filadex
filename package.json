@@ -3,6 +3,9 @@
   "version": "1.1.0",
   "type": "module",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.22.0"
+  },
   "scripts": {
     "dev": "tsx server/index.ts",
     "build": "vite build && npm run build:server:pg && npm run build:server:sqlite && npm run build:migrate:pg && npm run build:migrate:sqlite && npm run build:seed:pg && npm run build:seed:sqlite",

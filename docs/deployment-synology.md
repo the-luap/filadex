@@ -347,9 +347,9 @@ If the domain does not load, run the following diagnostic steps in order:
 ## Stage 9 — First Login and Initial Configuration
 
 1. Open `https://filadex.yourdomain.synology.me` in your web browser.
-2. Sign in with the default credentials:
+2. Sign in with the initial administrator credentials:
    * **Username:** `admin`
-   * **Password:** `admin`
+   * **Password:** the value of `INITIAL_ADMIN_PASSWORD`, or the one-time random password printed in the container log when that variable is unset (`docker compose logs filadex`, or Container Manager's log view)
 3. You will immediately be redirected to the change password form. Enter a strong, secure password.
 4. **Starter Data:** Because `INIT_SAMPLE_DATA=true` was set, common manufacturers (Bambu Lab, Prusament, etc.), materials (PLA, PETG, ABS, TPU), and standard 1.75 mm diameters are ready for use.
 5. **3D Printer & Moonraker Integration (Optional):**
