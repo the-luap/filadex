@@ -61,7 +61,7 @@ In your terminal (PowerShell, bash, or zsh) inside the project root:
 docker build -t filadex:1.0.0 -t filadex:latest .
 ```
 
-The build is a multi-stage Dockerfile (`node:20-alpine`) that compiles the Vite frontend, the Express backend bundles (both Postgres and SQLite engines), database migrators, and seeders.
+The build is a multi-stage Dockerfile (`node:22.23.4-alpine`) that compiles the Vite frontend, the Express backend bundles (both Postgres and SQLite engines), database migrators, and seeders.
 
 ### Verify Architecture
 Ensure the built image matches your Synology NAS CPU architecture (typically `amd64` on Intel/AMD Plus series models):
